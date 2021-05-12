@@ -1823,23 +1823,39 @@ def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr,
             print("End Output Flags")
         return True
 
-@forecast.callback([Output('finalize_trigger', 'data'),
-                   Output('finalizer_logic_alert', 'is_open'),
-                   Output('logic_alert_text', 'children')],
-                   [Input('sector', 'data'),
-                   Input('store_submit_button', 'data'),
-                   Input('finalize-button', 'n_clicks')],
-                   [State('curryr', 'data'),
-                   State('currqtr', 'data'),
-                   State('fileyr', 'data'),
-                   State('init_trigger', 'data')])
 
-def finalize_econ(sector_val, submit_button, download_button, curryr, currqtr, fileyr, success_init):
+@forecast.callback(Output('confirm_finalizer', 'displayed'),
+                [Input('sector', 'data'),
+                Input('store_submit_button', 'data'),
+                Input('finalize-button', 'n_clicks')],
+                [State('curryr', 'data'),
+                State('currqtr', 'data'),
+                State('init_trigger', 'data')])
+def confirm_finalizer(sector_val, submit_button, download_button, curryr, currqtr, success_init):
     input_id = get_input_id()
     if sector_val is None or success_init == False:
         raise PreventUpdate
-    # Need this callback to tie to update_data callback so the export is not executed before the data is actually updated, but only want to actually save the data when the finalize button is clicked, so only do that when the input id is for the finalize button
+    # Need this callback to tie to update_data callback so the callback is not executed before the data is actually updated, but only want to actually save the data when the finalize button is clicked, so only do that when the input id is for the finalize button
     elif input_id == "store_submit_button":
+        raise PreventUpdate
+    else:
+        print("End Confirm Finalizer")
+        return True
+
+
+@forecast.callback([Output('finalize_trigger', 'data'),
+                   Output('finalizer_logic_alert', 'is_open'),
+                   Output('logic_alert_text', 'children')],
+                   [Input('confirm_finalizer', 'submit_n_clicks')],
+                   [State('sector', 'data'),
+                    State('curryr', 'data'),
+                    State('currqtr', 'data'),
+                    State('fileyr', 'data'),
+                    State('init_trigger', 'data')])
+
+def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_init):
+    input_id = get_input_id()
+    if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)

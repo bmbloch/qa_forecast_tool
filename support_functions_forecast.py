@@ -861,26 +861,24 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val)
         for index, row in diffs.iterrows():
             for col_name in list(diffs.columns):
                 row_to_fix_diffs = index
-                if math.isnan(row[col_name]) == True:
-                    break
-                else:
+                if math.isnan(row[col_name]) == False:
                     fix_val = row[col_name]
-                if col_name == "inv":
-                    col_issue_diffs = "i_flag"
-                elif col_name == "cons":
-                    col_issue_diffs = "c_flag"
-                elif col_name == "avail":
-                    col_issue_diffs = "v_flag"
-                elif col_name == "mrent":
-                    col_issue_diffs = "g_flag"
-                elif col_name == "merent":
-                    col_issue_diffs = "e_flag"
-                yr_change_diffs = data.loc[row_to_fix_diffs]['yr']
-                
-                if using_coeff == 1:
-                    data = insert_fix_coeffs(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
-                else:
-                    data = insert_fix(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                    if col_name == "inv":
+                        col_issue_diffs = "i_flag"
+                    elif col_name == "cons":
+                        col_issue_diffs = "c_flag"
+                    elif col_name == "avail":
+                        col_issue_diffs = "v_flag"
+                    elif col_name == "mrent":
+                        col_issue_diffs = "g_flag"
+                    elif col_name == "merent":
+                        col_issue_diffs = "e_flag"
+                    yr_change_diffs = data.loc[row_to_fix_diffs]['yr']
+                    
+                    if using_coeff == 1:
+                        data = insert_fix_coeffs(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                    else:
+                        data = insert_fix(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
         has_diff = 1
     else:
         has_diff = 0

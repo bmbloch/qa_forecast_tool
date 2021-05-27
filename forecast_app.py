@@ -2476,6 +2476,7 @@ def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, file
             dataframe.sort_values(by=['identity', drop_val], ascending=[True, True], inplace=True)
             dataframe = dataframe.drop_duplicates('identity')
             dataframe = dataframe[['identity', drop_val]]
+            dataframe[drop_val] = dataframe[drop_val].rank(ascending=True, method='first')
             dataframe = dataframe.rename(columns={'identity': 'Submarkets With Flag', drop_val: 'Flag Ranking'})
             dataframe.sort_values(by=['Flag Ranking'], inplace=True)
         elif len(dataframe) == 0:

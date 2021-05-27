@@ -144,17 +144,6 @@ def gen_metrics(dataframe, identity_val, key_met_cols, key_emp_cols, yr_val):
     
     return dataframe_met, dataframe_emp
 
-# Function that drops columns of the dataframe that will be recalculated each time a sub is examined for flags
-def drop_cols(dataframe):
-        cols = dataframe.columns
-        for x in range(0, len(cols)):
-            if cols[x] == "Recalc Insert":
-                index = x
-        drop_list = cols[index :]
-        dataframe = dataframe.drop(columns = drop_list, axis = 1)
-        
-        return dataframe
-
 # This function calculates the implied vars on a met level
 def get_met_implied(dataframe, curryr, currqtr):
     dataframe['identity_met'] = dataframe['metcode'] + dataframe['subsector']

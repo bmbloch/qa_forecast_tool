@@ -30,7 +30,7 @@ from authenticate_forecast import authenticate_user, validate_login_session
 from server_forecast import forecast, server
 from stats_forecast import calc_stats
 from flags_forecast import cons_flags, vac_flags, rent_flags
-from support_functions_forecast import set_display_cols, display_frame, gen_metrics, drop_cols, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, rank_it, flag_examine
+from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, rank_it, flag_examine
 from login_layout_forecast import get_login_layout
 from forecast_app_layout import get_app_layout
 from timer import Timer
@@ -1424,7 +1424,7 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
 # This function produces the items that need to be returned by the update_data callback if the user has just loaded the program
 def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, fileyr, use_rol_close):
 
-    data_init = calc_stats(data_init, curryr, currqtr, 0, sector_val)
+    data_init = calc_stats(data_init, curryr, currqtr, True, sector_val)
     data_init = data_init[data_init['yr'] >= curryr - 6]
     data = data_init.copy()
     data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
@@ -1553,8 +1553,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
 
             if orig_flag_list[0] != "v_flag":
                 resolve_test = preview_data.copy()
-                resolve_test = drop_cols(resolve_test)
-                resolve_test = calc_stats(resolve_test, curryr, currqtr, 1, sector_val)
+                resolve_test = calc_stats(resolve_test, curryr, currqtr, False, sector_val)
                 resolve_test = resolve_test[resolve_test['identity'] == drop_val]
                 resolve_test = resolve_test[resolve_test['yr'] == flag_yr_val]
                 
@@ -2321,8 +2320,7 @@ def set_shim_drop(sector_val, success_init, submit_button, identity_val, curryr,
         else:
             # In order to get the next sub that is flagged, we need to recalc stats and flags to update the data to see if the old flag is removed.
             # Downside is this will slow down performance, as still need to call these functions in the next callback to get the new outputs, and cant combine due to circular callback issue
-            data = drop_cols(data)
-            data = calc_stats(data, curryr, currqtr, 1, sector_val)
+            data = calc_stats(data, curryr, currqtr, False, sector_val)
             data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
             data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
             data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
@@ -2355,8 +2353,7 @@ def calc_stats_flags(drop_val, sector_val, init_fired, yr_val, curryr, currqtr, 
 
         input_id = get_input_id()
         if input_id != "dropman" and input_id != "key_yr_radios":
-            data = drop_cols(data)
-            data = calc_stats(data, curryr, currqtr, sector_val)
+            data = calc_stats(data, curryr, currqtr, False, sector_val)
             data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
             data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
             data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)

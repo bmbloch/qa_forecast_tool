@@ -8,10 +8,21 @@ from IPython.core.display import display, HTML
 from pathlib import Path
 import math
 
+# Function that drops columns of the dataframe that will be recalculated each time a sub is examined for flags
+def drop_cols(dataframe):
+    cols = dataframe.columns
+    index = dataframe.columns.get_loc("Recalc Insert")
+    drop_list = cols[index :]
+    dataframe = dataframe.drop(columns = drop_list, axis = 1)
+        
+    return dataframe
 
 # This function will calculate the key metrics needed to assess viability of oob forecast
 def calc_stats(data, curryr, currqtr, first, sector_val):
     print("start calc stats")
+
+    if first == False:
+        data = drop_cols(data)
 
     # Use these identities to "drag down" the values into subsequent periods when necessary
     data['identity_fill_1'] = data['identity'] + str(curryr - 1) + "5"
@@ -248,7 +259,7 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
         if var_name == "cons":
             col_test.remove('count_cons')
 
-        if first == 0:
+        if first == True:
             if var_name != "cons":  
                 if currqtr == 4:
                     data['f_5_var_' + var_name] = data[(data['yr'] >= curryr) & (data['qtr'] == 5)][col_name].quantile(0.05)
@@ -263,7 +274,7 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
       
         # Calculate the other stats for subsequent steps that we only want to calculate the first time stats are being calculated.
         # Do it when the var is G_mrent because dont want to calc multiple times, and G_mrent is the last call of this function
-        if var_name == 'G_mrent' and first == 0:
+        if var_name == 'G_mrent' and first == True:
 
             # Calculate the 5th and 95th percentile for gap level on the national level by subsector
             gap_quarts = data.copy()
@@ -632,7 +643,7 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
     data = gen_variability_metrics(data, 'cons', curryr, currqtr, first)
     data = gen_variability_metrics(data, 'G_mrent', curryr, currqtr, first)
     
-    if first == 1:
+    if first == False:
         # Calculate the abs/cons ratio for forecast years if this is not the first calc stats
         if currqtr != 4:
             data['cons_use'] = np.where((data['forecast_tag'] == 1) & (data['curr_yr_trend_cons'] > 0) & (data['abs'] >= data['curr_yr_trend_cons']), data['implied_cons'], np.nan)
@@ -682,7 +693,7 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
             data['abs_nonc'] = round(data['abs_nonc'], 0)
     
     # Recalculate nc adjusted abs for forecast years if this is not the first run of calc stats, since the data may have been updated with a shim adjustment        
-    if first == 1:
+    if first == False:
         data['abs_nonc'] = np.where((data['yr'] == curryr) & (currqtr == 4) & (data['qtr'] == 5), data['abs'] - (data['cons'] * 0.60) - (data['extra_used_act']), data['abs_nonc'])
         data['abs_nonc'] = np.where((data['yr'] > curryr), data['abs'] - (data['cons'] * 0.60) - data['extra_used_act'], data['abs_nonc'])
         if currqtr != 4:

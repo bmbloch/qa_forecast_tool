@@ -37,6 +37,7 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
         file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_mostrecentsave.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
         oob_edits = pd.read_pickle(file_path)
         file_used = "edits"
+        file_load_error = False
         print("Using Saved File")
     except:
         file_used = "oob"

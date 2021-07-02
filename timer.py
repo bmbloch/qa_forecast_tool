@@ -11,10 +11,10 @@ class Timer(ContextDecorator):
     """Time your code using a class, context manager, or decorator"""
     timers: ClassVar[Dict[str, float]] = dict()
     name: Optional[str] = None
-    text: str = "Elapsed time: {:0.2f} seconds"
+    text: str = "{:0.2f} seconds"
     logger: Optional[Callable[[str], None]] = print
     _start_time: Optional[float] = field(default=None, init=False, repr=False)
-
+    
     def __post_init__(self) -> None:
         """Initialization: add timer to dict of timers"""
         if self.name:
@@ -38,7 +38,7 @@ class Timer(ContextDecorator):
 
         # Report elapsed time
         if self.logger:
-            self.logger(self.text.format(elapsed_time))
+            self.logger(self.text.format(elapsed_time) + " for " + self.name)
         if self.name:
             self.timers[self.name] += elapsed_time
         

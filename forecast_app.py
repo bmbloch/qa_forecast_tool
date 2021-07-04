@@ -47,203 +47,246 @@ def get_types(dataframe, sector_val):
 
     type_dict = {}
     format_dict = {}
-    dtypes = pd.DataFrame(dataframe.dtypes, columns = ['dtype'])
-    dtypes = dtypes.reset_index()
 
-    for index, row in dtypes.iterrows():
-        if row['dtype'] == "object":
-            type_dict[row['index']] = 'text'
-            format_dict[row['index']] = Format(precision=2, scheme=Scheme.fixed)
-        elif row['dtype'] == 'int64' or row['dtype'] == 'int32':
-            type_dict[row['index']] = 'numeric'
-            format_dict[row['index']] = Format(precision=0, scheme=Scheme.fixed)
-        elif row['dtype'] == 'float64':
-            type_dict[row['index']] = 'numeric'
-            format_dict[row['index']] = FormatTemplate.percentage(2)
+    type_dict['subsector'] = 'text'
+    type_dict['Subsector'] = 'text'
+    type_dict['metcode'] = 'text'
+    type_dict['Metcode'] = 'text'
+    type_dict['Flag Type'] = 'text'
 
+
+    type_dict['imp avginc chg'] = 'numeric'
+    type_dict['avg inc chg'] = 'numeric'
+    type_dict['emp chg'] = 'numeric'
+    type_dict['emp chg z'] = 'numeric'
+    type_dict['emp quart'] = 'numeric'
+    type_dict['rol emp chg'] = 'numeric'
+    type_dict['rol off emp chg'] = 'numeric'
+    type_dict['off emp chg'] = 'numeric'
+    type_dict['off emp quart'] = 'numeric'
+    type_dict['rol ind emp chg'] = 'numeric'
+    type_dict['ind emp chg'] = 'numeric'
+    type_dict['imp indemp chg'] = 'numeric'
+    type_dict['ind emp quart'] = 'numeric'
+    type_dict['min gap'] = 'numeric'
+    type_dict['min gap chg'] = 'numeric'
+    type_dict['max gap'] = 'numeric'
+    type_dict['max gap chg'] = 'numeric'
+    type_dict['gap 5'] = 'numeric'
+    type_dict['gap 95'] = 'numeric'
+    type_dict['imp gapchg'] = 'numeric'
+    type_dict['imp Gmerent'] = 'numeric'
+    type_dict['gap quart'] = 'numeric'
+    type_dict['vac chg sub var'] = 'numeric'
+    type_dict['avg Gmrent'] = 'numeric'
+    type_dict['Gmrent quart'] = 'numeric'
+    type_dict['f var Gmrent'] = 'numeric'
+    type_dict['Gmrent sub var'] = 'numeric'
+    type_dict['f var cons'] = 'numeric'
+    type_dict['imp cons'] = 'numeric'
+    type_dict['avg vac chg'] = 'numeric'
+    type_dict['vac z'] = 'numeric'
+    type_dict['min vac'] = 'numeric'
+    type_dict['max vac'] = 'numeric'
+    type_dict['trendabs'] = 'numeric'
+    type_dict['imp abs'] = 'numeric'
+    type_dict['vac quart'] = 'numeric'
+    type_dict['f var vacchg'] = 'numeric'
+    type_dict['subid'] = 'numeric'
+    type_dict['Subid'] = 'numeric'
     type_dict['inv'] = 'numeric'
+    type_dict['avail'] = 'numeric'
+    type_dict['yr'] = 'numeric'
+    type_dict['qtr'] = 'numeric'
     type_dict['rol cons'] = 'numeric'
     type_dict['rol abs'] = 'numeric'
     type_dict['rol vac'] = 'numeric'
     type_dict['askrent'] = 'numeric'
-    type_dict['effrent'] = 'numeric'
     type_dict['ask rent'] = 'numeric'
     type_dict['eff rent'] = 'numeric'
-    type_dict['ask_chg'] = 'numeric'
-    type_dict['eff_chg'] = 'numeric'
+    type_dict['ask chg'] = 'numeric'
+    type_dict['eff chg'] = 'numeric'
     type_dict['gap'] = 'numeric'
     type_dict['gap chg'] = 'numeric'
     type_dict['rol gap chg'] = 'numeric'
-    type_dict['Flag Type'] = 'text'
     type_dict['Total Flags'] = 'numeric'
     type_dict['% Fcast Rows W Flag'] = 'numeric'
     type_dict['% Subs W Flag'] = 'numeric'
-    type_dict['3yravgcons'] = 'numeric'
+    type_dict['3yr avgcons'] = 'numeric'
     type_dict['trendcons'] = 'numeric'
-    type_dict['3yr_avgcons'] = 'numeric'
-    type_dict['3yr_avgabs'] = 'numeric'
-    type_dict['3yr_avgabs_nonc'] = 'numeric'
-    type_dict['roll3_abs_cons_r'] = 'numeric'
-    type_dict['imp_abs'] = 'numeric'
-    type_dict['imp_abs_rol'] = 'numeric'
-    type_dict['histimp_avgabs'] = 'numeric'
-    type_dict['3yr_avgGmrent'] = 'numeric'
-    type_dict['3yr_avgGmrent_nonc'] = 'numeric'
-    type_dict['imp_Gmrent'] = 'numeric'
-    type_dict['imp_Gmrent_rol'] = 'numeric'
-    type_dict['histimp_avgGmrent'] = 'numeric'
-    type_dict['imp_Gmerent'] = 'numeric'
-    type_dict['imp_Gmerent_rol'] = 'numeric'
-    type_dict['3yr_avgGmerent'] = 'numeric'
-    type_dict['implied_rolsabs'] = 'numeric'
-    type_dict['sd_vacchg'] = 'numeric'
-    type_dict['sd_G_mrent'] = 'numeric'
-    type_dict['avg_G_mrent'] = 'numeric'
-    type_dict['p_unabs_cons'] = 'numeric'
-    type_dict['trendabs'] = 'numeric'
-    type_dict['f_var_vacchg'] = 'numeric'
-    type_dict['avg_vacchg'] = 'numeric'
-    type_dict['avg_G_mrent_nonc'] = 'numeric'
-    type_dict['trendGmrent'] = 'numeric'
-    type_dict['histimp_Gmrent'] = 'numeric'
-    type_dict['3yr_avg_empchg'] = 'numeric'
-    type_dict['imp_avginc_chg'] = 'numeric'
-    type_dict['imp_offemp_chg'] = 'numeric'
-    type_dict['imp_empchg'] = 'numeric'
-    type_dict['imp_indemp_chg'] = 'numeric'
-    type_dict['trendGmerent'] = 'numeric'
-    type_dict['trendgapchg'] = 'numeric'
-    type_dict['imp_gapchg'] = 'numeric'
-    type_dict['imp_cons'] = 'numeric'
+    type_dict['abs cons r'] = 'numeric'
+    type_dict['abs nonc'] = 'numeric'
+    type_dict['3yr avgabs'] = 'numeric'
+    type_dict['3yr avgabs nonc'] = 'numeric'
+    type_dict['imp abs rol'] = 'numeric'
+    type_dict['histimp avgabs'] = 'numeric'
+    type_dict['3yr avgGmrent'] = 'numeric'
+    type_dict['3yr avgGmrent nonc'] = 'numeric'
+    type_dict['imp Gmrent'] = 'numeric'
+    type_dict['imp Gmrent rol'] = 'numeric'
+    type_dict['sd vacchg'] = 'numeric'
+    type_dict['sd Gmrent'] = 'numeric'
+    type_dict['Gmrent nonc'] = 'numeric'
+    type_dict['avg Gmrent nonc'] = 'numeric'
+    type_dict['histimp Gmrent'] = 'numeric'
+    type_dict['3yr avg empchg'] = 'numeric'
+    type_dict['imp offemp chg'] = 'numeric'
+    type_dict['imp empchg'] = 'numeric'
     type_dict['vac chg'] =  'numeric'
     type_dict['rol vac chg'] =  'numeric'
-    type_dict['rolask_chg'] =  'numeric'
-    type_dict['rol_eff_chg'] =  'numeric'
-    type_dict['avg_abs_cons'] = 'numeric'
-    type_dict['10_yr_vac'] = 'numeric'
+    type_dict['rol ask chg'] =  'numeric'
+    type_dict['rol eff chg'] =  'numeric'
+    type_dict['avg abs cons'] = 'numeric'
+    type_dict['10 yr vac'] = 'numeric'
     type_dict['occ'] = 'numeric'
-    type_dict['rol_ask_chg'] = 'numeric'
-    type_dict['rol_eff_chg'] = 'numeric'
-    type_dict['p_abs_cons'] = 'numeric'
-    type_dict['emp_5'] = 'numeric'
-    type_dict['emp_95'] = 'numeric'
-    type_dict['hist_emp_10'] = 'numeric'
-    type_dict['hist_emp_90'] = 'numeric'
+    type_dict['p abs cons'] = 'numeric'
+    type_dict['emp 5'] = 'numeric'
+    type_dict['emp 95'] = 'numeric'
+    type_dict['hist emp 10'] = 'numeric'
+    type_dict['hist emp 90'] = 'numeric'
     type_dict['Gmrent'] = 'numeric'
     type_dict['Gmerent'] = 'numeric'
     type_dict['rol Gmrent'] = 'numeric'
     type_dict['rol Gmerent'] = 'numeric'
-    
+    type_dict['cons'] = 'numeric'
+    type_dict['mrent'] = 'numeric'
+    type_dict['merent'] = 'numeric'
+    type_dict['vac'] = 'numeric'
+    type_dict['abs'] = 'numeric'
+    type_dict['Gmrent z'] = 'numeric'
+    type_dict['cons prem'] = 'numeric'
+    type_dict['min Gmrent'] = 'numeric'
+    type_dict['max Gmrent'] = 'numeric'
+    type_dict['h'] = 'numeric'
+    type_dict['rol h'] = 'numeric'
+    type_dict['rol e'] = 'numeric'
+    type_dict['e'] = 'numeric'
+    type_dict['t'] = 'numeric'
 
+
+    format_dict['emp 5'] = FormatTemplate.percentage(1)
+    format_dict['emp 95'] = FormatTemplate.percentage(1)
+    format_dict['hist emp 10'] = FormatTemplate.percentage(1)
+    format_dict['hist emp 90'] = FormatTemplate.percentage(1)
+    format_dict['emp chg'] = FormatTemplate.percentage(1)
+    format_dict['rol emp chg'] = FormatTemplate.percentage(1)
+    format_dict['3yr avg empchg'] = FormatTemplate.percentage(1)
+    format_dict['ind emp chg'] = FormatTemplate.percentage(1)
+    format_dict['rol ind emp chg'] = FormatTemplate.percentage(1)
+    format_dict['off emp chg'] = FormatTemplate.percentage(1)
+    format_dict['rol off emp chg'] = FormatTemplate.percentage(1)
+    format_dict['imp empchg'] = FormatTemplate.percentage(1)
+    format_dict['imp indemp chg'] = FormatTemplate.percentage(1)
+    format_dict['imp offemp chg'] = FormatTemplate.percentage(1)
+    format_dict['% Fcast Rows W Flag'] = FormatTemplate.percentage(1)
+    format_dict['% Subs W Flag'] = FormatTemplate.percentage(1)
+    format_dict['cons prem'] = FormatTemplate.percentage(1)
+    format_dict['avg inc chg'] = FormatTemplate.percentage(1)
+
+    
+    format_dict['vac'] = FormatTemplate.percentage(2)
     format_dict['rol vac'] = FormatTemplate.percentage(2)
-    format_dict['askrent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['effrent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['ask rent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['eff rent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['mrent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['rolmrent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['merent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['rolmerent'] = Format(precision=2, scheme=Scheme.fixed)
     format_dict['vac chg'] = FormatTemplate.percentage(2)
     format_dict['rol vac chg'] = FormatTemplate.percentage(2)
-    format_dict['ask_chg'] = FormatTemplate.percentage(2)
-    format_dict['rol_ask_chg'] = FormatTemplate.percentage(2)
-    format_dict['eff_chg'] = FormatTemplate.percentage(2)
-    format_dict['rol_eff_chg'] = FormatTemplate.percentage(2)
+    format_dict['ask chg'] = FormatTemplate.percentage(2)
+    format_dict['rol ask chg'] = FormatTemplate.percentage(2)
+    format_dict['eff chg'] = FormatTemplate.percentage(2)
+    format_dict['rol eff chg'] = FormatTemplate.percentage(2)
     format_dict['gap'] = FormatTemplate.percentage(2)
     format_dict['gap chg'] = FormatTemplate.percentage(2)
     format_dict['rol gap chg'] = FormatTemplate.percentage(2)
-    format_dict['Flag Type'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['Total Flags'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['% Fcast Rows W Flag'] = FormatTemplate.percentage(1)
-    format_dict['% Subs W Flag'] = FormatTemplate.percentage(1)
-    format_dict['vac_z'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['G_mrent_z'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['emp_chg_z'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['vac_quart'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['G_mrent_quart'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['emp_quart'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['ind_emp_quart'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['off_emp_quart'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['gap_quart'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['f_var_vac_chg'] = FormatTemplate.percentage(3)
-    format_dict['f_avg_var_vac_chg_us'] = FormatTemplate.percentage(3)
-    format_dict['f_var_G_mrent'] = FormatTemplate.percentage(3)
-    format_dict['f_avg_var_G_mrent_us'] = FormatTemplate.percentage(3)
-    format_dict['abs_cons_r'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['rolling_3_abs_cons_r'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['roll3_abs_cons_r'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['f_var_cons'] = Format(group=",")
-    format_dict['f_avg_var_cons_us'] = Format(group=",")
-    format_dict['3yr_avgcons'] = Format(group=",")
+    format_dict['3yr avgGmrent'] = FormatTemplate.percentage(2)
+    format_dict['3yr avgGmrent nonc'] = FormatTemplate.percentage(2)
+    format_dict['imp Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['imp Gmrent rol'] = FormatTemplate.percentage(2)
+    format_dict['min vac'] = FormatTemplate.percentage(2)
+    format_dict['max vac'] = FormatTemplate.percentage(2)
+    format_dict['imp Gmerent'] = FormatTemplate.percentage(2)
+    format_dict['imp gapchg'] = FormatTemplate.percentage(2)
+    format_dict['sd vacchg'] = FormatTemplate.percentage(2)
+    format_dict['sd Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['avg Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['Gmrent nonc'] = FormatTemplate.percentage(2)
+    format_dict['avg Gmrent nonc'] = FormatTemplate.percentage(2)
+    format_dict['histimp Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['f var vacchg'] = FormatTemplate.percentage(2)
+    format_dict['avg vac chg'] = FormatTemplate.percentage(2)
+    format_dict['imp avginc chg'] = FormatTemplate.percentage(2)
+    format_dict['10 yr vac'] = FormatTemplate.percentage(2)
+    format_dict['Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['Gmerent'] = FormatTemplate.percentage(2)
+    format_dict['rol Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['rol Gmerent'] = FormatTemplate.percentage(2)
+    format_dict['min Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['max Gmrent'] = FormatTemplate.percentage(2)
+    format_dict['min gap'] = FormatTemplate.percentage(2)
+    format_dict['min gap chg'] = FormatTemplate.percentage(2)
+    format_dict['max gap'] = FormatTemplate.percentage(2)
+    format_dict['max gap chg'] = FormatTemplate.percentage(2)
+    format_dict['gap 5'] = FormatTemplate.percentage(2)
+    format_dict['gap 95'] = FormatTemplate.percentage(2)
+
+    
+    format_dict['f var Gmrent'] = FormatTemplate.percentage(3)
+    format_dict['Gmrent sub var'] = FormatTemplate.percentage(3)
+    format_dict['vac chg sub var'] = FormatTemplate.percentage(3)
+    
+
+    format_dict['f var cons'] = Format(group=",")
+    format_dict['3yr avgcons'] = Format(group=",")
     format_dict['trendcons'] = Format(group=",")
     format_dict['trendabs'] = Format(group=",")
-    format_dict['3yr_avgabs'] = Format(group=",")
-    format_dict['imp_abs'] = Format(group=",")
-    format_dict['imp_abs_rol'] = Format(group=",")
-    format_dict['histimp_avgabs'] = Format(group=",")
-    format_dict['p_abs_cons'] = Format(group=",")
-    format_dict['3yr_avgGmrent'] = FormatTemplate.percentage(2)
-    format_dict['3yr_avgGmrent_nonc'] = FormatTemplate.percentage(2)
-    format_dict['imp_Gmrent'] = FormatTemplate.percentage(2)
-    format_dict['imp_Gmrent_rol'] = FormatTemplate.percentage(2)
-    format_dict['histimp_avgGmrent'] = FormatTemplate.percentage(2)
-    format_dict['imp_Gmerent'] = FormatTemplate.percentage(2)
-    format_dict['trendGmrent'] = FormatTemplate.percentage(2)
-    format_dict['trendGmerent'] = FormatTemplate.percentage(2)
-    format_dict['trendgapchg'] = FormatTemplate.percentage(2)
-    format_dict['imp_gapchg'] = FormatTemplate.percentage(2)
-    format_dict['implied_rolsabs'] = Format(group=",")
+    format_dict['3yr avgabs'] = Format(group=",")
+    format_dict['imp abs'] = Format(group=",")
+    format_dict['imp abs rol'] = Format(group=",")
+    format_dict['histimp avgabs'] = Format(group=",")
+    format_dict['p abs cons'] = Format(group=",")
+    format_dict['imp cons'] = Format(group=",")
     format_dict['inv'] = Format(group=",")
     format_dict['cons'] = Format(group=",")
     format_dict['rol cons'] = Format(group=",")
     format_dict['abs'] = Format(group=",")
     format_dict['rol abs'] = Format(group=",")
-    format_dict['abs_nonc'] = Format(group=",")
-    format_dict['p_unabs_cons'] = Format(group=",")
+    format_dict['abs nonc'] = Format(group=",")
     format_dict['avail'] = Format(group=",")
     format_dict['occ'] = Format(group=",")
     format_dict['h'] = Format(group=",")
-    format_dict['rol_h'] = Format(group=",")
-    format_dict['rol_e'] = Format(group=",")
+    format_dict['rol h'] = Format(group=",")
+    format_dict['rol e'] = Format(group=",")
     format_dict['e'] = Format(group=",")
     format_dict['t'] = Format(group=",")
-    format_dict['sd_vacchg'] = FormatTemplate.percentage(2)
-    format_dict['sd_G_mrent'] = FormatTemplate.percentage(2)
-    format_dict['avg_G_mrent'] = FormatTemplate.percentage(2)
-    format_dict['avg_G_mrent_nonc'] = FormatTemplate.percentage(2)
-    format_dict['trendGmrent'] = FormatTemplate.percentage(2)
-    format_dict['histimp_Gmrent'] = FormatTemplate.percentage(2)
-    format_dict['f_var_vacchg'] = FormatTemplate.percentage(2)
-    format_dict['avg_vacchg'] = FormatTemplate.percentage(2)
-    format_dict['p_unabs_cons'] = Format(group=",")
-    format_dict['3yr_avgabs_nonc'] = Format(group=",")
-    format_dict['3yr_avg_empchg'] = FormatTemplate.percentage(2)
-    format_dict['imp_avginc_chg'] = FormatTemplate.percentage(2)
-    format_dict['imp_cons'] = Format(group=",")
-    format_dict['avg_abs_cons'] = Format(precision=1, scheme=Scheme.fixed)
-    format_dict['10_yr_vac'] = FormatTemplate.percentage(2)
-    format_dict['g_mrent'] = FormatTemplate.percentage(2)
-    format_dict['g_merent'] = FormatTemplate.percentage(2)
-    format_dict['Gmrent'] = FormatTemplate.percentage(2)
-    format_dict['Gmerent'] = FormatTemplate.percentage(2)
-    format_dict['rol Gmrent'] = FormatTemplate.percentage(2)
-    format_dict['rol Gmerent'] = FormatTemplate.percentage(2)
-    format_dict['emp_5'] = FormatTemplate.percentage(1)
-    format_dict['emp_95'] = FormatTemplate.percentage(1)
-    format_dict['hist_emp_10'] = FormatTemplate.percentage(1)
-    format_dict['hist_emp_90'] = FormatTemplate.percentage(1)
-    format_dict['emp_chg'] = FormatTemplate.percentage(1)
-    format_dict['rol_emp_chg'] = FormatTemplate.percentage(1)
-    format_dict['3yr_avg_empchg'] = FormatTemplate.percentage(1)
-    format_dict['ind_emp_chg'] = FormatTemplate.percentage(1)
-    format_dict['rol_ind_emp_chg'] = FormatTemplate.percentage(1)
-    format_dict['off_emp_chg'] = FormatTemplate.percentage(1)
-    format_dict['rol_off_emp_chg'] = FormatTemplate.percentage(1)
-    format_dict['imp_empchg'] = FormatTemplate.percentage(1)
-    format_dict['imp_indemp_chg'] = FormatTemplate.percentage(1)
-    format_dict['imp_offemp_chg'] = FormatTemplate.percentage(1)
+    format_dict['3yr avgabs nonc'] = Format(group=",")
+
     
+    format_dict['Flag Type'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Total Flags'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['subsector'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Subsector'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['metcode'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Metcode'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['yr'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['qtr'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['vac quart'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Gmrent quart'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['emp quart'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['ind emp quart'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['off emp quart'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['gap quart'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['subid'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Subid'] = Format(precision=0, scheme=Scheme.fixed)
+
+    
+    format_dict['vac z'] = Format(precision=1, scheme=Scheme.fixed)
+    format_dict['Gmrent z'] = Format(precision=1, scheme=Scheme.fixed)
+    format_dict['emp chg z'] = Format(precision=1, scheme=Scheme.fixed)
+    format_dict['abs cons r'] = Format(precision=1, scheme=Scheme.fixed)
+    format_dict['avg abs cons'] = Format(precision=1, scheme=Scheme.fixed)
+
+    format_dict['askrent'] = Format(precision=2, scheme=Scheme.fixed)
+    format_dict['ask rent'] = Format(precision=2, scheme=Scheme.fixed)
+    format_dict['eff rent'] = Format(precision=2, scheme=Scheme.fixed)
+    format_dict['mrent'] = Format(precision=2, scheme=Scheme.fixed)
+    format_dict['merent'] = Format(precision=2, scheme=Scheme.fixed)
 
     return type_dict, format_dict
 
@@ -2688,6 +2731,20 @@ def output_data(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_list
         # Set the key metrics and employment metrics display
         key_metrics = data.copy()
         key_metrics, key_emp = gen_metrics(key_metrics, man_val, key_met_cols, key_emp_cols, yr_val)
+        
+        for col_name in list(key_metrics.columns):
+            if "_" in col_name:
+                col_name_replace = col_name.replace("_", " ")
+                if "G mrent" in col_name_replace:
+                    col_name_replace = col_name_replace.replace("G mrent", "Gmrent")
+                key_metrics.rename(columns={col_name: col_name_replace}, inplace=True)
+        for col_name in list(key_emp.columns):
+            if "_" in col_name:
+                col_name_replace = col_name.replace("_", " ")
+                if "G mrent" in col_name_replace:
+                    col_name_replace = col_name_replace.replace("G mrent", "Gmrent")
+                key_emp.rename(columns={col_name: col_name_replace}, inplace=True)
+
         highlighting_metrics = get_style("partial", key_metrics, dash_curryr, dash_second_five)
         highlighting_emp = get_style("partial", key_emp, dash_curryr, dash_second_five)
      

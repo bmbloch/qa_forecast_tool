@@ -55,7 +55,7 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
                     if subsector == "DW":
                         nrows = 1823
                     elif subsector == "F":
-                        nrows = 1292
+                        nrows = 2014
                     data_in = pd.read_csv(file_path, encoding = 'utf-8',  na_values= "", keep_default_na = False, nrows = nrows)
                     data_in_p = pd.read_stata(file_path_p)
                 cols = list(data_in.columns)

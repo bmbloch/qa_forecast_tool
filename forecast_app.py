@@ -31,6 +31,7 @@ from server_forecast import forecast, server
 from stats_forecast import calc_stats
 from flags_forecast import cons_flags, vac_flags, rent_flags
 from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, rank_it, flag_examine
+from support_functions_forecast import set_bar_scale, set_y2_scale
 from login_layout_forecast import get_login_layout
 from forecast_app_layout import get_app_layout
 from timer import Timer
@@ -101,11 +102,6 @@ def get_types(dataframe, sector_val):
     type_dict['rol cons'] = 'numeric'
     type_dict['rol abs'] = 'numeric'
     type_dict['rol vac'] = 'numeric'
-    type_dict['askrent'] = 'numeric'
-    type_dict['ask rent'] = 'numeric'
-    type_dict['eff rent'] = 'numeric'
-    type_dict['ask chg'] = 'numeric'
-    type_dict['eff chg'] = 'numeric'
     type_dict['gap'] = 'numeric'
     type_dict['gap chg'] = 'numeric'
     type_dict['rol gap chg'] = 'numeric'
@@ -134,8 +130,6 @@ def get_types(dataframe, sector_val):
     type_dict['imp empchg'] = 'numeric'
     type_dict['vac chg'] =  'numeric'
     type_dict['rol vac chg'] =  'numeric'
-    type_dict['rol ask chg'] =  'numeric'
-    type_dict['rol eff chg'] =  'numeric'
     type_dict['avg abs cons'] = 'numeric'
     type_dict['10 yr vac'] = 'numeric'
     type_dict['occ'] = 'numeric'
@@ -188,10 +182,6 @@ def get_types(dataframe, sector_val):
     format_dict['rol vac'] = FormatTemplate.percentage(2)
     format_dict['vac chg'] = FormatTemplate.percentage(2)
     format_dict['rol vac chg'] = FormatTemplate.percentage(2)
-    format_dict['ask chg'] = FormatTemplate.percentage(2)
-    format_dict['rol ask chg'] = FormatTemplate.percentage(2)
-    format_dict['eff chg'] = FormatTemplate.percentage(2)
-    format_dict['rol eff chg'] = FormatTemplate.percentage(2)
     format_dict['gap'] = FormatTemplate.percentage(2)
     format_dict['gap chg'] = FormatTemplate.percentage(2)
     format_dict['rol gap chg'] = FormatTemplate.percentage(2)
@@ -282,16 +272,13 @@ def get_types(dataframe, sector_val):
     format_dict['abs cons r'] = Format(precision=1, scheme=Scheme.fixed)
     format_dict['avg abs cons'] = Format(precision=1, scheme=Scheme.fixed)
 
-    format_dict['askrent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['ask rent'] = Format(precision=2, scheme=Scheme.fixed)
-    format_dict['eff rent'] = Format(precision=2, scheme=Scheme.fixed)
     format_dict['mrent'] = Format(precision=2, scheme=Scheme.fixed)
     format_dict['merent'] = Format(precision=2, scheme=Scheme.fixed)
 
     return type_dict, format_dict
 
 # Function that returns the highlighting style of the various dash datatables
-def get_style(type_filt, dataframe_in, dash_curryr, dash_second_five):
+def get_style(type_filt, dataframe_in, curryr, second_five, highlight_cols=[], highlight_rows=[]):
     dataframe = dataframe_in.copy()
     if type_filt == "full":
         style = [ 
@@ -304,33 +291,42 @@ def get_style(type_filt, dataframe_in, dash_curryr, dash_second_five):
                             
                         {
                             'if': {
-                            'filter_query':   '{qtr} eq 5  && {yr} >' + dash_curryr,
+                            'filter_query':   '{qtr} eq 5  && {yr} >' + curryr,
                                 },
                     
                         'backgroundColor': 'lightblue'
                         },
                         {
                             'if': {
-                            'filter_query': '{yr} >=' + dash_second_five,
+                            'filter_query': '{yr} >=' + second_five,
                                     },
                     
                         'backgroundColor': 'pink'
                         },
                         {
                             'if': {
-                            'filter_query':  '{qtr} eq 5  && {yr} <' + dash_curryr,
+                            'filter_query':  '{qtr} eq 5  && {yr} <' + curryr,
                                     },
                     
                         'backgroundColor': 'lightgreen'
                         },
                         {
                             'if': {
-                            'filter_query':   '{qtr} eq 5  && {yr} =' + dash_curryr,
+                            'filter_query':   '{qtr} eq 5  && {yr} =' + curryr,
                                 },
                     
                         'backgroundColor': 'yellow'
                         },
+                        ] + [
+                        {
+                            'if': {
+                            'column_id': highlight_cols,
+                            'row_index': highlight_rows,
+                                },
+                        'backgroundColor': 'LightGreen',
+                    }
                     ]
+    
     elif type_filt == "partial":
         style = [ 
                     {
@@ -341,7 +337,7 @@ def get_style(type_filt, dataframe_in, dash_curryr, dash_second_five):
     return style
     
 
-def filter_graph(input_dataframe, curryr, currqtr, year_value, xaxis_column_name, yaxis_column_name, sector_val, comp_value, flags_only):
+def filter_graph(input_dataframe, curryr, currqtr, year_value, xaxis_var, yaxis_var, sector_val, comp_value, flags_only, aggreg_met, for_ts):
     dataframe = input_dataframe.copy()
 
     dataframe['vac_chg'] = round(dataframe['vac_chg'], 4)
@@ -353,7 +349,9 @@ def filter_graph(input_dataframe, curryr, currqtr, year_value, xaxis_column_name
     elif currqtr == 4:
         dataframe = dataframe[(dataframe['yr'] >= curryr - 5) & (dataframe['qtr'] == 5)]
 
-    scatter_graph_cols = ['subsector', 'metcode', 'subid', 'yr', 'qtr', 'inv', 'cons', 'vac', 'vac_chg', 'mrent', 'G_mrent', 'gap', 'gap_chg', 'avg_inc', 'avg_inc_chg', 'flagged_status']
+    scatter_graph_cols = ['subsector', 'metcode', 'subid', 'yr', 'qtr', 'inv', 'cons', 'vac', 'vac_chg', 'mrent', 'G_mrent', 'gap', 'gap_chg', 'avg_inc', 'avg_inc_chg']
+    if aggreg_met == True:
+        scatter_graph_cols.remove('subid')
     if currqtr != 4:
         scatter_graph_cols += ['implied_cons', 'implied_vac_chg', 'implied_G_mrent', 'implied_gap_chg', 'implied_avg_inc_chg']
     if sector_val == "apt" or sector_val == "ret":
@@ -371,43 +369,69 @@ def filter_graph(input_dataframe, curryr, currqtr, year_value, xaxis_column_name
             scatter_graph_cols += ['rol_off_emp', 'rol_off_emp_chg']
         elif sector_val == "ind":
             scatter_graph_cols += ['rol_ind_emp', 'rol_ind_emp_chg']
+
+    if for_ts == False:
+        scatter_graph_cols += ['flagged_status']
     
     dataframe = dataframe[scatter_graph_cols]
 
-    for_time_series = dataframe.copy()
-    for_time_series = pd.melt(for_time_series, id_vars=['subsector', 'metcode', 'subid', 'yr', 'qtr'])
-    for_time_series['index'] = for_time_series['metcode'] + for_time_series['subid'].astype(str) + for_time_series['subsector']
+    if for_ts == True:
+        if aggreg_met == False:
+            dataframe = pd.melt(dataframe, id_vars=['subsector', 'metcode', 'subid', 'yr', 'qtr'])
+        elif aggreg_met == True:
+            dataframe = pd.melt(dataframe, id_vars=['subsector', 'metcode', 'yr', 'qtr'])
+        
+        if aggreg_met == False:
+            dataframe['index'] = dataframe['metcode'] + dataframe['subid'].astype(str) + dataframe['subsector']
+        elif aggreg_met == True:
+            dataframe['index'] = dataframe['metcode'] + dataframe['subsector']
+        
+        init_hover = False
 
-    if comp_value == "r":
-        dataframe['diff_to_rol'] = np.where((dataframe['yr'] >= curryr) & (dataframe['qtr'] == 5), dataframe[xaxis_column_name] - dataframe[yaxis_column_name], np.nan)
-        dataframe = dataframe[(abs(dataframe['diff_to_rol']) >= 0.001) | (dataframe['yr'] < curryr) | ((dataframe['qtr'] != 5) & (dataframe['yr'] == curryr))]
-        get_first_sub = dataframe.copy()
-        get_first_sub = get_first_sub[(get_first_sub['yr'] >= curryr) & (get_first_sub['qtr'] == 5) & (abs(get_first_sub['diff_to_rol']) >= 0.001)]
-        first_sub = get_first_sub['metcode'].iloc[0] + get_first_sub['subid'].iloc[0].astype(str) + get_first_sub['subsector'].iloc[0]
-        init_hover ={'points': [{'customdata': first_sub}]}
-    else:
-        first_sub = dataframe.reset_index().loc[0]['metcode'] + dataframe.reset_index().loc[0]['subid'].astype(str) + dataframe.reset_index().loc[0]['subsector']
-        init_hover ={'points': [{'customdata': first_sub}]}
+    elif for_ts == False:
+        if comp_value == "r":
+            dataframe['diff_to_rol'] = np.where((dataframe['yr'] >= curryr) & (dataframe['qtr'] == 5), dataframe[xaxis_var] - dataframe[yaxis_var], np.nan)
+            dataframe = dataframe[(abs(dataframe['diff_to_rol']) >= 0.001) | (dataframe['yr'] < curryr) | ((dataframe['qtr'] != 5) & (dataframe['yr'] == curryr))]
+            get_first = dataframe.copy()
+            get_first = get_first[(get_first['yr'] >= curryr) & (get_first['qtr'] == 5) & (abs(get_first['diff_to_rol']) >= 0.001)]
+            if aggreg_met == False:
+                first = get_first['metcode'].iloc[0] + get_first['subid'].iloc[0].astype(str) + get_first['subsector'].iloc[0]
+            elif aggreg_met == True:
+                first = get_first['metcode'].iloc[0] + get_first['subsector'].iloc[0]
+            init_hover ={'points': [{'customdata': first}]}
+        else:
+            if aggreg_met == False:
+                first = dataframe.reset_index().loc[0]['metcode'] + dataframe.reset_index().loc[0]['subid'].astype(str) + dataframe.reset_index().loc[0]['subsector']
+            elif aggreg_met == True:
+                first = dataframe.reset_index().loc[0]['metcode'] + dataframe.reset_index().loc[0]['subsector']
+            init_hover ={'points': [{'customdata': first}]}
 
-    if len(flags_only) > 0:
-        if flags_only[0] == "f" and len(dataframe[dataframe['flagged_status'] == 1]) > 0:
-            dataframe = dataframe[dataframe['flagged_status'] == 1]
-    
-    dataframe = pd.melt(dataframe, id_vars=['subsector', 'metcode', 'subid', 'yr', 'qtr'])
-    dataframe['index'] = dataframe['metcode'] + dataframe['subid'].astype(str) + dataframe['subsector']
-    
-    dataframe = dataframe[dataframe['variable'] != 'inv']
+        if len(flags_only) > 0:
+            if flags_only[0] == "f" and len(dataframe[dataframe['flagged_status'] == 1]) > 0:
+                dataframe = dataframe[dataframe['flagged_status'] == 1]
 
-    dataframe = dataframe[dataframe['qtr'] == 5]
-    
-    if comp_value == "c":
-        dataframe = dataframe[(dataframe['variable'] == xaxis_column_name) | (dataframe['variable'] == yaxis_column_name) | (dataframe['variable'] == 'flagged_status')]
-    elif comp_value == "r":
-        dataframe = dataframe[(dataframe['variable'] == xaxis_column_name) | (dataframe['variable'] == yaxis_column_name) | (dataframe['variable'] == "diff_to_rol") | (dataframe['variable'] == 'flagged_status')]
-    
-    dataframe = dataframe[dataframe['yr'] == year_value]
+        if aggreg_met == False:
+            dataframe = pd.melt(dataframe, id_vars=['subsector', 'metcode', 'subid', 'yr', 'qtr'])
+        elif aggreg_met == True:
+            dataframe = pd.melt(dataframe, id_vars=['subsector', 'metcode', 'yr', 'qtr'])
+        
+        if aggreg_met == False:
+            dataframe['index'] = dataframe['metcode'] + dataframe['subid'].astype(str) + dataframe['subsector']
+        elif aggreg_met == True:
+            dataframe['index'] = dataframe['metcode'] + dataframe['subsector']
+        
+        dataframe = dataframe[dataframe['variable'] != 'inv']
 
-    return dataframe, for_time_series, init_hover
+        dataframe = dataframe[dataframe['qtr'] == 5]
+        
+        if comp_value == "c":
+            dataframe = dataframe[(dataframe['variable'] == xaxis_var) | (dataframe['variable'] == yaxis_var) | (dataframe['variable'] == 'flagged_status')]
+        elif comp_value == "r":
+            dataframe = dataframe[(dataframe['variable'] == xaxis_var) | (dataframe['variable'] == yaxis_var) | (dataframe['variable'] == "diff_to_rol") | (dataframe['variable'] == 'flagged_status')]
+        
+        dataframe = dataframe[dataframe['yr'] == year_value]
+
+    return dataframe, init_hover
 
 def create_scatter_plot(dataframe, xaxis_var, yaxis_var, comp_value):
 
@@ -657,99 +681,6 @@ def split_trend_forecast(dataframe, col_name, curryr, currqtr, sector_val):
 
     return trend_level, forecast_level, trend_chg, forecast_chg, connector, y_tick_range, dtick, tick_0
 
-# This function sets the scale and tick distance for bar graphs based on the variable's max percentage of inventory
-def set_bar_scale(data_in, sector_val, numer_list, denomer_list):
-    
-    data = data_in.copy()
-    if 'rolscon' in numer_list:
-        data['rolsinv'] = data['inv'] - (data['cons'] - data['rolscon'])
-    val_list = []
-    for x, y in zip(numer_list, denomer_list):
-        data[x + "_per_inv"] = data[x] / data[y]
-        data[x + "_per_inv"] = round(data[x + "_per_inv"], 2)
-        val_list.append(list(data[x + "_per_inv"]))
-    combined = []
-    for x in val_list:
-        x = [y for y in x if y == y]
-        if len(x) > 0:
-            combined += x
-    combined = [float(i) for i in combined]
-    
-    max_cons_per_inv = max(combined)
-    max_inv = max(list(data['inv']))
-    
-    if max_cons_per_inv == 0:
-        if sector_val != "apt":
-            range_list = [0, 400000]
-            dtick = 100000
-        elif sector_val == "apt":
-            range_list = [0, 4000]
-            dtick = 1000
-    else:
-        len_max = len(str(int((max_cons_per_inv * max_inv))))
-        max_round = round((max_cons_per_inv * max_inv), (len_max - 1) * -1)
-
-        if max_cons_per_inv < 0.02:
-            upper_bound = max_round * 2.5
-        elif max_cons_per_inv >= 0.02 and max_cons_per_inv < 0.05:
-            upper_bound = max_round * 2
-        elif max_cons_per_inv >= 0.05 and max_cons_per_inv < 0.1:
-            upper_bound = max_round * 1.5
-        else:
-            upper_bound = max_round * 1
-        
-        range_list = [0, upper_bound]
-
-        dtick = upper_bound / 4
-        len_dtick = len(str(int(dtick)))
-        dtick = round(dtick, (len_dtick - 1) * -1)
-        
-    return range_list, dtick
-
-def set_y2_scale(graph, type_filt, input_var, sector_val):
-    if type_filt == "sub":
-        graph = pd.melt(graph, id_vars=['subsector', 'metcode', 'subid', 'yr', 'qtr'])
-    elif type_filt == "met":
-        graph = pd.melt(graph, id_vars=['subsector', 'metcode', 'yr', 'qtr'])
-    elif type_filt == "nat":
-        graph = pd.melt(graph, id_vars=['subsector', 'yr', 'qtr'])
-
-    var = list(graph[graph['variable'] == input_var]['value'])
-
-    if type_filt != "ts":
-        if input_var == "vac":
-            rol_var = list(graph[(graph['variable'] == 'rolsvac') & (graph['value'] != '')]['value'])
-            oob_var = list(graph[(graph['variable'] == 'vac_oob') & (graph['value'] != '')]['value'])
-        elif input_var == "mrent":
-            rol_var = list(graph[(graph['variable'] == 'rolmrent') & (graph['value'] != '')]['value'])
-            oob_var = list(graph[(graph['variable'] == 'mrent_oob') & (graph['value'] != '')]['value'])
-        elif input_var == "askrent":
-            rol_var = list(graph[(graph['variable'] == 'rolaskrent') & (graph['value'] != '')]['value'])
-            oob_var = list(graph[(graph['variable'] == 'askrentoob') & (graph['value'] != '')]['value'])
-        rol_var = [float(i) for i in rol_var]
-        oob_var = [float(i) for i in oob_var]
-        combined = var + rol_var + oob_var
-    elif type_filt == "ts":
-        combined = var
-    max_var = max(combined)
-    min_var = min(combined)
-
-    if input_var == "vac" or "gap" in input_var:
-        round_val = 2
-        tick_0 = max(min_var - 0.01, 0)
-        tick_1 = min(max_var + 0.01, 100)
-    elif "avg_inc" in  input_var:
-        round_val = -3
-        tick_0 = min_var - round((max_var - min_var) / 5, round_val)
-        tick_1 = max_var + round((max_var - min_var) / 5, round_val)
-    else:
-        tick_0 = min_var - round((max_var - min_var) / 5, 2)
-        tick_1 = max_var + round((max_var - min_var) / 5, 2)
-    range_list = [round(tick_0, 2), round(tick_1, 2)]
-    dtick = round((tick_1 - tick_0) / 5, 2)
-
-    return range_list, dtick, tick_0
-
 def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
     graph = data.copy()
     graph = graph[graph['qtr'] == 5]
@@ -759,7 +690,7 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
     if type_filt == "sub":
         rent_range_list, rent_dtick, rent_tick_0 = set_y2_scale(graph, type_filt, "mrent", sector_val)
     else:
-        rent_range_list, rent_dtick, rent_tick_0 = set_y2_scale(graph, type_filt, "askrent", sector_val)
+        rent_range_list, rent_dtick, rent_tick_0 = set_y2_scale(graph, type_filt, "mrent", sector_val)
 
     graph['cons_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['cons_oob'])
     graph['vac_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['vac_oob'])
@@ -775,7 +706,7 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
     if type_filt == "sub":
         graph['mrent_oob'] = np.where((graph['mrent'] == graph['mrent_oob']), np.nan, graph['mrent_oob'])
     else:
-        graph['askrentoob'] = np.where((graph['askrent'] == graph['askrentoob']), np.nan, graph['askrentoob'])
+        graph['askrentoob'] = np.where((graph['mrent'] == graph['askrentoob']), np.nan, graph['askrentoob'])
     
     graph_copy = graph.copy()
     
@@ -802,9 +733,9 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
         rent_tag_list = ['cons', 'rolscon', 'G_mrent', 'grolsmer', 'cons_oob', 'G_mrent_oob']
     else:
         vac_variable_list = ['cons', 'rolscon', 'vac', 'rolsvac', 'cons_oob', 'vac_oob']
-        rent_variable_list = ['cons', 'rolscon', 'askrent', 'rolaskrent', 'cons_oob', 'askrentoob']
+        rent_variable_list = ['cons', 'rolscon', 'mrent', 'rol_mrent', 'cons_oob', 'askrentoob']
         vac_tag_list = ['cons', 'rolscon', 'vac_chg', 'rolsvac_chg', 'cons_oob', 'vac_chg_oob']
-        rent_tag_list = ['cons', 'rolscon', 'ask_chg', 'rol_ask_chg', 'cons_oob', 'ask_chg_oob']
+        rent_tag_list = ['cons', 'rolscon', 'Gmrent', 'grolsmre', 'cons_oob', 'ask_chg_oob']
     
     vac_name_list = ['construction', 'rolscon', 'vacancy', 'rolsvac', 'consoob', 'oobvac']
     rent_name_list = ['construction', 'rolscon', 'rent', 'rolmrent', 'consoob', 'oobmrent']
@@ -1348,24 +1279,24 @@ def use_pickle(direction, file_name, dataframe, fileyr, currqtr, sector_val):
         elif direction == "out":
             dataframe.to_pickle(file_path)
 
-def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, button, flag_name, yr_val):
-    if button == "submit":
-        # Identify where the forecast series has changed for key variables
+def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, action, flag_name, yr_val, cons_c, avail_c, rent_c):
+    if action == "submit":
+        
         decision_data_test = decision_data.copy()
         decision_data_test = decision_data_test[decision_data_test['identity'] == drop_val]
-        drop_list = []
-        for x in list(decision_data_test.columns):
-            if "new" in x:
-                drop_list.append(x)
+        
+        drop_list = [x for x in list(decision_data_test.columns) if "new" in x]
         decision_data_test = decision_data_test.drop(drop_list, axis=1)
-        for x in list(decision_data_test.columns):
-            if "oob" in x:
-                decision_data_test = decision_data_test.rename(columns={x: x[:-4]})
+        
+        rename_dict = {x : x[:-4] for x in list(decision_data_test.columns) if "oob" in x}
+        decision_data_test = decision_data_test.rename(columns=rename_dict)
+
         update_data = data.copy()
         update_data = update_data[update_data['identity'] == drop_val]
         update_data = update_data[update_data['forecast_tag'] != 0]
         update_data = update_data[['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr', 'cons', 'vac', 'abs', 'G_mrent', 'G_merent', 'gap', 'inv', 'avail', 'mrent', 'merent', 'vac_chg']]
         decision_data_test = decision_data_test.drop(['c_user', 'v_user', 'g_user', 'e_user'], axis=1)
+        
         update_data['vac'] = round(update_data['vac'], 3)
         update_data['vac_chg'] = round(update_data['vac_chg'], 3)
         update_data['G_mrent'] = round(update_data['G_mrent'], 3)
@@ -1402,25 +1333,20 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
         decision_data_fill = decision_data.copy()
         decision_data_fill = decision_data_fill[decision_data_fill['identity'] == drop_val]
         no_change_list = ['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr', 'c_user', 'v_user', 'g_user', 'e_user']
-        for x in list(decision_data_fill.columns):
-            if "new" not in x:
-                if x not in no_change_list:
-                    decision_data_fill = decision_data_fill.drop([x], axis=1)
-            elif "new" in x:
-                decision_data_fill = decision_data_fill.rename(columns={x: x[:-4]})
+        drop_list_1 = [x for x in list(decision_data_fill.columns) if "new" not in x and x not in no_change_list]
+        decision_data_fill = decision_data_fill.drop(drop_list_1, axis=1)
+        rename_dict = {x : x[:-4] for x in list(decision_data_fill.columns) if "new" in x}
+        decision_data_fill = decision_data_fill.rename(columns=rename_dict)
+        
         # Since nan values wont replace non nan values when using combine first, replace them all with a crazy number that wont match a real value, and then replace back to nan after combined
-        all_cols = list(update_data.columns)
-        fill_list = [x for x in all_cols if x not in no_change_list]
+        fill_list = [x for x in list(update_data.columns) if x not in no_change_list]
         update_data[fill_list] = update_data[fill_list].fillna(9999999999999999)
         update_data[['c_user', 'v_user', 'g_user', 'e_user']] = update_data[['c_user', 'v_user', 'g_user', 'e_user']].fillna("temp")
         update_data = update_data.combine_first(decision_data_fill)
-        for x in fill_list:
-            update_data[x] = np.where(update_data[x] == 9999999999999999, np.nan, update_data[x])
-        for x in ['c_user', 'v_user', 'g_user', 'e_user']:
-            update_data[x] = np.where(update_data[x] == "temp", np.nan, update_data[x])
-        for x in list(update_data.columns):
-            if x not in no_change_list and "oob" not in x:
-                update_data = update_data.rename(columns={x: x + "_new"})
+        update_data[fill_list] = np.where(update_data[fill_list] == 9999999999999999, np.nan, update_data[fill_list])
+        update_data[['c_user', 'v_user', 'g_user', 'e_user']] = np.where(update_data[['c_user', 'v_user', 'g_user', 'e_user']] == "temp", np.nan, update_data[['c_user', 'v_user', 'g_user', 'e_user']])
+        rename_dict = {x : x + "_new" for x in list(update_data.columns) if "oob" not in x and x not in no_change_list}
+        update_data = update_data.rename(columns=rename_dict)
 
         # Because there are slight rounding differences, check if there is an actual change to the level var, and null out diff if no change
         for index, row in update_data.iterrows():
@@ -1451,8 +1377,16 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
         decision_data_update = decision_data_update[decision_data_update['identity'] != drop_val]
         decision_data_update = decision_data_update.append(decision_data_replace)
         decision_data_update.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace = True)
+
+        # Add comments to all rows
+        if cons_c[-9:] != "Note Here":
+            decision_data.set_index('identity').loc[drop_val, 'cons_comment'] = cons_c
+        if avail_c[-9:] != "Note Here":
+            decision_data.set_index('identity').loc[drop_val, 'avail_comment'] = avail_c
+        if rent_c[-9:] != "Note Here":
+            decision_data.set_index('identity').loc[drop_val, 'rent_comment'] = rent_c
     
-    elif button == "skip":
+    elif action == "skip":
         decision_data_update = decision_data.copy()
         if decision_data_update['skipped'].loc[drop_val + str(curryr) + str(5)] == '':
             decision_data_update.loc[drop_val + str(curryr) + str(5), 'skipped'] = flag_name + str(yr_val)
@@ -1461,6 +1395,14 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
             decision_data_update.loc[drop_val + str(curryr) + str(5), 'skipped'] = decision_data_update['skipped'].loc[drop_val + str(curryr) + str(5)] + ", " + flag_name + str(yr_val)
             decision_data_update.loc[drop_val + str(curryr) + str(5), 'skip_user'] = decision_data_update['skip_user'].loc[drop_val + str(curryr) + str(5)] + ", " + user
 
+        # Add comments to all rows
+        if cons_c[-9:] != "Note Here":
+            decision_data.set_index('identity').loc[drop_val, 'cons_comment'] = cons_c
+        if avail_c[-9:] != "Note Here":
+            decision_data.set_index('identity').loc[drop_val, 'avail_comment'] = avail_c
+        if rent_c[-9:] != "Note Here":
+            decision_data.set_index('identity').loc[drop_val, 'rent_comment'] = rent_c
+    
     return decision_data_update
 
 
@@ -1497,7 +1439,7 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
 
 # This function produces the outputs needed for the update_data callback if the submit button is clicked
 #@Timer()
-def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, drop_val, curryr, currqtr, fileyr, use_rol_close, flag_list, skip_list, yr_val):
+def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, drop_val, curryr, currqtr, fileyr, use_rol_close, flag_list, skip_list, yr_val, cons_c, avail_c, rent_c):
 
     shim_data['cons'] = np.where(shim_data['cons'] == '', np.nan, shim_data['cons'])
     shim_data['avail'] = np.where(shim_data['avail'] == '', np.nan, shim_data['avail'])
@@ -1536,7 +1478,7 @@ def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, dr
         if has_diff == 1 or len(skip_list) > 0:
             decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
         if has_diff == 1:
-            decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "submit", False, yr_val)
+            decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "submit", False, yr_val, cons_c, avail_c, rent_c)
         
         # Update dataframe to store user flag skips
         if flag_list[0] != "v_flag" and len(skip_list) > 0:
@@ -1550,7 +1492,7 @@ def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, dr
                     else:
                         data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] += ", " + flag + str(yr_val)
                     
-                    decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "skip", flag, yr_val)
+                    decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "skip", flag, yr_val, cons_c, avail_c, rent_c)
         
         # Save decision log if there was an update, and also save the current state of the edits to ensure nothing gets lost if an error is encountered in later steps
         if has_diff == 1 or len(skip_list) > 0:
@@ -2055,9 +1997,9 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                 output_cols_met = ['metcode', 'yr',	'qtr', 'inv', 'cons', 'rolcons', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'abs', 'rolabs', 'vac', 'rolvac',
                                     'mrent', 'rolmrent', 'G_mrent', 'grolmren', 'merent', 'G_merent', 'rolmeren',  'grolmere', 'gap', 'rolgap']
 
-            finalized_met = finalized_met.rename(columns={'rolscon': 'rolcons', 'rol_ask_chg': 'grolmren', 'rolaskrent' :'rolmrent', 'rol_eff_chg': 'grolmere', 'eff_chg': 'G_merent', 
-                                                            'rolsabs' :'rolabs', 'askrent': 'mrent', 'effrentoob': 'merent_oob', 'rolsvac': 'rolvac', 'roleffrent': 'rolmeren', 
-                                                            'eff_chg_oob': 'G_merent_oob', 'ask_chg_oob': 'G_mrent_oob', 'askrentoob': 'mrent_oob', 'effrent': 'merent', 'ask_chg': 'G_mrent'})
+            finalized_met = finalized_met.rename(columns={'rolscon': 'rolcons', 'grolsmre': 'grolmren', 'rol_mrent' :'rolmrent', 'grolsmer': 'grolmere',
+                                                            'rolsabs' :'rolabs', 'effrentoob': 'merent_oob', 'rolsvac': 'rolvac', 'rol_merent': 'rolmeren', 
+                                                            'eff_chg_oob': 'G_merent_oob', 'ask_chg_oob': 'G_mrent_oob', 'askrentoob': 'mrent_oob'})
 
             finalized_met = finalized_met[output_cols_met]
 
@@ -2103,7 +2045,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                 output_cols_us = ['yr', 'qtr', 'US_inv', 'US_cons', 'US_rolcons', 'US_h', 'US_rol_h', 'US_e', 'US_t', 'US_vac', 'US_abs', 'US_rolabs',
                                     'US_mrent', 'US_G_mrent', 'US_merent', 'US_G_merent', 'US_gap']
 
-            finalized_us = finalized_us.rename(columns={'rolscon': 'rolcons', 'rolsabs': 'rolabs', 'askrent': 'mrent', 'ask_chg': 'G_mrent', 'effrent': 'merent', 'eff_chg': 'G_merent'})
+            finalized_us = finalized_us.rename(columns={'rolscon': 'rolcons', 'rolsabs': 'rolabs'})
             for x in list(finalized_us.columns):
                 if x not in ['subsector', 'yr', 'qtr']:
                     finalized_us.rename(columns={x: 'US_' + x}, inplace=True)
@@ -2244,7 +2186,7 @@ def update_data(sector_val, submit_button, preview_button, success_init, skip_tr
             shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
         if input_id == 'submit-button':
-            data, preview_data, shim_data, message, message_display = submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, man_val, curryr, currqtr, fileyr, use_rol_close, flag_list, skip_list, yr_val)
+            data, preview_data, shim_data, message, message_display = submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, man_val, curryr, currqtr, fileyr, use_rol_close, flag_list, skip_list, yr_val, cons_c, avail_c, rent_c)
 
         elif input_id == 'preview-button':
             data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, man_val, curryr, currqtr, flag_list, skip_list, use_rol_close, yr_val)
@@ -2463,9 +2405,9 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             type_dict_sum, format_dict_sum = get_types(sum_data, sector_val)
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
         
-            return rank_data_met.to_dict('rows'), [{'name':['Top Ten Flagged Metros', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
-                                for i in range(0, len(rank_data_met.columns))], highlighting_rank_met, rank_data_sub.to_dict('rows'), [{'name':['Top Ten Flagged Submarkets', rank_data_sub.columns[i]], 'id': rank_data_sub.columns[i], 'type': type_dict_rank_sub[rank_data_sub.columns[i]], 'format': format_dict_rank_sub[rank_data_sub.columns[i]]} 
-                                for i in range(0, len(rank_data_sub.columns))], highlighting_rank_sub, rank_style, sum_data.to_dict('rows'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
+            return rank_data_met.to_dict('records'), [{'name':['Top Ten Flagged Metros', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
+                                for i in range(0, len(rank_data_met.columns))], highlighting_rank_met, rank_data_sub.to_dict('records'), [{'name':['Top Ten Flagged Submarkets', rank_data_sub.columns[i]], 'id': rank_data_sub.columns[i], 'type': type_dict_rank_sub[rank_data_sub.columns[i]], 'format': format_dict_rank_sub[rank_data_sub.columns[i]]} 
+                                for i in range(0, len(rank_data_sub.columns))], highlighting_rank_sub, rank_style, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
         else:
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -2473,7 +2415,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             type_dict_sum, format_dict_sum = get_types(sum_data, sector_val)
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
             print("End Display Summary")
-            return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('rows'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
+            return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
 
 
@@ -2529,10 +2471,10 @@ def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, file
             dataframe = pd.DataFrame(data_fill, columns=['Submarkets With Flag', 'Flag Ranking'])
         print("End Flag Filt")
         if len(dataframe) >= 10:
-            return dataframe.to_dict('rows'), [{'name': [title, dataframe.columns[i]], 'id': dataframe.columns[i]} 
+            return dataframe.to_dict('records'), [{'name': [title, dataframe.columns[i]], 'id': dataframe.columns[i]} 
                     for i in range(0, len(dataframe.columns))], {'height': '350px', 'overflowY': 'auto'}, flag_filt_style
         else:
-            return dataframe.to_dict('rows'), [{'name': [title, dataframe.columns[i]], 'id': dataframe.columns[i]} 
+            return dataframe.to_dict('records'), [{'name': [title, dataframe.columns[i]], 'id': dataframe.columns[i]} 
                     for i in range(0, len(dataframe.columns))], {'height': '350px', 'overflowY': 'visible'}, flag_filt_style
 
 
@@ -2781,8 +2723,8 @@ def output_data(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_list
         use_pickle("out", "scatter_data_" + sector_val, data, fileyr, currqtr, sector_val)
 
     print("End Output Display")
-    return shim_data.to_dict('rows'), [{'name': ['Insert Manual Fix', shim_data.columns[i]], 'id': shim_data.columns[i], 'type': type_dict_data[shim_data.columns[i]], 'format': format_dict_data[shim_data.columns[i]], 'editable': edit_dict[shim_data.columns[i]]} 
-                            for i in range(3, len(shim_data.columns))], highlighting_shim, display_data.to_dict('rows'), [{'name': [data_title, display_data.columns[i]], 'id': display_data.columns[i], 'type': type_dict_data[display_data.columns[i]], 'format': format_dict_data[display_data.columns[i]]} 
+    return shim_data.to_dict('records'), [{'name': ['Insert Manual Fix', shim_data.columns[i]], 'id': shim_data.columns[i], 'type': type_dict_data[shim_data.columns[i]], 'format': format_dict_data[shim_data.columns[i]], 'editable': edit_dict[shim_data.columns[i]]} 
+                            for i in range(3, len(shim_data.columns))], highlighting_shim, display_data.to_dict('records'), [{'name': [data_title, display_data.columns[i]], 'id': display_data.columns[i], 'type': type_dict_data[display_data.columns[i]], 'format': format_dict_data[display_data.columns[i]]} 
                             for i in range(0, len(display_data.columns))], highlighting_display, key_metrics.to_dict('records'), [{'name': [title_met, key_metrics.columns[i]], 'id': key_metrics.columns[i], 'type': type_dict_metrics[key_metrics.columns[i]], 'format': format_dict_metrics[key_metrics.columns[i]]} 
                             for i in range(0, len(key_metrics.columns))], highlighting_metrics, key_emp.to_dict('records'), [{'name': [title_emp, key_emp.columns[i]], 'id': key_emp.columns[i], 'type': type_dict_emp[key_emp.columns[i]], 'format': format_dict_emp[key_emp.columns[i]]} 
                             for i in range(0, len(key_emp.columns))], highlighting_emp, issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, style_noprev, style_resolved, style_unresolved, style_new, style_skipped, go.Figure(data=data_vac), go.Figure(data=data_rent), spacing_style_shim, spacing_style_data, cons_comment, avail_comment, rent_comment
@@ -2809,7 +2751,7 @@ def output_flagcount(sector_val, submit_button, curryr, currqtr, fileyr, success
         countdown = countdown[['forecast_tag', 'identity_us', 'flag_skip'] + flag_cols]
         countdown = live_flag_count(countdown, sector_val)
         print("End Flag Countdown")
-        return countdown.to_dict('rows'), [{'name': ['Flags Remaining', countdown.columns[i]], 'id': countdown.columns[i]} 
+        return countdown.to_dict('records'), [{'name': ['Flags Remaining', countdown.columns[i]], 'id': countdown.columns[i]} 
                     for i in range(0, len(countdown.columns))]
 
 @forecast.callback([Output('droproll', 'value'),
@@ -2957,8 +2899,8 @@ def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button
                     type_dict_rank[x] = 'numeric'
                     format_dict_rank[x] =  Format(precision=0, scheme=Scheme.fixed)
 
-        rolled = rolled.drop(['cons_oob', 'vac_oob', 'vac_chg_oob',  'askrentoob', 'ask_chg_oob', 'rolaskrent'], axis=1)
-        rolled = rolled.rename(columns={'rolscon': 'rol cons', 'rolsvac': 'rol vac', 'vac_chg': 'vac chg', 'rolsvac_chg': 'rol vac chg', 'rolsabs': 'rol abs', 'askrent': 'ask rent', 'ask_chg': 'ask chg', 'rol_ask_chg': 'rol ask chg', 'effrent': 'eff rent', 'eff_chg': 'eff chg', 'rol_eff_chg': 'rol eff chg', 'gap_chg': 'gap chg'})
+        rolled = rolled.drop(['cons_oob', 'vac_oob', 'vac_chg_oob',  'askrentoob', 'ask_chg_oob', 'rol_mrent'], axis=1)
+        rolled = rolled.rename(columns={'rolscon': 'rol cons', 'rolsvac': 'rol vac', 'vac_chg': 'vac chg', 'rolsvac_chg': 'rol vac chg', 'rolsabs': 'rol abs', 'gap_chg': 'gap chg', 'G_mrent': 'Gmrent', 'G_merent': 'Gmerent', 'grolsmre': 'rol Gmrent', 'grolsmer': 'rol Gmerent'})
         type_dict_roll, format_dict_roll = get_types(rolled, sector_val)
         highlighting_roll = get_style("full", rolled, dash_curryr, dash_second_five)
 
@@ -3000,12 +2942,12 @@ def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button
         
         print("End Output Rollup")
         if multi_view == False or roll_val[:2] == "US":
-            return go.Figure(data=data_vac_roll), go.Figure(data=data_rent_roll), {'width': '100%', 'display': 'inline-block'}, {'width': '100%', 'display': 'inline-block', 'padding-left': '50px'}, rolled.to_dict('rows'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
+            return go.Figure(data=data_vac_roll), go.Figure(data=data_rent_roll), {'width': '100%', 'display': 'inline-block'}, {'width': '100%', 'display': 'inline-block', 'padding-left': '50px'}, rolled.to_dict('records'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
             for i in range(0, len(rolled.columns))], highlighting_roll, no_update, no_update, no_update, no_update, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, 'none', {}, {}, disable_roll_view
         elif multi_view == True:
-            return no_update, no_update, {'display': 'none'}, {'display': 'none'}, rolled.to_dict('rows'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
-            for i in range(0, len(rolled.columns))], highlighting_roll, met_rank.to_dict('rows'), [{'name': ['Met Rank', met_rank.columns[i]], 'id': met_rank.columns[i], 'type': type_dict_rank[met_rank.columns[i]], 'format': format_dict_rank[met_rank.columns[i]]} 
-                            for i in range(0, len(met_rank.columns))], sub_rank.to_dict('rows'), [{'name': ['Sub Rank', sub_rank.columns[i]], 'id': sub_rank.columns[i], 'type': type_dict_rank[sub_rank.columns[i]], 'format': format_dict_rank[sub_rank.columns[i]]} 
+            return no_update, no_update, {'display': 'none'}, {'display': 'none'}, rolled.to_dict('records'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
+            for i in range(0, len(rolled.columns))], highlighting_roll, met_rank.to_dict('records'), [{'name': ['Met Rank', met_rank.columns[i]], 'id': met_rank.columns[i], 'type': type_dict_rank[met_rank.columns[i]], 'format': format_dict_rank[met_rank.columns[i]]} 
+                            for i in range(0, len(met_rank.columns))], sub_rank.to_dict('records'), [{'name': ['Sub Rank', sub_rank.columns[i]], 'id': sub_rank.columns[i], 'type': type_dict_rank[sub_rank.columns[i]], 'format': format_dict_rank[sub_rank.columns[i]]} 
                             for i in range(0, len(sub_rank.columns))], {'display': 'inline-block', 'padding-left': '100px', 'width': '45%'}, {'display': 'inline-block', 'padding-left': '250px', 'width': '45%'}, {'display': 'block', 'padding-left': '850px'}, 'none', style_it, fixed_rows, disable_roll_view
 
 @forecast.callback(Output('store_shim_finals', 'data'),
@@ -3119,106 +3061,133 @@ def set_scatter_drops(year_value, comp_value, sector_val, curryr, currqtr, filey
                     Input('scatter_year_radios', 'value'),
                     Input('scatter_comparison_radios', 'value'),
                     Input('flags_only', 'value'),
+                    Input('aggreg_level', 'value'),
                     Input('sector', 'data'),
                     Input('store_submit_button', 'data')],
                     [State('curryr', 'data'),
                     State('currqtr', 'data'),
                     State('fileyr', 'data'),
                     State('init_trigger', 'data')])
-def produce_scatter_graph(xaxis_column_name, yaxis_column_name, year_value, comp_value, flags_only, sector_val, submit_button, curryr, currqtr, fileyr, success_init):
+def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_only, aggreg_met, sector_val, submit_button, curryr, currqtr, fileyr, success_init):
 
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
 
-        graph_data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
+        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
+        graph_data = data.copy()
 
         if comp_value == "r":
             match_list = {'rolscon': 'cons', 'rolsvac_chg': 'vac_chg', 'grolsmre': 'G_mrent', 'rolsgap_chg': 'gap_chg', 'rol-emp_chg': 'emp_chg', 'rol_off_emp_chg': 'off_emp_chg', 'rol_ind_emp_chg': 'ind_emp_chg'}
-            xaxis_column_name = match_list[yaxis_column_name]
+            xaxis_var = match_list[yaxis_var]
 
-        if year_value != curryr and "implied" in xaxis_column_name:
-            xaxis_column_name = xaxis_column_name[8:]
-        if year_value != curryr and "implied" in yaxis_column_name:
-            yaxis_column_name = yaxis_column_name[8:]
+        if year_value != curryr and "implied" in xaxis_var:
+            xaxis_var = xaxis_var[8:]
+        if year_value != curryr and "implied" in yaxis_var:
+            yaxis_var = yaxis_var[8:]
         
         # Tag subs as flagged or not flagged based on the xaxis var (or the yaxis var if the x is employment) for color purposes on scatter plot
-        r = re.compile("^._flag*")
-        flag_cols = list(filter(r.match, graph_data.columns))
-        graph_data[flag_cols] = np.where((graph_data[flag_cols] != 0) & (graph_data[flag_cols] != 999999999), 1, graph_data[flag_cols])
-        graph_data[flag_cols] = np.where((graph_data[flag_cols] == 999999999), 0, graph_data[flag_cols])
+        if aggreg_met == False:
+            r = re.compile("^._flag*")
+            flag_cols = list(filter(r.match, graph_data.columns))
+            graph_data[flag_cols] = np.where((graph_data[flag_cols] != 0) & (graph_data[flag_cols] != 999999999), 1, graph_data[flag_cols])
+            graph_data[flag_cols] = np.where((graph_data[flag_cols] == 999999999), 0, graph_data[flag_cols])
 
-        def sum_flags(dataframe_in, flag_list, year_value):
-            dataframe = dataframe_in.copy()
-            dataframe['tot_flags'] = 0
-            for flag_name in flag_list:
-                dataframe['tot_flags'] += dataframe[(dataframe['yr'] == year_value) & (dataframe['qtr'] == 5)].groupby('identity')[flag_name].transform('sum')
+            def sum_flags(dataframe_in, flag_list, year_value):
+                dataframe = dataframe_in.copy()
+                dataframe['tot_flags'] = 0
+                for flag_name in flag_list:
+                    dataframe['tot_flags'] += dataframe[(dataframe['yr'] == year_value) & (dataframe['qtr'] == 5)].groupby('identity')[flag_name].transform('sum')
 
-            return dataframe
+                return dataframe
 
 
-        if comp_value == "c":
-            if xaxis_column_name in ['cons', 'implied_cons']:
-                graph_data['c_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^c_flag*").sum(axis=1)
-                graph_data['flagged_status'] = np.where(graph_data['c_flag_tot'] > 0, 1, 0)
-                graph_data = graph_data.drop(['c_flag_tot'], axis=1) 
-            elif xaxis_column_name in ['vac_chg', 'implied_vac_chg']:
-                graph_data['v_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^v_flag*").sum(axis=1)
-                graph_data['flagged_status'] = np.where(graph_data['v_flag_tot'] > 0, 1, 0)
-                graph_data = graph_data.drop(['v_flag_tot'], axis=1)
-            elif xaxis_column_name in ['G_mrent', 'implied_G_mrent']:
-                graph_data['g_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^g_flag*").sum(axis=1)
-                graph_data['flagged_status'] = np.where(graph_data['g_flag_tot'] > 0, 1, 0)
-                graph_data = graph_data.drop(['g_flag_tot'], axis=1)
-            elif xaxis_column_name in ['gap_chg', 'implied_gap_chg']:
-                graph_data['e_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^e_flag*").sum(axis=1)
-                graph_data['flagged_status'] = np.where(graph_data['e_flag_tot'] > 0, 1, 0)
-                graph_data = graph_data.drop(['e_flag_tot'], axis=1)
-            elif xaxis_column_name in ['emp_chg', 'off_emp_chg', 'ind_emp_chg', 'avg_inc_chg', 'implied_emp_chg', 'implied_off_emp_chg', 'implied_ind_emp_chg', 'implied_avg_inc_chg']:
-                if yaxis_column_name in ['vac_chg', 'implied_vac_chg']:
-                    graph_data = sum_flags(graph_data, ['v_flag_emp'], year_value)
+            if comp_value == "c":
+                if xaxis_var in ['cons', 'implied_cons']:
+                    graph_data['c_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^c_flag*").sum(axis=1)
+                    graph_data['flagged_status'] = np.where(graph_data['c_flag_tot'] > 0, 1, 0)
+                    graph_data = graph_data.drop(['c_flag_tot'], axis=1) 
+                elif xaxis_var in ['vac_chg', 'implied_vac_chg']:
+                    graph_data['v_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^v_flag*").sum(axis=1)
+                    graph_data['flagged_status'] = np.where(graph_data['v_flag_tot'] > 0, 1, 0)
+                    graph_data = graph_data.drop(['v_flag_tot'], axis=1)
+                elif xaxis_var in ['G_mrent', 'implied_G_mrent']:
+                    graph_data['g_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^g_flag*").sum(axis=1)
+                    graph_data['flagged_status'] = np.where(graph_data['g_flag_tot'] > 0, 1, 0)
+                    graph_data = graph_data.drop(['g_flag_tot'], axis=1)
+                elif xaxis_var in ['gap_chg', 'implied_gap_chg']:
+                    graph_data['e_flag_tot'] = graph_data[(graph_data['yr'] == year_value) & (graph_data['qtr'] == 5)].filter(regex="^e_flag*").sum(axis=1)
+                    graph_data['flagged_status'] = np.where(graph_data['e_flag_tot'] > 0, 1, 0)
+                    graph_data = graph_data.drop(['e_flag_tot'], axis=1)
+                elif xaxis_var in ['emp_chg', 'off_emp_chg', 'ind_emp_chg', 'avg_inc_chg', 'implied_emp_chg', 'implied_off_emp_chg', 'implied_ind_emp_chg', 'implied_avg_inc_chg']:
+                    if yaxis_var in ['vac_chg', 'implied_vac_chg']:
+                        graph_data = sum_flags(graph_data, ['v_flag_emp'], year_value)
+                        graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
+                        graph_data = graph_data.drop(['tot_flags'], axis=1)
+                    elif yaxis_var in ['G_mrent', 'implied_G_mrent']:
+                        graph_data = sum_flags(graph_data, ['g_flag_emp'], year_value)
+                        graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
+                        graph_data = graph_data.drop(['tot_flags'], axis=1)
+                    elif yaxis_var in ["gap_chg", "implied_gap_chg"]:
+                        graph_data= sum_flags(graph_data, ['e_flag_emp'], year_value)
+                        graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
+                        graph_data = graph_data.drop(['tot_flags'], axis=1)
+                    else:
+                        graph_data = sum_flags(graph_data, ['v_flag_emp', 'g_flag_emp', 'e_flag_emp'], year_value)
+                        graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
+                        graph_data = graph_data.drop(['tot_flags'], axis=1)
+            
+            elif comp_value == "r":
+                if xaxis_var in ['cons', 'implied_cons']:
+                    graph_data = sum_flags(graph_data, ['c_flag_rol'], year_value)
                     graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
                     graph_data = graph_data.drop(['tot_flags'], axis=1)
-                elif yaxis_column_name in ['G_mrent', 'implied_G_mrent']:
-                    graph_data = sum_flags(graph_data, ['g_flag_emp'], year_value)
+                elif xaxis_var in ['vac_chg', 'implied_vac_chg']:
+                    graph_data = sum_flags(graph_data, ['v_flag_rol', 'v_flag_improls', 'v_flag_switch'], year_value)
                     graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
                     graph_data = graph_data.drop(['tot_flags'], axis=1)
-                elif yaxis_column_name in ["gap_chg", "implied_gap_chg"]:
-                    graph_data= sum_flags(graph_data, ['e_flag_emp'], year_value)
+                elif xaxis_var in ['G_mrent', 'implied_G_mrent']:
+                    graph_data = sum_flags(graph_data, ['g_flag_rol', 'g_flag_improls'], year_value)
+                    graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
+                    graph_data = graph_data.drop(['tot_flags'], axis=1)
+                elif xaxis_var in ['gap_chg', 'implied_gap_chg']:
+                    graph_data = sum_flags(graph_data, ['e_flag_rol', 'e_flag_improls', 'e_flag_rolvac'], year_value)
                     graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
                     graph_data = graph_data.drop(['tot_flags'], axis=1)
                 else:
-                    graph_data = sum_flags(graph_data, ['v_flag_emp', 'g_flag_emp', 'e_flag_emp'], year_value)
+                    graph_data = sum_flags(graph_data, ['c_flag_rol', 'v_flag_rol', 'v_flag_improls', 'v_flag_switch', 'g_flag_rol', 'g_flag_improls', 'e_flag_rol', 'e_flag_improls', 'e_flag_rolvac'], year_value)
                     graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
-                    graph_data = graph_data.drop(['tot_flags'], axis=1)
-        
-        elif comp_value == "r":
-            if xaxis_column_name in ['cons', 'implied_cons']:
-                graph_data = sum_flags(graph_data, ['c_flag_rol'], year_value)
-                graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
-                graph_data = graph_data.drop(['tot_flags'], axis=1)
-            elif xaxis_column_name in ['vac_chg', 'implied_vac_chg']:
-                graph_data = sum_flags(graph_data, ['v_flag_rol', 'v_flag_improls', 'v_flag_switch'], year_value)
-                graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
-                graph_data = graph_data.drop(['tot_flags'], axis=1)
-            elif xaxis_column_name in ['G_mrent', 'implied_G_mrent']:
-                graph_data = sum_flags(graph_data, ['g_flag_rol', 'g_flag_improls'], year_value)
-                graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
-                graph_data = graph_data.drop(['tot_flags'], axis=1)
-            elif xaxis_column_name in ['gap_chg', 'implied_gap_chg']:
-                graph_data = sum_flags(graph_data, ['e_flag_rol', 'e_flag_improls', 'e_flag_rolvac'], year_value)
-                graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
-                graph_data = graph_data.drop(['tot_flags'], axis=1)
-            else:
-                graph_data = sum_flags(graph_data, ['c_flag_rol', 'v_flag_rol', 'v_flag_improls', 'v_flag_switch', 'g_flag_rol', 'g_flag_improls', 'e_flag_rol', 'e_flag_improls', 'e_flag_rolvac'], year_value)
-                graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
-                graph_data = graph_data.drop(['tot_flags'], axis=1)
+                    graph_data = graph_data.drop(['tot_flags'], axis=1)            
 
-        scatter_graph, for_time_series, init_hover = filter_graph(graph_data, curryr, currqtr, year_value, xaxis_column_name, yaxis_column_name, sector_val, comp_value, flags_only)
+        if aggreg_met == True:
+            graph_data = rollup(graph_data, "temp", curryr, currqtr, sector_val, "graph", False)
+            graph_data['flagged_status'] = 0
+            emp_data = data.copy()
+            if sector_val == "apt" or sector_val == "ret":
+                cols_to_keep = ['emp', 'emp_chg']
+                if currqtr != 4:
+                    cols_to_keep += ['implied_emp_chg']
+            elif sector_val == "off":
+                cols_to_keep = ['off_emp', 'off_emp_chg']
+                if currqtr != 4:
+                    cols_to_keep += ['implied_off_emp_chg']
+            elif sector_val == "ind":
+                cols_to_keep = ['ind_emp', 'ind_emp_chg']
+                if currqtr != 4:
+                    cols_to_keep += ['implied_ind_emp_chg']
+            cols_to_keep += ['avg_inc', 'avg_inc_chg']
+            if currqtr != 4:
+                cols_to_keep += ['implied_avg_inc_chg']
+            emp_data['identity_eco'] = emp_data['metcode'] + emp_data['yr'].astype(str) + emp_data['qtr'].astype(str)
+            emp_data = emp_data.set_index('identity_eco')
+            emp_data = emp_data[cols_to_keep]
+            graph_data['identity_eco'] = graph_data['metcode'] + graph_data['yr'].astype(str) + graph_data['qtr'].astype(str)
+            graph_data = graph_data.join(emp_data, on='identity_eco')
 
-        use_pickle("out", "ts_data_" + sector_val, for_time_series, fileyr, currqtr, sector_val)
+
+        scatter_graph, init_hover = filter_graph(graph_data, curryr, currqtr, year_value, xaxis_var, yaxis_var, sector_val, comp_value, flags_only, aggreg_met, False)
         
-        scatter_layout = create_scatter_plot(scatter_graph, xaxis_column_name, yaxis_column_name, comp_value)
+        scatter_layout = create_scatter_plot(scatter_graph, xaxis_var, yaxis_var, comp_value)
 
         #Need to set this variable so that the succeeding callbacks will only fire once the intial load is done. 
         # This works because it makes the callbacks that use elements produced in this callback have an input that is linked to an output of this callback, ensuring that they will only be fired once this one completes
@@ -3238,14 +3207,17 @@ def produce_scatter_graph(xaxis_column_name, yaxis_column_name, year_value, comp
                    State('currqtr', 'data'),
                    State('fileyr', 'data'),
                    State('init_trigger', 'data'),
-                   State('scatter_comparison_radios', 'value')])
-def produce_timeseries(hoverData, xaxis_var, yaxis_var, sector_val, scatter_check, init_trigger, curryr, currqtr, fileyr, success_init, comp_value):
+                   State('scatter_comparison_radios', 'value'),
+                   State('aggreg_level', 'value')])
+def produce_timeseries(hoverData, xaxis_var, yaxis_var, sector_val, scatter_check, init_trigger, curryr, currqtr, fileyr, success_init, comp_value, aggreg_met):
     
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
         
-        graph = use_pickle("in", "ts_data_" + sector_val, False, fileyr, currqtr, sector_val)
+        graph = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
+
+        graph, temp = filter_graph(graph, curryr, currqtr, False, xaxis_var, yaxis_var, sector_val, comp_value, False, aggreg_met, True) 
 
         if comp_value == "r":
             match_list = {'rolscon': 'cons', 'rolsvac_chg': 'vac_chg', 'grolsmre': 'G_mrent', 'rolsgap_chg': 'gap_chg', 'rol-emp_chg': 'emp_chg', 'rol_off_emp_chg': 'off_emp_chg', 'rol_ind_emp_chg': 'ind_emp_chg'}

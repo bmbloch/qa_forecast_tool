@@ -96,7 +96,6 @@ def get_app_layout():
                                 merge_duplicate_headers=True,
                                 style_header={'fontWeight': 'bold', 'textAlign': 'center'},
                                 page_action='none',
-                                sort_action="native",
                                 fixed_rows={'headers': True},
                                 style_cell={'textAlign': 'center'},
                                 style_cell_conditional=[
@@ -337,61 +336,73 @@ def get_app_layout():
                 dcc.Tab(label='Graphs', children=[
                     html.Div([
                         html.Div([
-                            dcc.Dropdown(
-                                id='scatter_xaxis_var',
-                                value='vac_chg'
-                                        )
-                                ], style={'width': '15%', 'display': 'inline-block'}),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='scatter_yaxis_var',
-                                value='G_mrent'
-                                        )
-                                ], style={'width': '15%', 'display': 'inline-block', 'padding-left': '10px'}),
+                            html.Div([
+                                dcc.Dropdown(
+                                    id='scatter_xaxis_var',
+                                    value='vac_chg'
+                                            )
+                                    ], style={'width': '14%', 'display': 'inline-block', 'padding-left': '75px'}),
+                            html.Div([
+                                dcc.Dropdown(
+                                    id='scatter_yaxis_var',
+                                    value='G_mrent'
+                                            )
+                                    ], style={'width': '11%', 'display': 'inline-block', 'padding-left': '10px'}),
+                            html.Div([
+                                dcc.RadioItems(
+                                id='scatter_comparison_radios',
+                                options=[
+                                            {'label': 'Current', 'value': 'c'},
+                                            {'label': 'ROL', 'value': 'r'},
+                                        ],
+                                        value='c',
+                                labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px'}), 
+                                    ], style={'width': '10%', 'display': 'inline-block', 'padding-left': '10px', 'vertical-align': 'top'}),
+                            html.Div([
+                                dcc.Checklist(
+                                    id='flags_only',
+                                    value=[],
+                                    options=[
+                                                {'label': ' Flags Only', 'value': 'f'},
+                                                ],
+                                    labelStyle={'display': 'block', 'margin': '0 10px 0 10px'}), 
+                                    ],  style={'display': 'inline-block', 'vertical-align': 'top'}),
+                            html.Div([
+                                    daq.ToggleSwitch(
+                                        id='aggreg_level',
+                                        label=['Sub', 'Met'],
+                                        style={'width': '5px', 'margin': 'auto'},
+                                        value=False,
+                                        ),
+                                    ], style={'padding-left': '75px', 'display': 'inline-block', 'vertical-align': 'top'}),
+                            ], style={'padding-left': '10px', 'width': '100%'}),
                         html.Div([
                             dcc.RadioItems(
-                            id='scatter_comparison_radios',
-                            options=[
-                                        {'label': 'Current', 'value': 'c'},
-                                        {'label': 'ROL', 'value': 'r'},
-                                    ],
-                                    value='c',
-                            labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px'}), 
-                                ], style={'width': '10%', 'display': 'inline-block', 'padding-left': '30px', 'vertical-align': 'top'}),
-                        html.Div([
-                            dcc.Checklist(
-                                id='flags_only',
-                                value=[],
-                                options=[
-                                            {'label': ' Flags Only', 'value': 'f'},
-                                            ],
-                                labelStyle={'display': 'block', 'margin': '0 10px 0 10px'}), 
-                                ],  style={'padding-left': '10px', 'display': 'inline-block', 'vertical-align': 'top'}),
-                            ], style={'padding': '10px 5px'}),
-                    html.Div([
-                        dcc.RadioItems(
-                            id='scatter_year_radios',
-                            labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px'}), 
-                        ], style={'width': '100%', 'display': 'inline-block', 'padding-left': '30px'}),
-                    html.Div([
-                        dcc.Graph(
-                            id='scatter_graph',
-                                )
-                        ], style={'width': '49%', 'display': 'inline-block', 'padding-left': '30px'}),
+                                id='scatter_year_radios',
+                                labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px'}), 
+                            ], style={'width': '100%', 'display': 'block', 'padding-left': '130px'}),
+                        ]),
                     html.Div([
                         html.Div([
                             dcc.Graph(
-                                id='x_time_series',
-                                config={'displayModeBar': False}
-                                    ),
-                                ]),
+                                id='scatter_graph',
+                                    )
+                            ], style={'width': '49%', 'display': 'inline-block', 'padding-left': '30px'}),
                         html.Div([
-                            dcc.Graph(
-                                id='y_time_series',
-                                config={'displayModeBar': False}
-                                    ),
-                            ], style={'padding-top': '25px'}),
-                        ], style={'display': 'inline-block', 'width': '49%', 'padding-left': '150px'}),   
+                            html.Div([
+                                dcc.Graph(
+                                    id='x_time_series',
+                                    config={'displayModeBar': False}
+                                        ),
+                                    ]),
+                            html.Div([
+                                dcc.Graph(
+                                    id='y_time_series',
+                                    config={'displayModeBar': False}
+                                        ),
+                                ], style={'padding-top': '25px'}),
+                            ], style={'display': 'inline-block', 'width': '49%', 'padding-left': '150px'}),   
+                        ], style={'display': 'block'}),
                     ]),
                 dcc.Tab(label='Rollups', children=[
                     html.Div([
@@ -442,17 +453,17 @@ def get_app_layout():
                                                 'width': '4%'},
                                                 {'if': {'column_id': 'rol abs'},
                                                 'width': '4%'},
-                                                {'if': {'column_id': 'ask rent'},
+                                                {'if': {'column_id': 'mrent'},
                                                 'width': '3%'},
-                                                {'if': {'column_id': 'ask chg'},
+                                                {'if': {'column_id': 'Gmrent'},
                                                 'width': '3%'},
-                                                {'if': {'column_id': 'rol ask chg'},
+                                                {'if': {'column_id': 'rol Gmrent'},
                                                 'width': '3%'},
-                                                {'if': {'column_id': 'eff rent'},
+                                                {'if': {'column_id': 'merent'},
                                                 'width': '3%'},
-                                                {'if': {'column_id': 'eff chg'},
+                                                {'if': {'column_id': 'Gmerent'},
                                                 'width': '3%'},
-                                                {'if': {'column_id': 'rol eff chg'},
+                                                {'if': {'column_id': 'rol Gmerent'},
                                                 'width': '3%'},
                                                 {'if': {'column_id': 'gap'},
                                                 'width': '3%'},

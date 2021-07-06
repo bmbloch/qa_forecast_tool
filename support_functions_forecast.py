@@ -345,7 +345,7 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
         else:
             roll = roll[~roll['metcode'].isin(["NO", "WS", "PV"])]
     
-    if filt_type == "reg":
+    if filt_type == "reg" or filt_type == "graph":
         if drop_val[:2] == "US":
             identity_filt = 'identity_us'
         else:
@@ -385,13 +385,13 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
     
     if drop_val[:2] == "US":
         roll.sort_values(by=[identity_filt, 'yr', 'qtr'], ascending=[False, True, True], inplace=True)
-    elif filt_type == "reg":
+    elif filt_type == "reg" or filt_type == "graph":
         if sector_val == "ind":
             roll.sort_values(by=['subsector', 'metcode', 'yr', 'qtr'], ascending=[True, True, True, True], inplace=True)
         else:
             roll.sort_values(by=['metcode', 'yr', 'qtr'], ascending=[True, True, True], inplace=True)
     
-    if filt_type == "reg":
+    if filt_type == "reg" or filt_type == "graph":
         if drop_val[:2] == "US":
             roll['drop_identity'] = roll['subsector'] + roll['yr'].astype(str) + roll['qtr'].astype(str)
         else:
@@ -432,22 +432,22 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
     roll = calc_chg(roll, 'rolsvac_chg', 'rolsvac', identity_filt, sector_val)
     roll = calc_chg(roll, 'vac_chg_oob', 'vac_oob', identity_filt, sector_val)
     
-    roll['askrent'] = round(roll['askrevenue'] / roll['inv'],2)
-    roll['effrent'] = round(roll['effrevenue'] / roll['inv'],2)
-    roll['rolaskrent'] = round(roll['rolaskrevenue'] / roll['rolsinv'],2)
+    roll['mrent'] = round(roll['askrevenue'] / roll['inv'],2)
+    roll['merent'] = round(roll['effrevenue'] / roll['inv'],2)
+    roll['rol_mrent'] = round(roll['rolaskrevenue'] / roll['rolsinv'],2)
     roll['askrentoob'] = round(roll['oobaskrevenue'] / roll['inv'],2)
-    roll['roleffrent'] = round(roll['roleffrevenue'] / roll['rolsinv'],2)
+    roll['rol_merent'] = round(roll['roleffrevenue'] / roll['rolsinv'],2)
     roll['effrentoob'] = round(roll['oobeffrevenue'] / roll['inv'],2)
     
-    roll = calc_chg(roll, 'ask_chg', 'askrent', identity_filt, sector_val)
-    roll = calc_chg(roll, 'eff_chg', 'effrent', identity_filt, sector_val)
-    roll = calc_chg(roll, 'rol_ask_chg', 'rolaskrent', identity_filt, sector_val)
+    roll = calc_chg(roll, 'G_mrent', 'mrent', identity_filt, sector_val)
+    roll = calc_chg(roll, 'G_merent', 'merent', identity_filt, sector_val)
+    roll = calc_chg(roll, 'grolsmre', 'rol_mrent', identity_filt, sector_val)
     roll = calc_chg(roll, 'ask_chg_oob', 'askrentoob', identity_filt, sector_val)
-    roll = calc_chg(roll, 'rol_eff_chg', 'roleffrent', identity_filt, sector_val)
+    roll = calc_chg(roll, 'grolsmer', 'rol_merent', identity_filt, sector_val)
     roll = calc_chg(roll, 'eff_chg_oob', 'effrentoob', identity_filt, sector_val)
 
-    roll['gap'] = ((roll['effrent'] - roll['askrent']) / roll['askrent']) *-1
-    roll['rolgap'] = ((roll['roleffrent'] - roll['rolaskrent']) / roll['rolaskrent']) *-1
+    roll['gap'] = ((roll['merent'] - roll['mrent']) / roll['mrent']) *-1
+    roll['rolgap'] = ((roll['rol_merent'] - roll['rol_mrent']) / roll['rol_mrent']) *-1
     roll['gap_oob'] = ((roll['effrentoob'] - roll['askrentoob']) / roll['askrentoob']) *-1
     
     roll = calc_chg(roll, 'gap_chg', 'gap', identity_filt, sector_val)
@@ -463,11 +463,21 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
     roll['rolsabs'] = np.where((roll['yr'] != curryr - 5) & (roll['first_trend'] == 1), np.nan, roll['rolsabs'])
     roll = roll.drop(['first_trend'], axis=1)
 
+    if currqtr != 4 and finalizer == False and filt_type == "graph":
+        roll['curr_yr_trend_cons'] = roll[(roll['yr'] == curryr) & (roll['qtr'] <= currqtr)].groupby('identity_met')['cons'].transform('sum')
+        roll['implied_cons'] = np.where((roll['yr'] == curryr) & (roll['qtr'] == 5), roll['cons'] - roll['curr_yr_trend_cons'], np.nan)
+        roll['implied_vac_chg'] = np.where((roll['yr'] == curryr) & (roll['qtr'] == 5), roll['vac'] - roll['vac'].shift(1), np.nan)
+        roll['implied_G_mrent'] = np.where((roll['yr'] == curryr) & (roll['qtr'] == 5), (roll['mrent'] - roll['mrent'].shift(1)) / roll['mrent'].shift(1), np.nan)
+        roll['implied_gap_chg'] = np.where((roll['yr'] == curryr) & (roll['qtr'] == 5), roll['gap'] - roll['gap'].shift(1), np.nan)
+        roll = roll.drop(['curr_yr_trend_cons'], axis=1)
+
     if finalizer == False:
         if filt_type == "reg":
-            cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'askrent', 'ask_chg', 'rol_ask_chg', 'effrent', 'eff_chg', 'rol_eff_chg', 'gap', 'gap_chg', 'rolaskrent']
+            cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rol_mrent']
+        elif filt_type == "graph":
+            cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rol_mrent', 'implied_cons', 'implied_vac_chg', 'implied_G_mrent', 'implied_gap_chg']
         else:
-            cols_to_display = ['subsector', 'metcode', 'subid', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'askrent', 'ask_chg', 'rol_ask_chg', 'effrent', 'eff_chg', 'rol_eff_chg', 'gap', 'gap_chg', 'rolaskrent']
+            cols_to_display = ['subsector', 'metcode', 'subid', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rol_mrent']
         cols_to_display += ['cons_oob', 'vac_oob', 'vac_chg_oob', 'askrentoob', 'ask_chg_oob']
         if drop_val[:2] == "US":
             cols_to_display.remove('metcode')
@@ -477,22 +487,22 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
         roll = roll[(roll['yr'] >= curryr - 5)]
 
     elif finalizer == True:
-        cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'askrent', 'ask_chg', 'rol_ask_chg', 'effrent', 'eff_chg', 'rol_eff_chg', 'gap', 'gap_chg', 'rolgap', 'rolaskrent', 'roleffrent', 'cons_oob', 'vac_oob', 'vac_chg_oob', 'askrentoob', 'effrentoob', 'ask_chg_oob', 'eff_chg_oob', 'abs_oob', 'gap_oob']
+        cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmre', 'gap', 'gap_chg', 'rolgap', 'rol_mrent', 'rol_merent', 'cons_oob', 'vac_oob', 'vac_chg_oob', 'askrentoob', 'effrentoob', 'ask_chg_oob', 'eff_chg_oob', 'abs_oob', 'gap_oob']
         roll = roll[cols_to_display]
 
     roll['rolscon'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rolscon'])
     roll['rolsabs'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rolsabs'])
-    roll['rolaskrent'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rolaskrent'])
-    roll['rol_ask_chg'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rol_ask_chg'])
+    roll['rol_mrent'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rol_mrent'])
+    roll['grolsmre'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['grolsmre'])
     if sector_val == "ind" or sector_val == "apt":
-        roll['rol_eff_chg'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rol_eff_chg'])
+        roll['grolsmer'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['grolsmer'])
 
     roll['rolscon'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['rolscon'])
     roll['rolsvac'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['rolsvac'])
     roll['rolsvac_chg'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['rolsvac_chg'])
     roll['rolsabs'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['rolsabs'])
-    roll['rol_ask_chg'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['rol_ask_chg'])
-    roll['rol_eff_chg'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['rol_eff_chg'])
+    roll['grolsmre'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['grolsmre'])
+    roll['grolsmer'] = np.where((roll['yr'] == curryr) & (currqtr != 4) & (roll['qtr'] == currqtr), np.nan, roll['grolsmer'])
 
     return roll
 
@@ -1317,3 +1327,96 @@ def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr
             dataframe['gap_chg'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['identity'] == identity_val) & (dataframe['qtr'] == 5), dataframe['gap'] - dataframe['gap'].shift(periods=period), dataframe['gap_chg'])
 
     return dataframe
+
+# This function sets the scale and tick distance for bar graphs based on the variable's max percentage of inventory
+def set_bar_scale(data_in, sector_val, numer_list, denomer_list):
+    
+    data = data_in.copy()
+    if 'rolscon' in numer_list:
+        data['rolsinv'] = data['inv'] - (data['cons'] - data['rolscon'])
+    val_list = []
+    for x, y in zip(numer_list, denomer_list):
+        data[x + "_per_inv"] = data[x] / data[y]
+        data[x + "_per_inv"] = round(data[x + "_per_inv"], 2)
+        val_list.append(list(data[x + "_per_inv"]))
+    combined = []
+    for x in val_list:
+        x = [y for y in x if y == y]
+        if len(x) > 0:
+            combined += x
+    combined = [float(i) for i in combined]
+    
+    max_cons_per_inv = max(combined)
+    max_inv = max(list(data['inv']))
+    
+    if max_cons_per_inv == 0:
+        if sector_val != "apt":
+            range_list = [0, 400000]
+            dtick = 100000
+        elif sector_val == "apt":
+            range_list = [0, 4000]
+            dtick = 1000
+    else:
+        len_max = len(str(int((max_cons_per_inv * max_inv))))
+        max_round = round((max_cons_per_inv * max_inv), (len_max - 1) * -1)
+
+        if max_cons_per_inv < 0.02:
+            upper_bound = max_round * 2.5
+        elif max_cons_per_inv >= 0.02 and max_cons_per_inv < 0.05:
+            upper_bound = max_round * 2
+        elif max_cons_per_inv >= 0.05 and max_cons_per_inv < 0.1:
+            upper_bound = max_round * 1.5
+        else:
+            upper_bound = max_round * 1
+        
+        range_list = [0, upper_bound]
+
+        dtick = upper_bound / 4
+        len_dtick = len(str(int(dtick)))
+        dtick = round(dtick, (len_dtick - 1) * -1)
+        
+    return range_list, dtick
+
+def set_y2_scale(graph, type_filt, input_var, sector_val):
+    if type_filt == "sub":
+        graph = pd.melt(graph, id_vars=['subsector', 'metcode', 'subid', 'yr', 'qtr'])
+    elif type_filt == "met":
+        graph = pd.melt(graph, id_vars=['subsector', 'metcode', 'yr', 'qtr'])
+    elif type_filt == "nat":
+        graph = pd.melt(graph, id_vars=['subsector', 'yr', 'qtr'])
+
+    var = list(graph[graph['variable'] == input_var]['value'])
+
+    if type_filt != "ts":
+        if input_var == "vac":
+            rol_var = list(graph[(graph['variable'] == 'rolsvac') & (graph['value'] != '')]['value'])
+            oob_var = list(graph[(graph['variable'] == 'vac_oob') & (graph['value'] != '')]['value'])
+        elif input_var == "mrent":
+            rol_var = list(graph[(graph['variable'] == 'rol_mrent') & (graph['value'] != '')]['value'])
+            oob_var = list(graph[(graph['variable'] == 'mrent_oob') & (graph['value'] != '')]['value'])
+        elif input_var == "askrent":
+            rol_var = list(graph[(graph['variable'] == 'rol_mrent') & (graph['value'] != '')]['value'])
+            oob_var = list(graph[(graph['variable'] == 'askrentoob') & (graph['value'] != '')]['value'])
+        rol_var = [float(i) for i in rol_var]
+        oob_var = [float(i) for i in oob_var]
+        combined = var + rol_var + oob_var
+    elif type_filt == "ts":
+        combined = var
+    max_var = max(combined)
+    min_var = min(combined)
+
+    if input_var == "vac" or "gap" in input_var:
+        round_val = 2
+        tick_0 = max(min_var - 0.01, 0)
+        tick_1 = min(max_var + 0.01, 100)
+    elif "avg_inc" in  input_var:
+        round_val = -3
+        tick_0 = min_var - round((max_var - min_var) / 5, round_val)
+        tick_1 = max_var + round((max_var - min_var) / 5, round_val)
+    else:
+        tick_0 = min_var - round((max_var - min_var) / 5, 2)
+        tick_1 = max_var + round((max_var - min_var) / 5, 2)
+    range_list = [round(tick_0, 2), round(tick_1, 2)]
+    dtick = round((tick_1 - tick_0) / 5, 2)
+
+    return range_list, dtick, tick_0

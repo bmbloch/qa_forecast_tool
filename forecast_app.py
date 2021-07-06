@@ -2524,7 +2524,7 @@ def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, file
                     State('store_flag_skips', 'data'),
                     State('init_trigger', 'data')])  
 #@Timer()
-def output_data(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_list, identity_val, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init):  
+def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_list, identity_val, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init):  
     
     input_id = get_input_id()
 
@@ -2655,20 +2655,13 @@ def output_data(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_list
 
         if len_display < 19 + qtr_add:
             if len_display == 19 + qtr_add - 1:
-                padding = str(max((38 + (currqtr * 30)),0)) + 'px'
+                padding = str(max((70 + (currqtr * 30)),0)) + 'px'
             else:
-                padding = '23px'
+                padding = '40px'
         elif len_display == 19 + qtr_add:
-            padding = padding = str(max((68 + (currqtr * 30)),0)) + 'px'
+            padding = padding = str(max((98 + (currqtr * 30)),0)) + 'px'
         spacing_style_shim = {'padding-left': '30px', 'display': 'block', 'padding-top': padding}
-
-        # Due to the 2020q2 new subs not having enough history yet, we need to move the main data display down a bit until enough history gets added there.
-        # Should only be relevant before 2021Q2
-        if len_display < 19 + qtr_add - 1 and curryr == 2021 and currqtr == 1:
-            padding = '14px'
-            spacing_style_data = {'display': 'block', 'padding-top': padding} 
-        else: 
-            spacing_style_data = {'display': 'block'}
+        spacing_style_data = {'display': 'block'}
 
         # Set the key metrics and employment metrics display
         key_metrics = data.copy()

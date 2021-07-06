@@ -9,21 +9,27 @@ from datetime import datetime
 import math
 import numpy as np
 import pandas as pd
+from pathlib import Path
+import os
+from os import listdir
+from os.path import isfile, join
+
+def get_home():
+    if os.name == "nt": return "//odin/reisadmin/"
+    else: return "/home/"
 
 # Layout for login page
 def get_login_layout():
-    currmon = datetime.now().month
-    curryr = datetime.now().year
-    if currmon in [11,12,1]:
-        currqtr = 4
-    elif currmon in [2,3,4]:
-        currqtr = 1
-    elif currmon in [5,6,7]:
-        currqtr = 2
-    elif currmon in [8,9,10]:
-        currqtr = 3
-    if currmon == 1:
-        curryr = curryr - 1
+    
+    root = Path("{}central/square/data/zzz-bb-test2/python/forecast/ind/".format(get_home()))
+    dirlist = [item for item in os.listdir(root) if os.path.isdir(os.path.join(root, item)) ]
+    latest_year = 0
+    latest_qtr = 0
+    month_to_display = 0
+    for folder in dirlist:
+        if (int(folder[0:4]) == latest_year and int(folder[-1:]) >= latest_qtr) or int(folder[0:4]) > latest_year:
+            latest_year = int(folder[0:4])
+            latest_qtr = int(folder[-1:])
 
     return html.Div([
             dcc.Location(id='login-url',pathname='/login',refresh=False),
@@ -61,11 +67,11 @@ def get_login_layout():
                             html.Div([
                                 html.Div([
                                     dcc.Dropdown(id='login-curryr', 
-                                                options=[{'value': datetime.now().year - 1, 'label': datetime.now().year - 1}, 
-                                                            {'value': datetime.now().year, 'label': datetime.now().year},
-                                                            {'value': datetime.now().year + 1, 'label': datetime.now().year + 1}],
+                                                options=[{'value': latest_year - 1, 'label': latest_year - 1}, 
+                                                            {'value': latest_year, 'label': datetime.now().year},
+                                                            {'value': latest_year + 1, 'label': latest_year + 1}],
                                                 multi=False,
-                                                value=curryr,
+                                                value=latest_year,
                                                 ),
                                                     ], style={'width': '30%', 'display': 'inline-block'}),
                                 html.Div([
@@ -76,7 +82,7 @@ def get_login_layout():
                                                             {'value': 4, 'label': 4},
                                                         ],
                                                 multi=False,
-                                                value=currqtr,
+                                                value=latest_qtr,
                                                 ),
                                                     ], style={'width': '30%', 'display': 'inline-block', 'padding-left': '20px'}),
                                 html.Div([

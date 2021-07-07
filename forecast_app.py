@@ -1690,8 +1690,8 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close):
         if file_load_error == False:
 
             try:
-                path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.csv".format(get_home(), sector_val, fileyr, currqtr))
-                path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, fileyr, currqtr))
+                path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.csv".format(get_home(), sector_val))
+                path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.pickle".format(get_home(), sector_val))
                 coeffs = pd.read_csv(path_in)
                 if sector_val != "ind":
                     coeffs['identity'] = coeffs['identity'] + sector_val.title()

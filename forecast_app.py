@@ -1438,6 +1438,17 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
         if rent_c[-9:] != "Note Here":
             decision_data_update.loc[drop_val, 'rent_comment'] = rent_c
         decision_data_update = decision_data_update.reset_index().set_index('identity_row')
+
+    elif action == "comment":
+        decision_data_update = decision_data.copy()
+        decision_data_update = decision_data_update.reset_index().set_index('identity')
+        if cons_c[-9:] != "Note Here":
+            decision_data_update.loc[drop_val, 'cons_comment'] = cons_c
+        if avail_c[-9:] != "Note Here":
+            decision_data_update.loc[drop_val, 'avail_comment'] = avail_c
+        if rent_c[-9:] != "Note Here":
+            decision_data_update.loc[drop_val, 'rent_comment'] = rent_c
+        decision_data_update = decision_data_update.reset_index().set_index('identity_row')
     
     return decision_data_update
 
@@ -1545,7 +1556,12 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
     else:
         no_shim = False
 
-    if no_shim == True and len(skip_list) == 0:
+    # Check to see if a comment was entered, as we will want to allow that to be processed even if no shim was entered
+    comment_check = False
+    if (cons_c[-9:] != "Note Here" and len(cons_c) > 0) or (avail_c[-9:] != "Note Here" and len(avail_c) > 0) or (rent_c[-9:] != "Note Here" and len(rent_c) > 0):
+        comment_check = True
+
+    if no_shim == True and len(skip_list) == 0 and comment_check == False:
         message = "You did not enter any changes."
         message_display = True
     else:
@@ -1569,27 +1585,30 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
             rebench_trigger = True
 
         # Update decision log with new values entered via shim, and save the updates
-        if has_diff == 1 or (len(skip_list) > 0 and rebench_triger == False):
+        if has_diff == 1 or (len(skip_list) > 0 and rebench_triger == False) or comment_check == True:
             decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
         if has_diff == 1:
             decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "submit", False, yr_val, cons_c, avail_c, rent_c)
         
         # Update dataframe to store user flag skips
-        if flag_list[0] != "v_flag" and len(skip_list) > 0 and rebench_trigger == False:
-            test = data.loc[drop_val + str(curryr) + str(5)]['flag_skip']
-            test = test.split(",")
-            test = [x.strip(' ') for x in test]
-            for flag in skip_list:
-                if flag + str(yr_val) not in test:
-                    if data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] == '':
-                        data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] = flag + str(yr_val)
-                    else:
-                        data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] += ", " + flag + str(yr_val)
-                    
-                    decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "skip", flag, yr_val, cons_c, avail_c, rent_c)
+        if (flag_list[0] != "v_flag" and len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
+            if flag_list[0] != "v_flag" and len(skip_list) > 0 and rebench_trigger == False:
+                test = data.loc[drop_val + str(curryr) + str(5)]['flag_skip']
+                test = test.split(",")
+                test = [x.strip(' ') for x in test]
+                for flag in skip_list:
+                    if flag + str(yr_val) not in test:
+                        if data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] == '':
+                            data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] = flag + str(yr_val)
+                        else:
+                            data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] += ", " + flag + str(yr_val)
+                        
+                        decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "skip", flag, yr_val, cons_c, avail_c, rent_c)
+            elif comment_check == True:
+                decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "comment", False, yr_val, cons_c, avail_c, rent_c)
         
         # Save decision log if there was an update, and also save the current state of the edits to ensure nothing gets lost if an error is encountered in later steps
-        if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False):
+        if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
             use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
             data_save = True
             
@@ -2255,7 +2274,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
         
         if input_id == 'submit-button':
-            data, preview_data, shim_data, message, message_display, data_save = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, user_rol_close, yr_val, cons_c, avail_c, mrent_c, erent_c)
+            data, preview_data, shim_data, message, message_display, data_save = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c)
 
         elif input_id == 'preview-button':
             data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols)
@@ -2268,15 +2287,14 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
         
         
         if message_display == False and input_id == 'submit-button':
-            data = data,reset_index()
+            data = data.reset_index().set_index('identity')
             if cons_c[-9:] != "Note Here":
                 data.loc[drop_val, 'cons_comment'] = cons_c
             if avail_c[-9:] != "Note Here":
                 data.loc[drop_val, 'avail_comment'] = avail_c
-            if mrent_c[-9:] != "Note Here":
+            if rent_c[-9:] != "Note Here":
                 data.loc[drop_val, 'rent_comment'] = rent_c
-            data = data.reset_index()
-            data = data.set_index('identity_row')
+            data = data.reset_index().set_index('identity_row')
 
         if input_id != "preview-button":
             flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
@@ -2310,7 +2328,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
         use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
         use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
 
-        if input_id == "submit-button": 
+        if input_id == "submit-button":
             if data_save == True:
                 data_to_save = data.copy()
                 file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_mostrecentsave.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))

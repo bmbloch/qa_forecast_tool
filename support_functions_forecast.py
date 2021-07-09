@@ -1023,6 +1023,10 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
         
         # Check to see if a vacancy or rent shim created a change from ROL above the data governance threshold set by key stakeholders. If it did, do not process the shim unless there is an accompanying note explaining why the change was made
         if button == 'submit':
+
+            init_avail_c = data_temp.loc[drop_val + str(curryr) + str(5)]['avail_comment']
+            init_rent_c = data_temp.loc[drop_val + str(curryr) + str(5)]['rent_comment']
+
             avail_check = False
             mrent_check = False
             merent_check = False
@@ -1042,7 +1046,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                     shim_check['vac_diff'] = shim_check['vac'] - shim_check['rol_vac']
                     shim_check = shim_check[abs(shim_check['vac_diff']) >= 0.03]
                     if len(shim_check) > 0:
-                        if avail_c[-9:] != "Note Here" and len(avail_c.strip()) > 0:
+                        if avail_c[-9:] != "Note Here" and len(avail_c.strip()) > 0 and avail_c != init_avail_c:
                             avail_check = False
                     else:
                         avail_check = False
@@ -1057,7 +1061,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                         shim_check['mrent_diff'] = (shim_check['mrent'] - shim_check['rol_mrent']) / shim_check['rol_mrent']
                         shim_check = shim_check[abs(shim_check['mrent_diff']) >= 0.05]
                         if len(shim_check) > 0:
-                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0:
+                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0 and rent_c != init_rent_c:
                                 mrent_check = False
                         else:
                             mrent_check = False
@@ -1072,7 +1076,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                         shim_check['merent_diff'] = (shim_check['merent'] - shim_check['rol_merent']) / shim_check['rol_merent']
                         shim_check = shim_check[abs(shim_check['merent_diff']) >= 0.05]
                         if len(shim_check) > 0:
-                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0:
+                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0 and rent_c != init_rent_c:
                                 merent_check = False
                         else:
                             merent_check = False

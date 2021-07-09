@@ -1848,6 +1848,9 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
                 decision_data['e_user'] = np.nan
                 decision_data['skipped'] = ''
                 decision_data['skip_user'] = ''
+                decision_data['cons_comment'] = ''
+                decision_data['avail_comment'] = ''
+                decision_data['rent_comment'] = ''
                 use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
 
             met_combos_temp = list(oob_data['identity_met'].unique())

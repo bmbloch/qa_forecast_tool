@@ -34,7 +34,7 @@ def set_display_cols(dataframe_in, identity_val, sector, curryr, currqtr, key_me
                         'G_mrent_sub_var']
 
     elif key_met_val == "e":
-        key_met_cols = ['min_gap', 'min_gap_chg', 'max_gap', 'max_gap_chg', 'gap_5', 'gap_95', 'implied_gap_chg', 'implied_G_merent', 'gap_quart']
+        key_met_cols = ['min_gap', 'min_gap_chg', 'max_gap', 'max_gap_chg', 'gap_5', 'gap_95', 'implied_gap_chg', 'implied_G_merent', 'gap_quart', 'implied_vac_chg']
     
     key_emp_cols = ['emp_chg', 'emp_chg_z', 'three_yr_avg_emp_chg', 'emp_5', 'emp_95', 'hist_emp_10', 'hist_emp_90']
     if sector == "apt" or sector == "ret":
@@ -136,7 +136,8 @@ def gen_metrics(dataframe, identity_val, key_met_cols, key_emp_cols, yr_val):
                    'implied_avg_inc_chg': 'imp_avginc_chg',
                    'implied_emp_chg': 'imp_empchg',
                    'implied_off_emp_chg': 'imp_offemp_chg',
-                   'implied_ind_emp_chg': 'imp_indemp_chg'
+                   'implied_ind_emp_chg': 'imp_indemp_chg',
+                   'implied_vac_chg': 'imp vacchg'
                    }
     
     dataframe_met = dataframe_met.rename(columns=rename_dict)
@@ -152,7 +153,7 @@ def get_met_implied(dataframe, curryr, currqtr):
     dataframe['implied_cons'] = np.where((dataframe['yr'] == curryr) & (dataframe['qtr'] == 5), dataframe['cons'] - dataframe['total_trend_cons'].shift(1), np.nan)
     dataframe['implied_abs'] = np.where((dataframe['yr'] == curryr) & (dataframe['qtr'] == 5), dataframe['abs'] - dataframe['total_trend_abs'].shift(1), np.nan)
     dataframe['implied_vac_chg'] = np.where((dataframe['yr'] == curryr) & (dataframe['qtr'] == 5), dataframe['vac'] - dataframe['vac'].shift(1), np.nan)
-    dataframe['implied_G_mrent'] = np.where((dataframe['yr'] == curryr) & (dataframe['qtr'] == 5), (dataframe['askrent'] - dataframe['askrent'].shift(1)) / dataframe['askrent'].shift(1), np.nan)
+    dataframe['implied_G_mrent'] = np.where((dataframe['yr'] == curryr) & (dataframe['qtr'] == 5), (dataframe['mrent'] - dataframe['mrent'].shift(1)) / dataframe['mrent'].shift(1), np.nan)
     dataframe['implied_gap_chg'] = np.where((dataframe['yr'] == curryr) & (dataframe['qtr'] == 5), dataframe['gap'] - dataframe['gap'].shift(1), np.nan)
 
     return dataframe        
@@ -166,7 +167,7 @@ def calc_subsequent(data_in, curryr, currqtr, sector_val, identity_val, year_val
     if identity_val == "identity":
         dataframe['G_mrent_roll'] = np.where((dataframe['yr'] == curryr + year_val - 1), (dataframe['mrent'] - dataframe['mrent'].shift(year_val)) / dataframe['mrent'].shift(year_val), np.nan)
     else:
-        dataframe['G_mrent_roll'] = np.where((dataframe['yr'] == curryr + year_val - 1), (dataframe['askrent'] - dataframe['askrent'].shift(year_val)) / dataframe['askrent'].shift(year_val), np.nan)
+        dataframe['G_mrent_roll'] = np.where((dataframe['yr'] == curryr + year_val - 1), (dataframe['mrent'] - dataframe['mrent'].shift(year_val)) / dataframe['mrent'].shift(year_val), np.nan)
     dataframe['gap_chg_roll'] = np.where((dataframe['yr'] == curryr + year_val - 1), dataframe['gap'] - dataframe['gap'].shift(year_val), np.nan)
 
     dataframe = dataframe.drop(['cons', 'vac_chg', 'abs', 'G_mrent', 'gap_chg'], axis=1)
@@ -184,13 +185,13 @@ def calc_subsequent(data_in, curryr, currqtr, sector_val, identity_val, year_val
     return dataframe
 
 # This function creates the rank table for key vars for subs within the met
-def rank_it(rolled, data, roll_val, curryr, currqtr, sector_val, year_val):
+def metro_sorts(rolled, data, roll_val, curryr, currqtr, sector_val, year_val):
     frames = []
 
     for x in ['identity', 'identity_met']:
         if x == "identity":
             rank = data.copy()
-            #rank = rank[rank['identity_met'] == roll_val]
+            
         elif x == "identity_met":
             rank = rolled.copy()
             rank = rank[rank['yr'] >= curryr - 1]
@@ -213,7 +214,6 @@ def rank_it(rolled, data, roll_val, curryr, currqtr, sector_val, year_val):
                 emp_data = emp_data[['ind_emp_chg', 'implied_ind_emp_chg']]
             rank['join_ident'] = rank['metcode'] + rank['subsector'] + rank['yr'].astype(str) + rank['qtr'].astype(str)
             rank = rank.join(emp_data, on='join_ident')
-            rank = rank.rename(columns={'ask_chg': 'G_mrent'})
 
         rank_filt = rank.copy()
         rank_filt = rank_filt[(rank_filt['yr'] >= curryr - 1) & (rank_filt['qtr'] == 5)]
@@ -280,27 +280,25 @@ def rank_it(rolled, data, roll_val, curryr, currqtr, sector_val, year_val):
             rank_filt['join_ident'] = rank_filt['metcode'] + rank_filt['subsector'] + rank_filt['yr'].astype(str) + rank_filt['qtr'].astype(str)
             rank_filt = rank_filt.join(emp_data, on='join_ident')
 
-        rank_cols = []
-        for y in calc_cols:
-            col_name = y + "_rank"
-            rank_cols.append(col_name)
-            if "vac" in y or "gap" in y:
-                sort_order = True
-            else:
-                sort_order = False
-            rank_filt[col_name] = rank_filt[y].rank(ascending=sort_order, method='min')
-            rank_filt[col_name] = rank_filt[col_name].astype(int)
+        # rank_cols = [col +"_rank" for col in calc_cols]
+        # for var, name in zip(calc_cols, rank_cols):
+        #     if "vac" in var or "gap" in var:
+        #         sort_order = True
+        #     else:
+        #         sort_order = False
+        #     rank_filt[name] = rank_filt[var].rank(ascending=sort_order, method='min')
+        #     rank_filt[name] = rank_filt[name].astype(int)
 
         if x == "identity_met":
             rank_filt = rank_filt.drop_duplicates(['metcode'])
-        
+            
         rank_filt['identity_met'] = rank_filt['metcode'] + rank_filt['subsector']    
         
         rank_filt = rank_filt.set_index(x)
         if x == "identity_met":
-            rank_filt = rank_filt[['metcode'] + rank_cols]
+            rank_filt = rank_filt[['metcode'] + calc_cols]
         else:
-            rank_filt = rank_filt[['metcode', 'subid', 'identity_met'] + rank_cols]
+            rank_filt = rank_filt[['metcode', 'subid', 'identity_met'] + calc_cols]
         
         for z in list(rank_filt.columns):
             if "implied" in z:
@@ -314,6 +312,11 @@ def rank_it(rolled, data, roll_val, curryr, currqtr, sector_val, year_val):
             elif "emp_chg" in z and "imp" in z:
                 rank_filt = rank_filt.rename(columns={z: "imp_emp_chg"})
         
+        if year_val != "1.5":
+            rank_filt.sort_values(by=['cons'], ascending=[False], inplace=True)
+        else:
+            rank_filt.sort_values(by=['imp_cons'], ascending=[False], inplace=True)
+        
         temp = rank_filt.copy()
         temp = temp.reset_index()
         temp = temp[temp['identity_met'] == roll_val]
@@ -325,7 +328,7 @@ def rank_it(rolled, data, roll_val, curryr, currqtr, sector_val, year_val):
             rank_filt = rank_filt.drop(['identity_met'], axis=1)
        
         frames.append(rank_filt)
-
+        
     return frames[0], frames[1]
 
 
@@ -382,7 +385,6 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
     
     roll[cols_to_roll] = roll.groupby([identity_filt, 'yr', 'qtr'])[cols_to_roll].transform('sum')
 
-    
     if drop_val[:2] == "US":
         roll.sort_values(by=[identity_filt, 'yr', 'qtr'], ascending=[False, True, True], inplace=True)
     elif filt_type == "reg" or filt_type == "graph":
@@ -393,7 +395,10 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
     
     if filt_type == "reg" or filt_type == "graph":
         if drop_val[:2] == "US":
-            roll['drop_identity'] = roll['subsector'] + roll['yr'].astype(str) + roll['qtr'].astype(str)
+            if finalizer == True:
+                roll['drop_identity'] = roll['subsector'] + roll['yr'].astype(str) + roll['qtr'].astype(str)
+            else:
+                roll['drop_identity'] = roll['identity_us'] + roll['yr'].astype(str) + roll['qtr'].astype(str)
         else:
             roll['drop_identity'] = roll['subsector'] + roll['metcode'] + roll['yr'].astype(str) + roll['qtr'].astype(str)
         roll = roll.drop_duplicates(subset="drop_identity")
@@ -435,20 +440,20 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
     roll['mrent'] = round(roll['askrevenue'] / roll['inv'],2)
     roll['merent'] = round(roll['effrevenue'] / roll['inv'],2)
     roll['rol_mrent'] = round(roll['rolaskrevenue'] / roll['rolsinv'],2)
-    roll['askrentoob'] = round(roll['oobaskrevenue'] / roll['inv'],2)
+    roll['mrent_oob'] = round(roll['oobaskrevenue'] / roll['inv'],2)
     roll['rol_merent'] = round(roll['roleffrevenue'] / roll['rolsinv'],2)
-    roll['effrentoob'] = round(roll['oobeffrevenue'] / roll['inv'],2)
+    roll['merent_oob'] = round(roll['oobeffrevenue'] / roll['inv'],2)
     
     roll = calc_chg(roll, 'G_mrent', 'mrent', identity_filt, sector_val)
     roll = calc_chg(roll, 'G_merent', 'merent', identity_filt, sector_val)
     roll = calc_chg(roll, 'grolsmre', 'rol_mrent', identity_filt, sector_val)
-    roll = calc_chg(roll, 'ask_chg_oob', 'askrentoob', identity_filt, sector_val)
+    roll = calc_chg(roll, 'G_mrent_oob', 'mrent_oob', identity_filt, sector_val)
     roll = calc_chg(roll, 'grolsmer', 'rol_merent', identity_filt, sector_val)
-    roll = calc_chg(roll, 'eff_chg_oob', 'effrentoob', identity_filt, sector_val)
+    roll = calc_chg(roll, 'G_merent_oob', 'merent_oob', identity_filt, sector_val)
 
     roll['gap'] = ((roll['merent'] - roll['mrent']) / roll['mrent']) *-1
     roll['rolgap'] = ((roll['rol_merent'] - roll['rol_mrent']) / roll['rol_mrent']) *-1
-    roll['gap_oob'] = ((roll['effrentoob'] - roll['askrentoob']) / roll['askrentoob']) *-1
+    roll['gap_oob'] = ((roll['merent_oob'] - roll['mrent_oob']) / roll['mrent_oob']) *-1
     
     roll = calc_chg(roll, 'gap_chg', 'gap', identity_filt, sector_val)
 
@@ -478,7 +483,7 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
             cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rol_mrent', 'implied_cons', 'implied_vac_chg', 'implied_G_mrent', 'implied_gap_chg']
         else:
             cols_to_display = ['subsector', 'metcode', 'subid', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rol_mrent']
-        cols_to_display += ['cons_oob', 'vac_oob', 'vac_chg_oob', 'askrentoob', 'ask_chg_oob']
+        cols_to_display += ['cons_oob', 'vac_oob', 'vac_chg_oob', 'mrent_oob', 'G_mrent_oob']
         if drop_val[:2] == "US":
             cols_to_display.remove('metcode')
             cols_to_display += ['identity_us']
@@ -487,7 +492,7 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
         roll = roll[(roll['yr'] >= curryr - 5)]
 
     elif finalizer == True:
-        cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmre', 'gap', 'gap_chg', 'rolgap', 'rol_mrent', 'rol_merent', 'cons_oob', 'vac_oob', 'vac_chg_oob', 'askrentoob', 'effrentoob', 'ask_chg_oob', 'eff_chg_oob', 'abs_oob', 'gap_oob']
+        cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap', 'rol_mrent', 'rol_merent', 'cons_oob', 'vac_oob', 'vac_chg_oob', 'mrent_oob', 'merent_oob', 'G_mrent_oob', 'G_merent_oob', 'abs_oob', 'gap_oob']
         roll = roll[cols_to_display]
 
     roll['rolscon'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rolscon'])
@@ -506,10 +511,8 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
 
     return roll
 
-def live_flag_count(dataframe_in, sector_val):
+def live_flag_count(dataframe_in, sector_val, flag_cols):
     dataframe = dataframe_in.copy()
-    r = re.compile("^._flag*")
-    flag_cols = list(filter(r.match, dataframe.columns))
     dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0) & (dataframe[flag_cols] != 999999999), 1, dataframe[flag_cols])
     dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
 
@@ -532,7 +535,7 @@ def live_flag_count(dataframe_in, sector_val):
     
     return countdown
 
-def summarize_flags_ranking(dataframe_in, type_filt):
+def summarize_flags_ranking(dataframe_in, type_filt, flag_cols):
     dataframe = dataframe_in.copy()
     dataframe = dataframe.reset_index()
 
@@ -541,8 +544,6 @@ def summarize_flags_ranking(dataframe_in, type_filt):
     elif type_filt == "sub":
         filt_val = 'identity'
 
-    r = re.compile("^._flag*")
-    flag_cols = list(filter(r.match, dataframe.columns))
     dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0) & (dataframe[flag_cols] != 999999999), 1, dataframe[flag_cols])
     dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
 
@@ -569,7 +570,7 @@ def summarize_flags_ranking(dataframe_in, type_filt):
     
     return dataframe
     
-def summarize_flags(dataframe_in, sum_val):
+def summarize_flags(dataframe_in, sum_val, flag_cols):
 
     dataframe = dataframe_in.copy()
     dataframe = dataframe.reset_index()
@@ -580,8 +581,6 @@ def summarize_flags(dataframe_in, sum_val):
     
     dataframe = dataframe[dataframe[identity_filt] == sum_val]
 
-    r = re.compile("^._flag*")
-    flag_cols = list(filter(r.match, dataframe.columns))
     dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0) & (dataframe[flag_cols] != 999999999), 1, dataframe[flag_cols])
     dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
 
@@ -623,7 +622,7 @@ def summarize_flags(dataframe_in, sum_val):
 
 
 # Return a more verbose description of the flag to the user
-def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, preview_status, type_return, sector_val):
+def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_list=False, p_skip_list=False, show_skips=False, flags_resolved=False, flags_unresolved=False, flags_new=False, flags_skipped=False, curryr=False, currqtr=False, preview_status=False, init_skips=False):
 
     # This dict holds a more verbose explanation of the flags, so that it can be printed to the user for clarity
     issue_descriptions = {
@@ -650,7 +649,6 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
         "v_flag_lowv": "The overall forecast vacancy change series exhibits low variability compared to the general national submarket average.",
         "v_flag_level": "The vacancy level is not in line with the 10 year historical average.",
         "v_flag_3_trend": "The vacancy change is not in line with the three year historical average for the submarket.",
-        "v_flag_exps": "The vacancy change does not seem to be properly weighting the more recent historical vacancy movements.",
         "v_flag_cons_neg": "There are three consecutive years of negative absorption in the submarket forecast.",
         "v_flag_subv": "The vacancy change has high variability accross the submarkets for the metro for this forecast year.",
         "v_flag_emp": "The vacancy change quartile is at the opposite end of the sector specific employment change quartile.",
@@ -666,7 +664,6 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
         "g_flag_rol": "The market rent change is very different from ROL.",
         "g_flag_yrdiff": "There is a large difference between this year's forecast for market rent change and the previous year's market rent change.",
         "g_flag_cons_low": "There are three consecutive years of low market rent change in the forecast for this submarket.",
-        "g_flag_exps": "The market rent change does not seem to be properly weighting the more recent historical market rent movements.",
         "g_flag_vac": "The market rent change is moving in the opposite direction of vacancy change sentiment.",
         "g_flag_subv": "The market rent change has high variability accross the submarkets for the metro for this forecast year.",
         "g_flag_emp": "The market rent change quartile is at the opposite end of the sector specific employment change quartile.",
@@ -684,15 +681,119 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
         "e_flag_emp": "The gap change quartile is at the opposite end of the sector specific employment change quartile."
     }
 
+    highlighting = {
+        "c_flag_comp": [['cons'], ['curr yr trend cons'], []], 
+        "c_flag_h": [['cons', 'h'], [], []],
+        "c_flag_t": [['cons', 't'], [], []],
+        "c_flag_sup": [['cons'], ['3yr avgcons'], []],
+        "c_flag_e": [['cons', 'e'], ['3yr avgcons'], []],
+        "c_flag_hist": [['cons'], ['3yr avgcons'], []],
+        "c_flag_rol": [['cons', 'rol cons'], [], []],
+        "c_flag_size": [['cons'], [], []],
+        "c_flag_lowv": [['cons'], ['f var cons'], []],
+        "v_flag_low": [['vac'], ['min vac'], []],
+        "v_flag_high": [['vac'], [], []],
+        "v_flag_ratio": [['cons', 'abs'], ['abs cons r', 'p abs cons', 'avg abs cons', '3yr avgabs nonc'], []],
+        "v_flag_roll": [['cons', 'abs'], ['abs cons r', 'p abs cons', 'avg abs cons', '3yr avgabs nonc'], []],
+        "v_flag_improls": [['abs', 'rol abs'], ['imp abs', 'histimp avgabs', 'imp abs rol'], []],
+        "v_flag_rol": [['abs', 'rol abs', 'cons', 'rol cons'], [], []],
+        "v_flag_switch": [['vac chg', 'rol vac chg'], [], []],
+        "v_flag_imp": [['abs'], ['imp abs', 'histimp avgabs'], []],
+        "v_flag_z": [['vac chg'], ['vac z'], []],
+        "v_flag_min": [['vac'], ['min vac'], []],
+        "v_flag_max": [['vac'], ['max vac'], []],
+        "v_flag_lowv": [['vac chg'], ['f var vac chg'], []],
+        "v_flag_level": [['vac'], ['10 yr vac'], []],
+        "v_flag_3_trend": [['abs'], ['3yr avgabs nonc'], []],
+        "v_flag_cons_neg": [['abs'], [], []],
+        "v_flag_subv": [['vac chg'], ['vac chg sub var'], []],
+        "v_flag_emp": [['vac chg'], ['vac quart'], ['emp quart', 'off emp quart', 'ind emp quart', 'emp chg', 'off emp chg', 'ind emp chg']],
+        "g_flag_low": [['Gmrent'], ['3yr avgGmrent nonc'], []],
+        "g_flag_nc": [['cons', 'Gmrent'], ['3yr avgGmrent nonc', 'cons prem'], []],
+        "g_flag_z": [['Gmrent'], ['Gmrent z'], []],
+        "g_flag_lowv": [['Gmrent'], ['f var Gmrent'], []],
+        "g_flag_highv": [['Gmrent'], ['f_var_G_mrent'], []],
+        "g_flag_max": [['Gmrent'], ['max Gmrent'], []],
+        "g_flag_3_trend": [['Gmrent'], ['3yr avgGmrent nonc'], []],
+        "g_flag_improls": [['Gmrent', 'rol Gmrent'], ['imp Gmrent', 'histimp Gmrent', 'imp Gmrent rol'], []],
+        "g_flag_imp": [['Gmrent'], ['imp Gmrent', 'histimp Gmrent'], []],
+        "g_flag_rol": [['Gmrent', 'rol Gmrent'], [], []],
+        "g_flag_yrdiff": [['Gmrent'], [], []],
+        "g_flag_cons_low": [['Gmrent'], [], []],
+        "g_flag_vac": [['vac chg', 'Gmrent'], ['avg vac chg', 'avg Gmrent nonc'], []],
+        "g_flag_subv": [['Gmrent'], ['Gmrent sub var'], []],
+        "g_flag_emp": [['Gmrent'], ['Gmrent quart'], ['emp_quart', 'off_emp_quart', 'ind_emp_quart', 'emp chg', 'off emp chg', 'ind emp chg']],
+        "e_flag_rol": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], [], []],
+        "e_flag_rolvac": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], [], []],
+        "e_flag_zero": [['gap'], [], []],
+        "e_flag_max": [['gap'], ['max gap', 'gap 5'], []],
+        "e_flag_min": [['gap'], ['min gap', 'gap 95'], []],
+        "e_flag_min_chg": [['gap chg'], ['min gap chg'], []],
+        "e_flag_max_chg": [['gap chg'], ['max gap chg'], []],
+        "e_flag_improls": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], ['imp gapchg', 'imp vacchg'], []],
+        "e_flag_imp": [['gap chg'], ['imp gapchg', 'imp vacchg'], []],
+        "e_flag_vac": [['gap chg', 'vac chg'], [], []],
+        "e_flag_market": [['Gmerent', 'Gmrent'], [], []],
+        "e_flag_emp": [['gap chg'], ['gap quart'], ['emp_quart', 'off_emp_quart', 'ind_emp_quart', 'emp chg', 'off emp chg', 'ind emp chg']],
+    }
+
     if type_return == "specific":
-        if flag_list[0] == "v_flag":
+        if has_flag == 0:
             issue_description_noprev = "No flags for this year at the submarket"
+            display_issue_cols = []
+            key_metric_issue_cols = []
+            key_metric_emp_cols = []
             issue_description_resolved = []
             issue_description_unresolved = []
             issue_description_new = []
             issue_description_skipped = []
-        else:
+        elif has_flag == 2 and (show_skips == False or len(p_skip_list) == 0):
+            issue_description_noprev = "No flags for this year at the submarket"
+            display_issue_cols = []
+            key_metric_issue_cols = []
+            issue_description_resolved = []
+            issue_description_unresolved = []
+            issue_description_new = []
+            issue_description_skipped = []
+        elif has_flag == 2 and show_skips == True and len(p_skip_list) > 0:
+            p_skip_list = p_skip_list[0].replace(' ', '').split(",")
+            display_issue_cols = []
+            key_metric_issue_cols = []
+            issue_description_resolved = []
+            issue_description_unresolved = []
+            issue_description_new = []
+            issue_description_skipped = []
+            issue_description_noprev = html.Div([
+                                        html.Div([
+                                            dbc.Container(
+                                            [
+                                                dbc.Checklist(
+                                                    id="flag_descriptions_noprev",
+                                                    options=[
+                                                            {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", "disabled": True}
+                                                            for i in p_skip_list
+                                                            ],
+                                                    inline=True,
+                                                    value = ["skip-" + x for x in p_skip_list]
+                                                            ),  
+                                                    
+                                            ]
+                                            + [
+                                                dbc.Tooltip(issue_descriptions[i], target=f"label-{i}")
+                                                for i in p_skip_list
+                                            ],
+                                            fluid=True),
+                                                
+                                        ]), 
+                                    ])
+        elif has_flag == 1:
             if preview_status == 0:
+                if show_skips == True:
+                    flags_use = flag_list + p_skip_list
+                    disabled_list = [False] * len(flag_list) + [True] * len(p_skip_list)
+                else:
+                    flags_use = flag_list
+                    disabled_list = [False] * len(flag_list)
                 issue_description_resolved = []
                 issue_description_unresolved = []
                 issue_description_new = []
@@ -704,16 +805,17 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
                                                 dbc.Checklist(
                                                     id="flag_descriptions_noprev",
                                                     options=[
-                                                            {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}"}
-                                                            for i in flag_list
+                                                            {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", "disabled": j}
+                                                            for i, j in zip(flags_use, disabled_list)
                                                             ],
-                                                    inline=True, 
+                                                    inline=True,
+                                                    value = ["skip-" + x for x in init_skips]
                                                             ),  
                                                     
                                             ]
                                             + [
                                                 dbc.Tooltip(issue_descriptions[i], target=f"label-{i}")
-                                                for i in flag_list
+                                                for i in flags_use
                                             ],
                                             fluid=True),
                                                 
@@ -802,7 +904,7 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
                 else:
                     issue_description_new = []
 
-                if len(flags_skipped) > 0:
+                if len(flags_skipped) > 0 or len(p_skip_list) > 0:
                     issue_description_skipped = html.Div([
                                             html.Div([
                                                 dbc.Container(
@@ -810,10 +912,10 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
                                                     dbc.Checklist(
                                                         id="flag_descriptions_skipped",
                                                         options=[
-                                                                {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}"}
-                                                                for i in flags_skipped
+                                                                {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", "disabled": j}
+                                                                for i, j in zip(flags_skipped + p_skip_list, [False] * len(flags_skipped) + [True] * len(p_skip_list))
                                                                 ],
-                                                        value=[f"skip-{i}" for i in flags_skipped],
+                                                        value=[f"skip-{i}" for i in flags_skipped + p_skip_list],
                                                         inline=True,
                                                         labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px', 'color': 'black'},
                                                                 ),  
@@ -821,7 +923,7 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
                                                 ]
                                                 + [
                                                     dbc.Tooltip(issue_descriptions[i], target=f"label-{i}")
-                                                    for i in flags_skipped
+                                                    for i in flags_skipped + p_skip_list
                                                 ],
                                                 fluid=True),
                                                     
@@ -830,15 +932,32 @@ def get_issue(dataframe, flag_list, flags_resolved, flags_unresolved, flags_new,
                 else:
                     issue_description_skipped = []
 
-        return issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped
+            if preview_status == 0:
+                display_issue_cols = highlighting[flag_list[0]][0]
+                key_metric_issue_cols = highlighting[flag_list[0]][1]
+                key_emp_issue_cols = highlighting[flag_list[0]][2]
+            else:
+                if len(flags_new) > 0:
+                    display_issue_cols = highlighting[flags_new[0]][0]
+                    key_metric_issue_cols = highlighting[flags_new[0]][1]
+                    key_emp_issue_cols = highlighting[flags_new[0]][2]
+                elif len(flags_unresolved) > 0:
+                    display_issue_cols = highlighting[flags_unresolved[0]][0]
+                    key_metric_issue_cols = highlighting[flags_unresolved[0]][1]
+                    key_emp_issue_cols = highlighting[flags_unresolved[0]][2]
+                else:
+                    display_issue_cols = highlighting[flag_list[0]][0]
+                    key_metric_issue_cols = highlighting[flag_list[0]][1]
+                    key_emp_issue_cols = highlighting[flag_list[0]][2]
+
+        return issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_issue_cols, key_metric_issue_cols, key_emp_issue_cols
     
     elif type_return == "list":
         return issue_descriptions
 
 # Function that analyzes where edits are made in the display dataframe if manual edit option is selected
-def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val):
+def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c):
     data_update = shim_data.copy()
-    
     indexes = data_orig.index.values
     data_update['new_index'] = indexes
     data_update = data_update.set_index('new_index')
@@ -847,6 +966,29 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val)
     diffs = data_update[~diffs]
     diffs = diffs.dropna(how='all')
     diffs = diffs.dropna(axis=1, how='all')
+
+    # Because a user might want to retain the current avail in the case of an inv or cons shim ro conversion/demolition shim, or similarly, merent in the case of an mrent shim, we need an additional check to add them back in to the diffs dataframe since they will be nulled out with the boolean indexing method
+    if "avail" not in list(diffs.columns) and ("inv" in list(diffs.columns) or "cons" in list(diffs.columns)):
+        diffs['avail'] = np.nan
+    if "inv" in list(diffs.columns) or "cons" in list(diffs.columns):
+        check_avail = data_update.copy()
+        check_avail = check_avail[(check_avail['avail'].isnull() == False) & ((check_avail['inv'].isnull() == False) | (check_avail['cons'].isnull() == False))]
+        check_avail = check_avail[['avail']]
+        check_avail = check_avail.rename(columns={'avail': 'avail_check'})
+        diffs = diffs.join(check_avail)
+        diffs['avail'] = np.where(diffs['avail_check'].isnull() == False, diffs['avail_check'], diffs['avail'])
+        diffs = diffs.drop(['avail_check'], axis=1)
+
+    if "merent" not in list(diffs.columns) and "mrent" in list(diffs.columns):
+        diffs['merent'] = np.nan
+    if "mrent" in list(diffs.columns):
+        check_merent = data_update.copy()
+        check_merent = check_merent[(check_merent['merent'].isnull() == False) & (check_merent['mrent'].isnull() == False)]
+        check_merent = check_merent[['merent']]
+        check_merent = check_merent.rename(columns={'merent': 'merent_check'})
+        diffs = diffs.join(check_merent)
+        diffs['merent'] = np.where(diffs['merent_check'].isnull() == False, diffs['merent_check'], diffs['merent'])
+        diffs = diffs.drop(['merent_check'], axis=1)
 
     if len(diffs) > 0:
         try:
@@ -875,67 +1017,153 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val)
                     yr_change_diffs = data.loc[row_to_fix_diffs]['yr']
                     
                     if using_coeff == 1:
-                        data = insert_fix_coeffs(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                        data_temp = insert_fix_coeffs(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
                     else:
-                        data = insert_fix(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
-        has_diff = 1
+                        data_temp = insert_fix(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+        
+        # Check to see if a vacancy or rent shim created a change from ROL above the data governance threshold set by key stakeholders. If it did, do not process the shim unless there is an accompanying note explaining why the change was made
+        if button == 'submit':
+            avail_check = False
+            mrent_check = False
+            merent_check = False
+            if len(shim_data[shim_data['avail'].isnull() == False]) > 0:
+                avail_check = True
+            if len(shim_data[shim_data['mrent'].isnull() == False]) > 0:
+                mrent_check = True
+            if len(shim_data[shim_data['merent'].isnull() == False]) > 0:
+                merent_check = True
+
+            if avail_check == True:
+                if shim_data[shim_data['avail'].isnull() == False].reset_index().loc[0]['yr'] != curryr or (shim_data[shim_data['avail'].isnull() == False].reset_index().loc[0]['yr'] == curryr and shim_data[shim_data['avail'].isnull() == False].reset_index().loc[0]['currmon'] != currmon):
+                    shim_check = data_temp.copy()
+                    shim_check = shim_check[shim_check['identity'] == drop_val]
+                    shim_check = shim_check[shim_check['curr_tag'] != 1]
+                    shim_check = shim_check[['rol_vac', 'vac', 'yr', 'currmon']]
+                    shim_check['vac_diff'] = shim_check['vac'] - shim_check['rol_vac']
+                    shim_check = shim_check[abs(shim_check['vac_diff']) >= 0.03]
+                    if len(shim_check) > 0:
+                        if avail_c[-9:] != "Note Here" and len(avail_c.strip()) > 0:
+                            avail_check = False
+                    else:
+                        avail_check = False
+                else:
+                    avail_check = False
+            if mrent_check == True:
+                if shim_data[shim_data['mrent'].isnull() == False].reset_index().loc[0]['yr'] != curryr or (shim_data[shim_data['mrent'].isnull() == False].reset_index().loc[0]['yr'] == curryr and shim_data[shim_data['mrent'].isnull() == False].reset_index().loc[0]['currmon'] != currmon):
+                        shim_check = data_temp.copy()
+                        shim_check = shim_check[shim_check['identity'] == drop_val]
+                        shim_check = shim_check[shim_check['curr_tag'] != 1]
+                        shim_check = shim_check[['rol_mrent', 'mrent', 'yr', 'currmon']]
+                        shim_check['mrent_diff'] = (shim_check['mrent'] - shim_check['rol_mrent']) / shim_check['rol_mrent']
+                        shim_check = shim_check[abs(shim_check['mrent_diff']) >= 0.05]
+                        if len(shim_check) > 0:
+                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0:
+                                mrent_check = False
+                        else:
+                            mrent_check = False
+                else:
+                    mrent_check = False
+            if merent_check == True:
+                if shim_data[shim_data['merent'].isnull() == False].reset_index().loc[0]['yr'] != curryr or (shim_data[shim_data['merent'].isnull() == False].reset_index().loc[0]['yr'] == curryr and shim_data[shim_data['merent'].isnull() == False].reset_index().loc[0]['currmon'] != currmon):
+                        shim_check = data_temp.copy()
+                        shim_check = shim_check[shim_check['identity'] == drop_val]
+                        shim_check = shim_check[shim_check['curr_tag'] != 1]
+                        shim_check = shim_check[['rol_merent', 'merent', 'yr', 'currmon']]
+                        shim_check['merent_diff'] = (shim_check['merent'] - shim_check['rol_merent']) / shim_check['rol_merent']
+                        shim_check = shim_check[abs(shim_check['merent_diff']) >= 0.05]
+                        if len(shim_check) > 0:
+                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0:
+                                merent_check = False
+                        else:
+                            merent_check = False
+                else:
+                    merent_check = False
+
+            if avail_check == False and mrent_check == False and merent_check == False:
+                has_diff = 1
+                data = data_temp.copy()
+            else:
+                has_diff = 2
+        else:
+            has_diff = 1
+            data = data_temp.copy()
     else:
         has_diff = 0
    
     return data, has_diff
 
 # Function to identify if a submarket has a flag for review
-def flag_examine(data, identity_val, filt, curryr, currqtr, yr_val):
+def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow, yr_val):
 
     dataframe = data.copy()
-    if filt == True:
-        dataframe = dataframe[dataframe['identity'] == identity_val]
-        
-    dataframe = dataframe[dataframe['forecast_tag'] != 0]
-
-    r = re.compile("^._flag*")
-    flag_cols = list(filter(r.match, dataframe.columns))
-    cols_to_keep = flag_cols + ['identity', 'yr', 'flag_skip']
-    dataframe = dataframe[cols_to_keep]
+    has_flag = 0
+    skip_list = []
     dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
     dataframe[flag_cols] = np.where((dataframe[flag_cols] > 0), 1, dataframe[flag_cols])
+    dataframe = dataframe[dataframe['forecast_tag'] != 0]
     
-    if filt == False:
-        dataframe['sum_commas'] = dataframe['flag_skip'].str.count(',')
-        dataframe['sum_skips'] = np.where((dataframe['flag_skip'] == ''), 0, np.nan)
-        dataframe['sum_skips'] = np.where((dataframe['flag_skip'] != ''), dataframe['sum_commas'] + 1, dataframe['sum_skips'])
-        dataframe['total_skips'] = dataframe.groupby('identity')['sum_skips'].transform('sum')
-    else:
-        skips = dataframe.copy()
-        skips = skips.reset_index()
-        if len(dataframe) > 0:
-            skip_list = str.split(skips.loc[skips.index[0]]['flag_skip'].replace(",", ""))
-            skip_list = [x for x in skip_list if x[-4:] == str(yr_val)]
-        else:
-            skip_list = []
-        dataframe['total_skips'] = np.nan
-        dataframe.loc[identity_val + str(yr_val) + str(5), 'total_skips'] = len(skip_list)
-
     if filt == True:
+        dataframe = dataframe[dataframe['identity'] == identity_val]
         dataframe = dataframe[dataframe['yr'] == yr_val]
+        skip_list = list(dataframe.loc[identity_val + str(yr_val) + str(5)][['flag_skip']])
+        if skip_list[0] == '':
+            skip_list = []
+
+    else:
+        first_sub = dataframe.reset_index().loc[0]['identity']
+        if flag_flow == "cat":
+            dataframe_test = dataframe.copy()
+            
+            dataframe_test['has_c'] = dataframe_test.filter(regex="^c_flag*").sum(axis=1)
+            dataframe_test['has_v'] = dataframe_test.filter(regex="^v_flag*").sum(axis=1)
+            dataframe_test['has_g'] = dataframe_test.filter(regex="^g_flag*").sum(axis=1)
+            dataframe_test['has_e'] = dataframe_test.filter(regex="^e_flag*").sum(axis=1)
+
+            dataframe_test['has_c'] = dataframe_test['has_c'] -  dataframe_test['flag_skip'].str.count('c_flag')
+            dataframe_test['has_v'] = dataframe_test['has_v'] - dataframe_test['flag_skip'].str.count('v_flag')
+            dataframe_test['has_g'] = dataframe_test['has_g'] - dataframe_test['flag_skip'].str.count('g_flag')
+            dataframe_test['has_e'] = dataframe_test['has_e'] - dataframe_test['flag_skip'].str.count('e_flag')
+
+            for x in ['has_c', 'has_v', 'has_g', 'has_e']:
+                dataframe_test_1 = dataframe_test.copy()
+                dataframe_test_1 = dataframe_test_1[dataframe_test_1[x] > 0]
+                if len(dataframe_test_1) > 0:
+                    dataframe = dataframe_test_1.copy()
+                    break
+        elif flag_flow == "flag":
+            dataframe_test = dataframe.copy()
+            for x in flag_cols:
+                dataframe_test_1 = dataframe_test.copy()
+                dataframe_test_1 = dataframe_test_1[(dataframe_test_1[x] > 0) & (dataframe_test['flag_skip'].str.contains(x) == False)]
+                if len(dataframe_test_1) > 0:
+                    dataframe = dataframe_test_1.copy()
+                    break
+
+    cols_to_keep = flag_cols + ['identity', 'flag_skip', 'yr']
+    dataframe = dataframe[cols_to_keep]
     dataframe['sum_flags'] = dataframe[flag_cols].sum(axis=1)
+    dataframe['sum_commas'] = dataframe['flag_skip'].str.count(',')
+    dataframe['sum_skips'] = np.where((dataframe['flag_skip'] == ''), 0, np.nan)
+    dataframe['sum_skips'] = np.where((dataframe['flag_skip'] != ''), dataframe['sum_commas'] + 1, dataframe['sum_skips'])
     dataframe['total_flags'] = dataframe.groupby('identity')['sum_flags'].transform('sum')
-    
-    dataframe['flags_left'] = dataframe['total_flags'] - dataframe['total_skips']
+    dataframe['total_skips'] = dataframe.groupby('identity')['sum_skips'].transform('sum')
+    dataframe['flags_left'] = round(dataframe['total_flags'] - dataframe['total_skips'],0)
     dataframe = dataframe[dataframe['flags_left'] > 0]
 
     if len(dataframe) == 0:
         if filt == True:
+            has_flag = 2
+            flag_list = ['v_flag']
+        else:
+            if identity_val is None:
+                identity_val = first_sub
+            has_flag = 0
             flag_list = ['v_flag']
     else:
         if filt == False:
             identity_val = dataframe.reset_index().loc[0]['identity']
+            dataframe = dataframe[dataframe['identity'] == identity_val]
 
-            skips = dataframe.copy()
-            skips = skips.reset_index()
-            skip_list = str.split(skips.loc[skips.index[0]]['flag_skip'].replace(",", ""))
-            
-            
             testing_orig_yr_val = dataframe.copy()
             test_skip_list = [x for x in skip_list if x[-4:] == str(yr_val)]
             testing_orig_yr_val = testing_orig_yr_val[(testing_orig_yr_val['yr'] == yr_val) & (testing_orig_yr_val['identity'] == identity_val)]
@@ -944,27 +1172,30 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, yr_val):
                 new_yr = dataframe.copy()
                 new_yr = new_yr[(new_yr['identity'] == identity_val) & (new_yr['sum_flags'] > 0)]
                 yr_val = new_yr.reset_index().loc[0]['yr']
-                
-            dataframe = dataframe[dataframe['identity'] == identity_val]
-            
             dataframe = dataframe[dataframe['yr'] == yr_val]
-            
-
+        
         flags = dataframe.copy()
         flags = flags[flag_cols + ['flag_skip']]
         flags = flags[flags.columns[(flags != 0).any()]]
         flag_list = list(flags.columns)
-        flag_list = [x for x in flag_list if x + str(yr_val) not in skip_list]
+        flags = flags.reset_index()
+        skip_list = str.split(flags.loc[flags.index[-1]]['flag_skip'].replace(",", ""))
+        flag_list = [x for x in flag_list if x not in skip_list]
         flag_list.remove('flag_skip')
         
-        if len(flag_list) == 0:
+        if len(flag_list) > 0:
+            has_flag = 1
+        else:
+            has_flag = 0
             if filt == True:
                 flag_list = ['v_flag']
-                identity_val = identity_val
-            else: 
+                has_flag = 2
+            else:
+                if identity_val is None:
+                    identity_val = dataframe.reset_index().loc[0]['identity']  
                 flag_list = ['v_flag']
-        
-    return flag_list, identity_val, yr_val
+
+    return flag_list, skip_list, identity_val, has_flag, yr_val
 
 def reset_subsequent_years(dataframe, row_to_fix, identity_val, variable_fix, yr_change, period, sector_val):
     if sector_val == "apt":
@@ -1394,9 +1625,6 @@ def set_y2_scale(graph, type_filt, input_var, sector_val):
         elif input_var == "mrent":
             rol_var = list(graph[(graph['variable'] == 'rol_mrent') & (graph['value'] != '')]['value'])
             oob_var = list(graph[(graph['variable'] == 'mrent_oob') & (graph['value'] != '')]['value'])
-        elif input_var == "askrent":
-            rol_var = list(graph[(graph['variable'] == 'rol_mrent') & (graph['value'] != '')]['value'])
-            oob_var = list(graph[(graph['variable'] == 'askrentoob') & (graph['value'] != '')]['value'])
         rol_var = [float(i) for i in rol_var]
         oob_var = [float(i) for i in oob_var]
         combined = var + rol_var + oob_var
@@ -1420,3 +1648,24 @@ def set_y2_scale(graph, type_filt, input_var, sector_val):
     dtick = round((tick_1 - tick_0) / 5, 2)
 
     return range_list, dtick, tick_0
+
+def get_user_skips(skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped):
+
+    if len(skip_input_noprev) > 0:
+        has_check = list(skip_input_noprev['props']['children'][0]['props']['children'][0]['props']['children'][0]['props'].keys())
+        if 'value' in has_check:
+            skip_list_temp = skip_input_noprev['props']['children'][0]['props']['children'][0]['props']['children'][0]['props']['value']
+            skip_list = [e[5:] for e in skip_list_temp]
+        else:
+            skip_list = []
+    else:
+        skip_list = []
+        for input_list in [skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped]:
+            if len(input_list) > 0:
+                has_check = list(input_list['props']['children'][0]['props']['children'][0]['props']['children'][0]['props'].keys())
+                if 'value' in has_check:
+                    skip_list_temp = input_list['props']['children'][0]['props']['children'][0]['props']['children'][0]['props']['value']
+                    skip_list_temp = [e[5:] for e in skip_list_temp]
+                    skip_list += skip_list_temp
+
+    return skip_list

@@ -30,15 +30,15 @@ from authenticate_forecast import authenticate_user, validate_login_session
 from server_forecast import forecast, server
 from stats_forecast import calc_stats
 from flags_forecast import cons_flags, vac_flags, rent_flags
-from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, rank_it, flag_examine
-from support_functions_forecast import set_bar_scale, set_y2_scale
+from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, metro_sorts, flag_examine
+from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips
 from login_layout_forecast import get_login_layout
 from forecast_app_layout import get_app_layout
 from timer import Timer
 
 
 # Function that determines the data type - int, float, etc - so that the correct format can be set for the app display
-def get_types(dataframe, sector_val):
+def get_types(sector_val):
 
     # In order for the comma seperator format to work, fields need to be set to float type. Put the conversion in a try and except, since some frames that come in this function wont have those fields
     try:
@@ -56,6 +56,9 @@ def get_types(dataframe, sector_val):
     type_dict['Flag Type'] = 'text'
 
 
+    type_dict['imp gap chg'] = 'numeric'
+    type_dict['imp vac chg'] = 'numeric'
+    type_dict['imp emp chg'] = 'numeric'
     type_dict['imp avginc chg'] = 'numeric'
     type_dict['avg inc chg'] = 'numeric'
     type_dict['emp chg'] = 'numeric'
@@ -156,6 +159,10 @@ def get_types(dataframe, sector_val):
     type_dict['rol e'] = 'numeric'
     type_dict['e'] = 'numeric'
     type_dict['t'] = 'numeric'
+    type_dict['Cons Flags'] = 'numeric'
+    type_dict['Vac Flags'] = 'numeric'
+    type_dict['Rent Flags'] = 'numeric'
+
 
 
     format_dict['emp 5'] = FormatTemplate.percentage(1)
@@ -182,9 +189,11 @@ def get_types(dataframe, sector_val):
     format_dict['rol vac'] = FormatTemplate.percentage(2)
     format_dict['vac chg'] = FormatTemplate.percentage(2)
     format_dict['rol vac chg'] = FormatTemplate.percentage(2)
+    format_dict['imp vac chg'] = FormatTemplate.percentage(2)
     format_dict['gap'] = FormatTemplate.percentage(2)
     format_dict['gap chg'] = FormatTemplate.percentage(2)
     format_dict['rol gap chg'] = FormatTemplate.percentage(2)
+    format_dict['imp gap chg'] = FormatTemplate.percentage(2)
     format_dict['3yr avgGmrent'] = FormatTemplate.percentage(2)
     format_dict['3yr avgGmrent nonc'] = FormatTemplate.percentage(2)
     format_dict['imp Gmrent'] = FormatTemplate.percentage(2)
@@ -215,6 +224,7 @@ def get_types(dataframe, sector_val):
     format_dict['max gap chg'] = FormatTemplate.percentage(2)
     format_dict['gap 5'] = FormatTemplate.percentage(2)
     format_dict['gap 95'] = FormatTemplate.percentage(2)
+    format_dict['imp emp chg'] = FormatTemplate.percentage(2)
 
     
     format_dict['f var Gmrent'] = FormatTemplate.percentage(3)
@@ -250,6 +260,9 @@ def get_types(dataframe, sector_val):
     
     format_dict['Flag Type'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['Total Flags'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Cons Flags'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Vac Flags'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Rent Flags'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['subsector'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['Subsector'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['metcode'] = Format(precision=0, scheme=Scheme.fixed)
@@ -280,6 +293,7 @@ def get_types(dataframe, sector_val):
 # Function that returns the highlighting style of the various dash datatables
 def get_style(type_filt, dataframe_in, curryr, second_five, highlight_cols=[], highlight_rows=[]):
     dataframe = dataframe_in.copy()
+    dataframe = dataframe.reset_index(drop=True)
     if type_filt == "full":
         style = [ 
                         {
@@ -322,6 +336,22 @@ def get_style(type_filt, dataframe_in, curryr, second_five, highlight_cols=[], h
                             'if': {
                             'column_id': highlight_cols,
                             'row_index': highlight_rows,
+                                },
+                        'backgroundColor': 'LightGreen',
+                    }
+                    ]
+
+    elif type_filt == "metrics":
+        style = [ 
+                        {
+                            'if': {'column_id': str(x), 'filter_query': '{{{0}}} < 0'.format(x)},
+                            'color': 'red',
+                        } for x in dataframe.columns
+                
+                    ] + [
+                        {
+                            'if': {
+                            'column_id': highlight_cols,
                                 },
                         'backgroundColor': 'LightGreen',
                     }
@@ -433,7 +463,7 @@ def filter_graph(input_dataframe, curryr, currqtr, year_value, xaxis_var, yaxis_
 
     return dataframe, init_hover
 
-def create_scatter_plot(dataframe, xaxis_var, yaxis_var, comp_value):
+def create_scatter_plot(dataframe, xaxis_var, yaxis_var, comp_value, aggreg_met):
 
     if comp_value == "c":
         vis_status = True
@@ -494,22 +524,29 @@ def create_scatter_plot(dataframe, xaxis_var, yaxis_var, comp_value):
         x_axis_title = axis_titles[xaxis_var]
         y_axis_title = axis_titles[yaxis_var]
     elif comp_value == "r":
-        x_axis_title = "Submarkets with Difference to Current"
+        if aggreg_met == False:
+            x_axis_title = "Submarkets with Difference to Current"
+        elif aggreg_met == True:
+            x_axis_title = "Metros with Difference to Current"
         y_axis_title = "Curr Diff to ROL " + axis_titles[xaxis_var]
 
-    flagged_status = dataframe.copy()
-    flagged_status = flagged_status[flagged_status['variable'] == 'flagged_status'][['index', 'value']]
-    flagged_status = list(flagged_status['value'])
-    flagged_status = [int(i) for i in flagged_status]
-    if all(x == flagged_status[0] for x in flagged_status) == True:
-        if flagged_status[0] == 1:
-            color = 'red'
+    if len(dataframe) > 0 and aggreg_met == False:
+        flagged_status = dataframe.copy()
+        flagged_status = flagged_status[flagged_status['variable'] == 'flagged_status'][['index', 'value']]
+        flagged_status = list(flagged_status['value'])
+        flagged_status = [int(i) for i in flagged_status]
+        if all(x == flagged_status[0] for x in flagged_status) == True:
+            if flagged_status[0] == 1:
+                color = 'red'
+            else:
+                color = 'blue'
+            colorscale = []
         else:
-            color = 'blue'
-        colorscale = []
+            color = [0 if x == 0 else 1 for x in flagged_status]
+            colorscale = [[0, 'blue'], [1, 'red']]
     else:
-        color = [0 if x == 0 else 1 for x in flagged_status]
-        colorscale = [[0, 'blue'], [1, 'red']]
+        color = 'blue'
+        colorscale = []
 
     graph_dict = {
                     'data': [dict(
@@ -695,18 +732,12 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
     graph['cons_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['cons_oob'])
     graph['vac_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['vac_oob'])
     graph['vac_chg_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['vac_chg_oob'])
-    if type_filt == "sub":
-        graph['mrent_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['mrent_oob'])
-    else:
-        graph['askrentoob'] = np.where((graph['yr'] < curryr), np.nan, graph['askrentoob'])
-    graph['ask_chg_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['ask_chg_oob'])
+    graph['mrent_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['mrent_oob'])
+    graph['G_mrent_oob'] = np.where((graph['yr'] < curryr), np.nan, graph['G_mrent_oob'])
 
     graph['cons_oob'] = np.where((graph['cons'] == graph['cons_oob']), np.nan, graph['cons_oob'])
     graph['vac_oob'] = np.where((graph['vac'] == graph['vac_oob']), np.nan, graph['vac_oob'])
-    if type_filt == "sub":
-        graph['mrent_oob'] = np.where((graph['mrent'] == graph['mrent_oob']), np.nan, graph['mrent_oob'])
-    else:
-        graph['askrentoob'] = np.where((graph['mrent'] == graph['askrentoob']), np.nan, graph['askrentoob'])
+    graph['mrent_oob'] = np.where((graph['mrent'] == graph['mrent_oob']), np.nan, graph['mrent_oob'])
     
     graph_copy = graph.copy()
     
@@ -733,9 +764,9 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
         rent_tag_list = ['cons', 'rolscon', 'G_mrent', 'grolsmer', 'cons_oob', 'G_mrent_oob']
     else:
         vac_variable_list = ['cons', 'rolscon', 'vac', 'rolsvac', 'cons_oob', 'vac_oob']
-        rent_variable_list = ['cons', 'rolscon', 'mrent', 'rol_mrent', 'cons_oob', 'askrentoob']
+        rent_variable_list = ['cons', 'rolscon', 'mrent', 'rol_mrent', 'cons_oob', 'mrent_oob']
         vac_tag_list = ['cons', 'rolscon', 'vac_chg', 'rolsvac_chg', 'cons_oob', 'vac_chg_oob']
-        rent_tag_list = ['cons', 'rolscon', 'Gmrent', 'grolsmre', 'cons_oob', 'ask_chg_oob']
+        rent_tag_list = ['cons', 'rolscon', 'G_mrent', 'grolsmre', 'cons_oob', 'G_mrent_oob']
     
     vac_name_list = ['construction', 'rolscon', 'vacancy', 'rolsvac', 'consoob', 'oobvac']
     rent_name_list = ['construction', 'rolscon', 'rent', 'rolmrent', 'consoob', 'oobmrent']
@@ -761,7 +792,7 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
         else:
             rent_display_list.append("legendonly")
     else:
-        if graph[(graph['variable'] == 'askrentoob')]['value'].isnull().all() == True:
+        if graph[(graph['variable'] == 'mrent_oob')]['value'].isnull().all() == True:
             rent_display_list.append(False)
         else:
             rent_display_list.append("legendonly")
@@ -1266,10 +1297,11 @@ def use_pickle(direction, file_name, dataframe, fileyr, currqtr, sector_val):
             return data
         elif direction == "out":
             dataframe.to_pickle(file_path)
-    elif "flags" in file_name:
-        file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), file_name))
-        orig_flags = pd.read_pickle(file_path)
-        return orig_flags
+    elif "original_flags" in file_name:
+        path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), file_name))
+        path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr)))
+        orig_flags.reset_index().set_index('identity').to_csv(path_out, na_rep='')
+
     else:
         file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/intermediatefiles/{}.pickle".format(get_home(), file_name))
     
@@ -1379,12 +1411,14 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
         decision_data_update.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace = True)
 
         # Add comments to all rows
+        decision_data_update = decision_data_update.reset_index().set_index('identity')
         if cons_c[-9:] != "Note Here":
-            decision_data.set_index('identity').loc[drop_val, 'cons_comment'] = cons_c
+            decision_data_update.loc[drop_val, 'cons_comment'] = cons_c
         if avail_c[-9:] != "Note Here":
-            decision_data.set_index('identity').loc[drop_val, 'avail_comment'] = avail_c
+            decision_data_update.loc[drop_val, 'avail_comment'] = avail_c
         if rent_c[-9:] != "Note Here":
-            decision_data.set_index('identity').loc[drop_val, 'rent_comment'] = rent_c
+            decision_data_update.loc[drop_val, 'rent_comment'] = rent_c
+        decision_data_update = decision_data_update.reset_index().set_index('identity_row')
     
     elif action == "skip":
         decision_data_update = decision_data.copy()
@@ -1396,14 +1430,63 @@ def update_decision_log(decision_data, data, drop_val, sector_val, curryr, currq
             decision_data_update.loc[drop_val + str(curryr) + str(5), 'skip_user'] = decision_data_update['skip_user'].loc[drop_val + str(curryr) + str(5)] + ", " + user
 
         # Add comments to all rows
+        decision_data_update = decision_data_update.reset_index().set_index('identity')
         if cons_c[-9:] != "Note Here":
-            decision_data.set_index('identity').loc[drop_val, 'cons_comment'] = cons_c
+            decision_data_update.loc[drop_val, 'cons_comment'] = cons_c
         if avail_c[-9:] != "Note Here":
-            decision_data.set_index('identity').loc[drop_val, 'avail_comment'] = avail_c
+            decision_data_update.loc[drop_val, 'avail_comment'] = avail_c
         if rent_c[-9:] != "Note Here":
-            decision_data.set_index('identity').loc[drop_val, 'rent_comment'] = rent_c
+            decision_data_update.loc[drop_val, 'rent_comment'] = rent_c
+        decision_data_update = decision_data_update.reset_index().set_index('identity_row')
     
     return decision_data_update
+
+
+# This function filters out submarkets flagged for a specific flag chosen by the user on the Home tab, and creates the necessary table and styles for display
+def filter_flags(dataframe_in, drop_flag):
+
+    flag_filt = dataframe_in.copy()
+
+    flag_filt = flag_filt[[drop_flag, 'identity', 'flag_skip']]
+    flag_filt = flag_filt[(flag_filt[drop_flag] > 0) & (flag_filt[drop_flag] < 999999999)]
+
+    if len(flag_filt) > 0:
+        has_skip = flag_filt['flag_skip'].str.contains(drop_flag, regex=False)
+        flag_filt['has_skip'] = has_skip
+        flag_filt = flag_filt[flag_filt['has_skip'] == False]
+        if len(flag_filt) > 0:
+            flag_filt = flag_filt.drop(['flag_skip', 'has_skip'], axis=1)
+            flag_filt['Total Flags'] = flag_filt[drop_flag].count()
+            temp = flag_filt.copy()
+            temp = temp.reset_index()
+            temp = temp.head(1)
+            temp = temp[['Total Flags']]
+            flag_filt_title = "Total Flags: " + str(temp['Total Flags'].loc[0])
+            flag_filt.sort_values(by=['identity', drop_flag], ascending=[True, True], inplace=True)
+            flag_filt = flag_filt.drop_duplicates('identity')
+            flag_filt = flag_filt[['identity', drop_flag]]
+            flag_filt[drop_flag] = flag_filt[drop_flag].rank(ascending=True, method='first')
+            flag_filt = flag_filt.rename(columns={'identity': 'Submarkets With Flag', drop_flag: 'Flag Ranking'})
+            flag_filt.sort_values(by=['Flag Ranking'], inplace=True)
+        else:
+            flag_filt_title =  'Total Flags: 0'
+            data_fill = {'Submarkets With Flag': ['No Submarkets Flagged'],
+                    'Flag Ranking': [0]}
+            flag_filt = pd.DataFrame(data_fill, columns=['Submarkets With Flag', 'Flag Ranking'])
+    elif len(flag_filt) == 0:
+        flag_filt_title =  'Total Flags: 0'
+        data_fill = {'Submarkets With Flag': ['No Submarkets Flagged'],
+                'Flag Ranking': [0]}
+        flag_filt = pd.DataFrame(data_fill, columns=['Submarkets With Flag', 'Flag Ranking'])
+
+    flag_filt_display = {'display': 'block', 'padding-top': '40px'}
+
+    if len(flag_filt) >= 10:
+        flag_filt_style_table = {'height': '350px', 'overflowY': 'auto'}
+    else:
+        flag_filt_style_table = {'height': '350px', 'overflowY': 'visible'}
+
+    return flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title
 
 
 # This function produces the items that need to be returned by the update_data callback if the user has just loaded the program
@@ -1415,31 +1498,42 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
     data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
     data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
     data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
-    rank_data_met = data.copy()
-    rank_data_met = summarize_flags_ranking(rank_data_met, "met")
-    rank_data_met = rank_data_met.rename(columns={'subsector': 'Subsector', 'metcode': 'Metcode'})
-    rank_data_sub = data.copy()
-    rank_data_sub = summarize_flags_ranking(rank_data_sub, "sub")
-    rank_data_sub = rank_data_sub.rename(columns={'subsector': 'Subsector', 'metcode': 'Metcode', 'subid': 'Subid'})
 
-    sum_data = data.copy()
-    sum_data = sum_data[sum_data['forecast_tag'] != 0]
     r = re.compile("^._flag*")
-    flag_cols = list(filter(r.match, sum_data.columns))
-    filt_cols = flag_cols + ['identity', 'identity_us', 'identity_met', 'subid', 'yr', 'subsector', 'metcode']
-    sum_data = sum_data[filt_cols]
+    flag_cols = list(filter(r.match, data.columns))
+
+    if file_used == "oob":
+        rank_data_met = data.copy()
+        rank_data_met = summarize_flags_ranking(rank_data_met, "met", flag_cols)
+        rank_data_met = rank_data_met.rename(columns={'subsector': 'Subsector', 'metcode': 'Metcode'})
+        rank_data_sub = data.copy()
+        rank_data_sub = summarize_flags_ranking(rank_data_sub, "sub", flag_cols)
+        rank_data_sub = rank_data_sub.rename(columns={'subsector': 'Subsector', 'metcode': 'Metcode', 'subid': 'Subid'})
+
+        sum_data = data.copy()
+        sum_data = sum_data[sum_data['forecast_tag'] != 0]
+        filt_cols = flag_cols + ['identity', 'identity_us', 'identity_met', 'subid', 'yr', 'subsector', 'metcode']
+        sum_data = sum_data[filt_cols]
+    else:
+        rank_data_met = use_pickle("in", "rank_data_met_" + sector_val, False, fileyr, currqtr, sector_val)
+        rank_data_sub = use_pickle("in", "rank_data_sub_" + sector_val, False, fileyr, currqtr, sector_val)
+        sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
     if file_used == "oob":
         file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-        data.to_pickle(file_path)
-        print("Orig Flags Saved")
+        temp = data.copy()
+        temp = temp[['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols]
+        temp.to_pickle(file_path)
 
-    return data, rank_data_met, rank_data_sub, sum_data
+    return data, rank_data_met, rank_data_sub, sum_data, flag_cols
 
 
 # This function produces the outputs needed for the update_data callback if the submit button is clicked
 #@Timer()
-def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, drop_val, curryr, currqtr, fileyr, use_rol_close, flag_list, skip_list, yr_val, cons_c, avail_c, rent_c):
+def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c):
+    
+    data_save = False
+    rebench_trigger = False
 
     shim_data['cons'] = np.where(shim_data['cons'] == '', np.nan, shim_data['cons'])
     shim_data['avail'] = np.where(shim_data['avail'] == '', np.nan, shim_data['avail'])
@@ -1465,23 +1559,23 @@ def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, dr
         data_orig = data_orig[(data_orig['identity'] == drop_val)].tail(10)
         data_orig = data_orig[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
-        for index, row in shim_data.iterrows():
-            for x in list(shim_data.columns):
-                if row[x] == None or row[x] == '':
-                    shim_data.at[index, x] = np.nan
+        
         if no_shim == False:
-            data, has_diff = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val)
+            data, has_diff = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c)
         else:
             has_diff = 0
 
+        if has_diff == 2:
+            rebench_trigger = True
+
         # Update decision log with new values entered via shim, and save the updates
-        if has_diff == 1 or len(skip_list) > 0:
+        if has_diff == 1 or (len(skip_list) > 0 and rebench_triger == False):
             decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
         if has_diff == 1:
             decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "submit", False, yr_val, cons_c, avail_c, rent_c)
         
         # Update dataframe to store user flag skips
-        if flag_list[0] != "v_flag" and len(skip_list) > 0:
+        if flag_list[0] != "v_flag" and len(skip_list) > 0 and rebench_trigger == False:
             test = data.loc[drop_val + str(curryr) + str(5)]['flag_skip']
             test = test.split(",")
             test = [x.strip(' ') for x in test]
@@ -1495,23 +1589,59 @@ def submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, dr
                     decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "skip", flag, yr_val, cons_c, avail_c, rent_c)
         
         # Save decision log if there was an update, and also save the current state of the edits to ensure nothing gets lost if an error is encountered in later steps
-        if has_diff == 1 or len(skip_list) > 0:
+        if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False):
             use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
-            data_save = data.copy()
-            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_mostrecentsave.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-            data_save = data_save[orig_cols]
-            data_save.to_pickle(file_path)
+            data_save = True
+            
 
     preview_data = pd.DataFrame()
 
-    shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
+    if rebench_trigger == False:
+        shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
 
-    print("End Submit Update")
-    return data, preview_data, shim_data, message, message_display
+    if rebench_trigger == True:
+        message = "You entered a shim that resulted in a change from rol above the data governance threshold. To process the shim, enter a supporting comment to document why the shim was made."
+        message_display = True
+
+    return data, preview_data, shim_data, message, message_display, data_save
+
+def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols):
+    resolve_test = preview_data.copy()
+    resolve_test = calc_stats(resolve_test, curryr, currqtr, False, sector_val)
+    resolve_test = resolve_test[resolve_test['identity'] == drop_val]
+    resolve_test = resolve_test[resolve_test['yr'] == flag_yr_val]
+    
+    test_flag_list = [x for x in orig_flag_list if x not in skip_list]
+    resolve_test = cons_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
+    resolve_test = vac_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
+    resolve_test = rent_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
+
+    resolve_test = resolve_test[flag_cols]
+    resolve_test[flag_cols] = np.where((resolve_test[flag_cols] == 999999999), 0, resolve_test[flag_cols])
+    resolve_test['sum_flags'] = resolve_test[flag_cols].sum(axis=1)
+    resolve_test = resolve_test[resolve_test['sum_flags'] > 0]
+    if len(resolve_test) > 0:
+        resolve_test = resolve_test[resolve_test.columns[(resolve_test != 0).any()]]
+        resolve_test = resolve_test.drop(['sum_flags'], axis=1)
+        flags_remaining = list(resolve_test.columns)
+    
+        flags_resolved = [x for x in test_flag_list if x not in flags_remaining and x not in skip_list]
+        flags_unresolved = [x for x in test_flag_list if x in flags_remaining and x not in skip_list]
+        new_flags = [x for x in flags_remaining if x not in orig_flag_list and x not in skip_list and x not in p_skip_list]
+    else:
+        flags_resolved = test_flag_list
+        flags_unresolved = []
+        new_flags = []
+
+    return flags_resolved, flags_unresolved, new_flags
 
 # This function produces the outputs needed for the update_data callback if the preview button is clicked
-#@Timer()
-def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, orig_flag_list, skip_list, use_rol_close, flag_yr_val): 
+def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, orig_flag_list, skip_list, p_skip_list, use_rol_close, flag_yr_val, flag_cols): 
+    
+    shim_data['cons'] = np.where(shim_data['cons'] == '', np.nan, shim_data['cons'])
+    shim_data['avail'] = np.where(shim_data['avail'] == '', np.nan, shim_data['avail'])
+    shim_data['mrent'] = np.where(shim_data['mrent'] == '', np.nan, shim_data['mrent'])
+    shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
     
     # At this point, will just always allow the button to be clicked, even if there are no edits entered, as want to allow the user to undo a previewed shim. Can think about a way to test if this is an undo vs a first time entry, but small potatoes as will only marginally increase speed
     message = ''
@@ -1529,46 +1659,19 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
         shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
         
         preview_data = data.copy()
-        preview_data, has_diff = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val)
+        preview_data, has_diff = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False)
             
         if has_diff == 1:    
             
             # Test if the flag will be resolved by the edit by re-running calc stats flag and the relevant flag function 
             # Dont run if the col_issue is simply v_flag, which is an indication that there are no flags at the sub even though an edit is being made
-
             if orig_flag_list[0] != "v_flag":
-                resolve_test = preview_data.copy()
-                resolve_test = calc_stats(resolve_test, curryr, currqtr, False, sector_val)
-                resolve_test = resolve_test[resolve_test['identity'] == drop_val]
-                resolve_test = resolve_test[resolve_test['yr'] == flag_yr_val]
-                
-                test_flag_list = [x for x in orig_flag_list if x not in skip_list]
-                resolve_test = cons_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
-                resolve_test = vac_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
-                resolve_test = rent_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
-
-                r = re.compile("^._flag*")
-                flag_cols = list(filter(r.match, resolve_test.columns))
-                resolve_test = resolve_test[flag_cols]
-                resolve_test[flag_cols] = np.where((resolve_test[flag_cols] == 999999999), 0, resolve_test[flag_cols])
-                resolve_test['sum_flags'] = resolve_test[flag_cols].sum(axis=1)
-                resolve_test = resolve_test[resolve_test['sum_flags'] > 0]
-                if len(resolve_test) > 0:
-                    resolve_test = resolve_test[resolve_test.columns[(resolve_test != 0).any()]]
-                    resolve_test = resolve_test.drop(['sum_flags'], axis=1)
-                    flags_remaining = list(resolve_test.columns)
-                
-                    flags_resolved = [x for x in test_flag_list if x not in flags_remaining and x not in skip_list]
-                    flags_unresolved = [x for x in test_flag_list if x in flags_remaining and x not in skip_list]
-                    new_flags = [x for x in flags_remaining if x not in orig_flag_list and x not in skip_list]
-                else:
-                    flags_resolved = test_flag_list
-                    flags_unresolved = []
-                    new_flags = []
+                flags_resolved, flags_unresolved, new_flags = test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols)
             else:
                 flags_resolved = []
                 flags_unresolved = []
                 new_flags = []
+            
             preivew_data['sub_prev'] = np.where(preview_data['identity'] == drop_val, 1, 0)
         else:
             preview_data = pd.DataFrame()
@@ -1576,7 +1679,6 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
             flags_unresolved = []
             new_flags = []
 
-    print("End Preview Update")
     return data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, new_flags
 
 # Layout for login page
@@ -1618,8 +1720,9 @@ def router(pathname):
                     State('sector_input','value'),
                     State('login-curryr','value'),
                     State('login-currqtr','value'),
-                    State('rol_close','value')])
-def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close):
+                    State('rol_close','value'),
+                    State('flag_flow_input', 'value')])
+def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close, flag_flow):
     if n_clicks is None or n_clicks==0:
         return '/login', no_update, ''
     else:
@@ -1631,7 +1734,7 @@ def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close)
                 rol_close = "N"
             else:
                 rol_close = rol_close[0]
-            return pathname, '', username + "/" + sector_input.title() + "/" + str(curryr) + "q" + str(currqtr) + "/" + rol_close
+            return pathname, '', username + "/" + sector_input.title() + "/" + str(curryr) + "q" + str(currqtr) + "/" + rol_close + "/" + flag_flow
         else:
             session['authed'] = False
             if sector_input is None:
@@ -1646,19 +1749,21 @@ def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close)
                     Output('sector', 'data'),
                     Output('fileyr', 'data'),
                     Output('currqtr', 'data'),
-                    Output('store_rol_close', 'data')],
+                    Output('store_rol_close', 'data'),
+                    Output('flag_flow', 'data')],
                     [Input('url', 'search')])
 def store_input_vals(url_input):
     if url_input is None:
         raise PreventUpdate
     else:
-        user, sector_val, global_vals, use_rol_close = url_input.split("/")
+        user, sector_val, global_vals, use_rol_close, flag_flow = url_input.split("/")
         fileyr, currqtr = global_vals.split("q")
         fileyr = int(fileyr)
         currqtr = int(currqtr)
-        return user, sector_val.lower(), fileyr, currqtr, use_rol_close
+        return user, sector_val.lower(), fileyr, currqtr, use_rol_close, flag_flow
 
-@forecast.callback([Output('dropman', 'options'),
+@forecast.callback([Output('file_load_alert', 'is_open'),
+                    Output('dropman', 'options'),
                     Output('droproll', 'options'),
                     Output('dropsum', 'options'),
                     Output('dropsum', 'value'),
@@ -1670,14 +1775,16 @@ def store_input_vals(url_input):
                     Output('curryr', 'data'),
                     Output('dropflag', 'options'),
                     Output('dropflag', 'value'),
-                    Output('init_trigger', 'data'),
-                    Output('file_load_alert', 'is_open'),
-                    Output('rank_view', 'options')],
+                    Output('rank_view', 'options'),
+                    Output('store_flag_cols', 'data'),
+                    Output('droproll', 'value'),
+                    Output('init_trigger', 'data')],
                     [Input('sector', 'data'),
                     Input('fileyr', 'data'),
                     Input('currqtr', 'data'),
-                    Input('store_rol_close', 'data')])
-def initial_data_load(sector_val, fileyr, currqtr, use_rol_close):
+                    Input('store_rol_close', 'data')],
+                    [State('store_flag_cols', 'data')])
+def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
     if sector_val is None:
         raise PreventUpdate
     else:
@@ -1724,26 +1831,28 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close):
                 decision_data['skip_user'] = ''
                 use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
 
-            # If nothing has been hovered over yet, set the initial metro/sub to display in the time series graphs as the first metro/sub by default
-            first_sub = oob_data['identity'].iloc[0]
             met_combos_temp = list(oob_data['identity_met'].unique())
             met_combos_temp.sort()
             met_combos = list(oob_data['identity_us'].unique()) + met_combos_temp
-            default_drop = list(oob_data['identity_us'].unique())[0] 
+            if sector_val == "apt" or sector_val == "off" or sector_val == "ret":
+                default_drop = met_combos[0]
+            elif sector_val == "ind":
+                default_drop = "US" + list(oob_data['subsector'].unique())[0] + list(oob_data['expansion'].unique())[0]
             available_years = np.arange(curryr, curryr + 10)
 
             temp = oob_data.copy()
             temp = temp.set_index('identity')
             sub_combos = list(temp.index.unique())
 
-            oob_data, rank_data_met, rank_data_sub, sum_data = first_update(oob_data, file_used, sector_val, orig_cols, curryr, currqtr, fileyr, use_rol_close)              
+            oob_data, rank_data_met, rank_data_sub, sum_data, flag_cols = first_update(oob_data, file_used, sector_val, orig_cols, curryr, currqtr, fileyr, use_rol_close)              
 
+            oob_data.replace([np.inf, -np.inf], np.nan, inplace=True)
             use_pickle("out", "main_data_" + sector_val, oob_data, fileyr, currqtr, sector_val)
             use_pickle("out", "rank_data_met_" + sector_val, rank_data_met, curryr, currqtr, sector_val)
             use_pickle("out", "rank_data_sub_" + sector_val, rank_data_sub, curryr, currqtr, sector_val)
             use_pickle("out", "sum_data_" + sector_val, sum_data, curryr, currqtr, sector_val)
 
-            flag_list = get_issue(False, False, False, False, False, False, False, False, False, "list", sector_val)
+            flag_list = get_issue("list", sector_val)
         
             flag_list_all = list(flag_list.keys())
 
@@ -1762,11 +1871,10 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close):
                             ]
 
             init_trigger = True
-            print("End Init Load")
-            return [{'label': i, 'value': i} for i in sub_combos], [{'label': i, 'value': i} for i in met_combos], [{'label': i, 'value': i} for i in met_combos], default_drop, [{'label': i, 'value': i} for i in available_years], [{'label': i, 'value': i} for i in available_years], curryr, file_used, orig_cols, curryr, [{'label': i, 'value': i} for i in flag_list_all], flag_list_all[0], init_trigger, False, rank_options
+
+            return False, [{'label': i, 'value': i} for i in sub_combos], [{'label': i, 'value': i} for i in met_combos], [{'label': i, 'value': i} for i in met_combos], default_drop, [{'label': i, 'value': i} for i in available_years], [{'label': i, 'value': i} for i in available_years], curryr, file_used, orig_cols, curryr, [{'label': i, 'value': i} for i in flag_list_all], flag_list_all[0], rank_options, flag_cols, default_drop, True
         else:
-            init_trigger = False
-            return no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, init_trigger, no_update, True, no_update
+            return True, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, False
 
 @forecast.callback(Output('out_flag_trigger', 'data'),
                   [Input('sector', 'data'),
@@ -1776,35 +1884,26 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close):
                   State('currqtr', 'data'),
                   State('fileyr', 'data'),
                   State('init_trigger', 'data'),
-                  State('input_file', 'data')])
+                  State('store_flag_cols', 'data')])
 
-def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr, fileyr, success_init, file_used):
+def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr, fileyr, success_init, flag_cols):
     
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
         input_id = get_input_id()
         if input_id == "flag-button":
-            orig_flags = use_pickle("out", sector_val + "_original_flags", False, fileyr, currqtr, sector_val)
-            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_all_data.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-            orig_flags.to_csv(file_path, na_rep='')
+            use_pickle(False, sector_val + "_original_flags", False, fileyr, currqtr, sector_val)
 
-            r = re.compile("^._flag*")
-            flag_cols = list(filter(r.match, orig_flags.columns))
-            cols_to_keep = ['identity', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols
-            flags_only = orig_flags[cols_to_keep]
-            flags_only = flags_only[flags_only['yr'] >= curryr]
-            flags_only = flags_only[flags_only['qtr'] == 5]
-            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-            flags_only.to_csv(file_path, na_rep='')
+            current_flags = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
             
-            data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
-            data = data[cols_to_keep]
-            data = data[data['yr'] >= curryr]
-            data = data[data['qtr'] == 5]
+            cols_to_keep = ['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols
+            current_flags = current_flags[cols_to_keep]
+            current_flags = current_flags[current_flags['yr'] >= curryr]
+            current_flags = current_flags[current_flags['qtr'] == 5]
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_current_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-            data.to_csv(file_path, na_rep='')
-            print("End Output Flags")
+            current_flags.reset_index().set_index('identity').to_csv(path_out, na_rep='')
+
         return True
 
 
@@ -1820,10 +1919,9 @@ def confirm_finalizer(sector_val, submit_button, download_button, curryr, currqt
     if sector_val is None or success_init == False:
         raise PreventUpdate
     # Need this callback to tie to update_data callback so the callback is not executed before the data is actually updated, but only want to actually save the data when the finalize button is clicked, so only do that when the input id is for the finalize button
-    elif input_id == "store_submit_button":
+    elif input_id != "finalize-button":
         raise PreventUpdate
     else:
-        print("End Confirm Finalizer")
         return True
 
 
@@ -1838,8 +1936,8 @@ def confirm_finalizer(sector_val, submit_button, download_button, curryr, currqt
                     State('init_trigger', 'data')])
 
 def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_init):
-    input_id = get_input_id()
-    if sector_val is None or success_init == False:
+    
+    if sector_val is None or success_init == False or confirm_click is None:
         raise PreventUpdate
     else:
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -1998,8 +2096,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                                     'mrent', 'rolmrent', 'G_mrent', 'grolmren', 'merent', 'G_merent', 'rolmeren',  'grolmere', 'gap', 'rolgap']
 
             finalized_met = finalized_met.rename(columns={'rolscon': 'rolcons', 'grolsmre': 'grolmren', 'rol_mrent' :'rolmrent', 'grolsmer': 'grolmere',
-                                                            'rolsabs' :'rolabs', 'effrentoob': 'merent_oob', 'rolsvac': 'rolvac', 'rol_merent': 'rolmeren', 
-                                                            'eff_chg_oob': 'G_merent_oob', 'ask_chg_oob': 'G_mrent_oob', 'askrentoob': 'mrent_oob'})
+                                                            'rolsabs' :'rolabs', 'rolsvac': 'rolvac', 'rol_merent': 'rolmeren'})
 
             finalized_met = finalized_met[output_cols_met]
 
@@ -2076,62 +2173,9 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
             decision_log_in_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val, 'pickle'))
             decision_log = pd.read_pickle(decision_log_in_path)
             decision_log_out_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val, 'csv'))
-            decision_log.to_csv(decision_log_out_path)
+            decision_log.to_csv(decision_log_out_path, na_rep='')
 
-        print("End Finalize Econ")
         return True, alert_display, alert_text
-
-@forecast.callback([Output('store_flag_skips', 'data'),
-                   Output('skip_list_trigger', 'data')],
-                   [Input('sector', 'data'),
-                   Input('submit-button', 'n_clicks'),
-                   Input('preview-button', 'n_clicks')],
-                   [State('curryr', 'data'),
-                   State('currqtr', 'data'),
-                   State('flag_description_noprev', 'children'),
-                   State('flag_description_resolved', 'children'),
-                   State('flag_description_unresolved', 'children'),
-                   State('flag_description_new', 'children'),
-                   State('flag_description_skipped', 'children'),
-                   State('init_trigger', 'data')])
-
-def get_skip_list(sector_val, submit_button, preview_button, curryr, currqtr, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, success_init):
-    
-    if sector_val is None or success_init == False:
-        raise PreventUpdate
-    else:
-        input_id = get_input_id()
-        
-        # If there is a flag description, use this crazy dict/list slicer to get the actual values of the children prop so we can see what flags the user wants to skip
-        if input_id != "submit_button" and input_id != "preview_button":
-            if skip_input_noprev == "No flags for this year at the submarket":
-                skip_list = []
-            elif skip_input_noprev != None or skip_input_resolved != None or skip_input_unresolved != None or skip_input_new != None or skip_input_skipped != None:
-                if len(skip_input_noprev) > 0:
-                    has_check = list(skip_input_noprev['props']['children'][0]['props']['children'][0]['props']['children'][0]['props'].keys())
-                    if 'value' in has_check:
-                        skip_list_temp = skip_input_noprev['props']['children'][0]['props']['children'][0]['props']['children'][0]['props']['value']
-                        skip_list = [e[5:] for e in skip_list_temp]
-                    else:
-                        skip_list = []
-                else:
-                    skip_list = []
-                    for input_list in [skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped]:
-                        if len(input_list) > 0:
-                            has_check = list(input_list['props']['children'][0]['props']['children'][0]['props']['children'][0]['props'].keys())
-                            if 'value' in has_check:
-                                skip_list_temp = input_list['props']['children'][0]['props']['children'][0]['props']['children'][0]['props']['value']
-                                skip_list_temp = [e[5:] for e in skip_list_temp]
-                                skip_list += skip_list_temp
-            else:
-                skip_list = []
-            
-            print("End Get Skip List")
-            return skip_list, no_update
-        
-        else:
-            print("End Get Skip List")
-            return no_update, no_update
 
 @forecast.callback([Output('manual_message', 'message'),
                     Output('manual_message', 'displayed'),
@@ -2141,13 +2185,23 @@ def get_skip_list(sector_val, submit_button, preview_button, curryr, currqtr, sk
                     Output('store_init_flags', 'data'),
                     Output('store_flag_resolve', 'data'),
                     Output('store_flag_unresolve', 'data'),
-                    Output('store_flag_new', 'data')],
-                    [Input('sector', 'data'),
-                    Input('submit-button', 'n_clicks'),
+                    Output('store_flag_new', 'data'),
+                    Output('store_flag_skips', 'data'),
+                    Output('flag_filt', 'data'),
+                    Output('flag_filt', 'columns'),
+                    Output('flag_filt', 'style_table'),
+                    Output('flag_filt_container', 'style'),
+                    Output('dropman', 'value'),
+                    Output('countdown', 'data'),
+                    Output('countdown', 'columns'),
+                    Output('first_update', 'data'),
+                    Output('key_yr_radios', 'value')],
+                    [Input('submit-button', 'n_clicks'),
                     Input('preview-button', 'n_clicks'),
-                    Input('init_trigger', 'data'),
-                    Input('skip_list_trigger', 'data')],
-                    [State('store_orig_cols', 'data'),
+                    Input('dropflag', 'value'),
+                    Input('init_trigger', 'data')],
+                    [State('sector', 'data'),
+                    State('store_orig_cols', 'data'),
                     State('curryr', 'data'),
                     State('currqtr', 'data'),
                     State('fileyr', 'data'),
@@ -2159,10 +2213,19 @@ def get_skip_list(sector_val, submit_button, preview_button, curryr, currqtr, sk
                     State('dropman', 'value'),
                     State('store_rol_close', 'data'),
                     State('flag_list', 'data'),
-                    State('key_yr_radios', 'value'),
-                    State('store_flag_skips', 'data')])
+                    State('p_skip_list', 'data'),
+                    State('init_trigger', 'data'),
+                    State('flag_description_noprev', 'children'),
+                    State('flag_description_resolved', 'children'),
+                    State('flag_description_unresolved', 'children'),
+                    State('flag_description_new', 'children'),
+                    State('flag_description_skipped', 'children'),
+                    State('store_flag_cols', 'data'),
+                    State('first_update', 'data'),
+                    State('flag_flow', 'data'),
+                    State('key_yr_radios', 'value')])
 #@Timer()
-def update_data(sector_val, submit_button, preview_button, success_init, skip_trigger, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, man_val, use_rol_close, flag_list, yr_val, skip_list):
+def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val):
 
     input_id = get_input_id()
     
@@ -2172,24 +2235,30 @@ def update_data(sector_val, submit_button, preview_button, success_init, skip_tr
         
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
-        if input_id == 'submit-button' or input_id == 'skip-button':
-            data = data.reset_index()
-            data = data.set_index('identity')
-            data.loc[man_val, 'cons_comment'] = cons_c
-            data.loc[man_val, 'avail_comment'] = avail_c
-            data.loc[man_val, 'rent_comment'] = rent_c
-            data = data.reset_index()
-            data = data.set_index('identity_row')
-        
-        if input_id == 'submit-button' or input_id == 'preview-button':
-            preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
-            shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
+         # If there is a flag description, use this crazy dict/list slicer to get the actual values of the children prop so we can see what flags the user wants to skip
+        if skip_input_noprev == "No flags for this year at the submarket" or skip_input_noprev == "You have cleared all the flags":
+            skip_list = []
+        elif skip_input_noprev != None or skip_input_resolved != None or skip_input_unresolved != None or skip_input_new != None or skip_input_skipped != None:
+            skip_list = get_user_skips(skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped)
+        else:
+            skip_list = []
 
+        
+        # Load preview data if previewing
+        if input_id == 'preview-button':
+            preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
+        else:
+            preview_data = pd.DataFrame()
+        
+        # Load shim data if previewing or submitting
+        if input_id == 'submit-button' or input_id == 'preview-button':
+            shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
+        
         if input_id == 'submit-button':
-            data, preview_data, shim_data, message, message_display = submit_update(data, shim_data, sector_val, preview_data, orig_cols, user, man_val, curryr, currqtr, fileyr, use_rol_close, flag_list, skip_list, yr_val, cons_c, avail_c, rent_c)
+            data, preview_data, shim_data, message, message_display, data_save = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, user_rol_close, yr_val, cons_c, avail_c, mrent_c, erent_c)
 
         elif input_id == 'preview-button':
-            data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, man_val, curryr, currqtr, flag_list, skip_list, use_rol_close, yr_val)
+            data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols)
         
         else:
             message = ''
@@ -2197,22 +2266,64 @@ def update_data(sector_val, submit_button, preview_button, success_init, skip_tr
             preview_data = pd.DataFrame()
             shim_data = pd.DataFrame()
         
-        if input_id == "submit-button":
+        
+        if message_display == False and input_id == 'submit-button':
+            data = data,reset_index()
+            if cons_c[-9:] != "Note Here":
+                data.loc[drop_val, 'cons_comment'] = cons_c
+            if avail_c[-9:] != "Note Here":
+                data.loc[drop_val, 'avail_comment'] = avail_c
+            if mrent_c[-9:] != "Note Here":
+                data.loc[drop_val, 'rent_comment'] = rent_c
+            data = data.reset_index()
+            data = data.set_index('identity_row')
+
+        if input_id != "preview-button":
+            flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
+
+        if input_id == "submit-button" or input_id == "init_trigger" or first_update == True:
+            # Re-calc stats and flags now that the data has been updated, or if this is the initial load
+            if  message_display == False:
+                data = calc_stats(data, curryr, currqtr, False, sector_val)
+                data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
+                data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
+                data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
+
+                # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered (example: emdir, where there was a shim to mrent that fixed the flag). We will want to remove that skip from the log
+                # if input_id == "submit-button":
+                #     if len(skip_list) > 0:
+                #         decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
+                #         data, decision_data = check_skips(data, decision_data, curryr, currqtr, sector_val, flag_cols, drop_val)
+                #         use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
+
+            # Update countdown table
+            countdown = data.copy()
+            countdown = data[(data['yr'] >= curryr) & (data['qtr'] == 5)]
+            countdown = countdown[['forecast_tag', 'identity_us', 'flag_skip'] + flag_cols]
+            countdown = live_flag_count(countdown, sector_val, flag_cols)
+            type_dict_countdown, format_dict_countdown = get_types(sector_val)
+
+            # Get the next sub flagged
+            flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, False, curryr, currqtr, flag_cols, flag_flow, yr_val)
             use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
+        
         use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
-        use_pickle("out", "shim_data_" + sector_val, shim_data, curryr, fileyr, sector_val)
+        use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
+
+        if input_id == "submit-button": 
+            if data_save == True:
+                data_to_save = data.copy()
+                file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_mostrecentsave.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
+                data_to_save = data_to_save[orig_cols]
+                data_to_save.to_pickle(file_path)
 
         # Need to set this variable so that the succeeding callbacks will only fire once update is done
-        # This works because it makes the callbacks that use elements produced in this callback have an input that is linked to an output of this callback, ensuring that they will only be fired once this one completes
-         # Need to set this variable so that the succeeding callbacks will only fire once update is done
-        # This works because it makes the callbacks that use elements produced in this callback have an input that is linked to an output of this callback, ensuring that they will only be fired once this one completes
-        # But dont update this if the user didnt enter any shims, as we dont want the succeeding callbacks to update
-        # We need five - to differentiate if suceeding callbacks should fire regardless of what button was clicked, or if they should only fire only if a particular button was clicked, or if they should only fire if this is initial load
         if message_display == True:
-            all_buttons = no_update
+            all_buttons = 1
             submit_button = no_update
             preview_button = no_update
             init_flags = no_update
+            drop_val = no_update
         else:
             if input_id == "submit-button":
                 all_buttons = 1
@@ -2223,6 +2334,11 @@ def update_data(sector_val, submit_button, preview_button, success_init, skip_tr
                 all_buttons = 1
                 submit_button = no_update
                 preview_button = 1
+                init_flags = no_update
+            elif input_id == "dropflag":
+                all_buttons = no_update
+                submit_button = no_update
+                preview_button = no_update
                 init_flags = no_update
             else:
                 all_buttons = 1
@@ -2235,8 +2351,54 @@ def update_data(sector_val, submit_button, preview_button, success_init, skip_tr
             flags_unresolved = []
             flags_new = []
 
-        print("End Update Data")
-        return message, message_display, all_buttons, submit_button, preview_button, init_flags, flags_resolved, flags_unresolved, flags_new
+        if input_id == "submit-button" or input_id == "init_trigger" or first_update == True:
+            return message, message_display, all_buttons, submit_button, preview_button, init_flags, flags_resolved, flags_unresolved, flags_new, skip_list, flag_filt.to_dict('records'), [{'name': [flag_filt_title, flag_filt.columns[i]], 'id': flag_filt.columns[i]} 
+                        for i in range(0, len(flag_filt.columns))], flag_filt_style_table, flag_filt_display, drop_val, countdown.to_dict('records'), [{'name': ['Flags Remaining', countdown.columns[i]], 'id': countdown.columns[i], 'type': type_dict_countdown[countdown.columns[i]], 'format': format_dict_countdown[countdown.columns[i]]}
+                    for i in range(0, len(countdown.columns))], False, yr_val
+        elif input_id == "dropflag":
+            return message, message_display, all_buttons, submit_button, preview_button, init_flags, no_update, no_update, no_update, no_update, flag_filt.to_dict('records'), [{'name': [flag_filt_title, flag_filt.columns[i]], 'id': flag_filt.columns[i]} 
+                        for i in range(0, len(flag_filt.columns))], flag_filt_style_table, flag_filt_display, no_update, no_update, no_update, False, no_update
+        else:
+            return message, message_display, all_buttons, submit_button, preview_button, init_flags, flags_resolved, flags_unresolved, flags_new, skip_list, no_update, no_update, no_update, no_update, no_update, no_update, no_update, False, yr_val
+
+@forecast.callback([Output('has_flag', 'data'),
+                Output('flag_list', 'data'),
+                Output('p_skip_list', 'data'),
+                Output('key_met_radios', 'value')],
+                [Input('dropman', 'value'),
+                Input('sector', 'data'),
+                Input('init_trigger', 'data'),
+                Input('store_preview_button', 'data')],
+                [State('curryr', 'data'),
+                State('currqtr', 'data'),
+                State('fileyr', 'data'),
+                State('init_trigger', 'data'),
+                State('store_flag_cols', 'data'),
+                State('store_flag_unresolve', 'data'),
+                State('store_flag_new', 'data'),
+                State('flag_flow', 'data'),
+                State('key_yr_radios', 'value')])
+
+def process_man_drop(drop_val, sector_val, init_fired, preview_status, curryr, currqtr, fileyr, success_init, flag_cols, flags_unresolved, flags_new, flag_flow, yr_val):
+    if sector_val is None or success_init == False:
+        raise PreventUpdate
+    else:    
+
+        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
+        flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, True, curryr, currqtr, flag_cols, flag_flow, yr_val)
+
+        # Reset the radio button to the correct variable based on the new flag
+        if has_flag == 1:
+            if len(flags_unresolved) > 0:
+                key_met_radio_val = flags_unresolved[0][0]
+            elif len(flags_new) > 0:
+                key_met_radio_val = flags_new[0][0]
+            else:
+                key_met_radio_val = flag_list[0][0]
+        else:
+            key_met_radio_val = no_update
+
+        return has_flag, flag_list, p_skip_list, key_met_radio_val
 
 @forecast.callback(Output('download_trigger', 'data'),
                    [Input('sector', 'data'),
@@ -2246,15 +2408,14 @@ def update_data(sector_val, submit_button, preview_button, success_init, skip_tr
                    State('currqtr', 'data'),
                    State('fileyr', 'data'),
                    State('store_orig_cols', 'data'),
-                   State('input_file', 'data'),
                    State('init_trigger', 'data')])
 
-def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fileyr, orig_cols, file_used, success_init):
+def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fileyr, orig_cols, success_init):
     input_id = get_input_id()
     if sector_val is None or success_init == False:
         raise PreventUpdate
     # Need this callback to tie to update_data callback so the csv is not set before the data is actually updated, but dont want to call the set csv function each time submit is clicked, so only do that when the input id is for the download button
-    elif input_id == "store_submit_button":
+    elif input_id == "store_submit_button" or input_id == "sector":
         raise PreventUpdate
     else:
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -2276,89 +2437,7 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
         file_path = "{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_edits_forecast.csv".format(get_home(), sector_val, fileyr, currqtr, sector_val)
         edits_output.to_csv(file_path, index=False, na_rep='')
 
-        print("End Set CSV")
         return True
-
-@forecast.callback([Output('dropman', 'value'),
-                    Output('key_yr_radios', 'value'),],
-                    [Input('sector', 'data'),
-                    Input('init_trigger', 'data'),
-                    Input('store_submit_button', 'data')],
-                    [State('identity_val', 'data'),
-                    State('curryr', 'data'),
-                    State('currqtr', 'data'),
-                    State('fileyr', 'data'),
-                    State('store_rol_close', 'data'),
-                    State('key_yr_radios', 'value')])
-def set_shim_drop(sector_val, success_init, submit_button, identity_val, curryr, currqtr, fileyr, use_rol_close, orig_yr_val):
-    input_id = get_input_id()
-    
-    if sector_val is None or success_init == False:
-        raise PreventUpdate
-    else:
-        input_id = get_input_id()
-
-        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
-        
-        if input_id == "init_trigger":
-            flag_list, identity_val, yr_val = flag_examine(data, False, False, curryr, currqtr, orig_yr_val)
-        else:
-            # In order to get the next sub that is flagged, we need to recalc stats and flags to update the data to see if the old flag is removed.
-            # Downside is this will slow down performance, as still need to call these functions in the next callback to get the new outputs, and cant combine due to circular callback issue
-            data = calc_stats(data, curryr, currqtr, False, sector_val)
-            data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
-            data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
-            data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
-            flag_list, identity_val, yr_val = flag_examine(data, False, False, curryr, currqtr, orig_yr_val)
-            use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
-        
-        print("End Set Shim Drop") 
-        return identity_val, yr_val
-
-            
-        
-@forecast.callback([Output('identity_val', 'data'),
-                   Output('flag_list', 'data'),
-                   Output('key_met_radios', 'value')],
-                   [Input('dropman', 'value'),
-                   Input('sector', 'data'),
-                   Input('init_trigger', 'data'),
-                   Input('key_yr_radios', 'value')],
-                   [State('curryr', 'data'),
-                   State('currqtr', 'data'),
-                   State('fileyr', 'data'),
-                   State('init_trigger', 'data'),
-                   State('store_rol_close', 'data')])
-
-def calc_stats_flags(drop_val, sector_val, init_fired, yr_val, curryr, currqtr, fileyr, success_init, use_rol_close):
-    if sector_val is None or success_init == False:
-        raise PreventUpdate
-    else:    
-        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
-
-        input_id = get_input_id()
-        if input_id != "dropman" and input_id != "key_yr_radios":
-            data = calc_stats(data, curryr, currqtr, False, sector_val)
-            data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
-            data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
-            data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
-    
-        flag_list, identity_val, yr_val = flag_examine(data, drop_val, True, curryr, currqtr, yr_val)
-
-        # Reset the radio button to the correct variable based on the new flag
-        if flag_list[0] != "v_flag":
-            key_met_radio_val = flag_list[0][0]
-        else:
-            key_met_radio_val = 'v'
-
-        # If the dropdown was used, the preview dataset should be cleared
-        if input_id == "dropman":
-            preview_data = pd.DataFrame()
-            use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)       
-    
-        print("End Calc Stats and Flags")
-        return identity_val, flag_list, key_met_radio_val
-      
 
 @forecast.callback([Output('rank_table_met', 'data'),
                     Output('rank_table_met', 'columns'),
@@ -2377,8 +2456,9 @@ def calc_stats_flags(drop_val, sector_val, init_fired, yr_val, curryr, currqtr, 
                     [State('curryr', 'data'),
                     State('currqtr', 'data'),
                     State('fileyr', 'data'),
-                    State('init_trigger', 'data')])
-def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, success_init):
+                    State('init_trigger', 'data'),
+                    State('store_flag_cols', 'data')])
+def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, success_init, flag_cols):
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
@@ -2396,13 +2476,13 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             rank_data_sub = use_pickle("in", "rank_data_sub_" + sector_val, False, fileyr, currqtr, sector_val)
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
-            sum_data = summarize_flags(sum_data, drop_val)
-            type_dict_rank_met, format_dict_rank_met = get_types(rank_data_met, sector_val)
+            sum_data = summarize_flags(sum_data, drop_val, flag_cols)
+            type_dict_rank_met, format_dict_rank_met = get_types(sector_val)
             highlighting_rank_met = get_style("partial", rank_data_met, dash_curryr, dash_second_five)
-            type_dict_rank_sub, format_dict_rank_sub = get_types(rank_data_sub, sector_val)
+            type_dict_rank_sub, format_dict_rank_sub = get_types(sector_val)
             highlighting_rank_sub = get_style("partial", rank_data_sub, dash_curryr, dash_second_five)
 
-            type_dict_sum, format_dict_sum = get_types(sum_data, sector_val)
+            type_dict_sum, format_dict_sum = get_types(sector_val)
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
         
             return rank_data_met.to_dict('records'), [{'name':['Top Ten Flagged Metros', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
@@ -2411,71 +2491,24 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
         else:
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
-            sum_data = summarize_flags(sum_data, drop_val)
-            type_dict_sum, format_dict_sum = get_types(sum_data, sector_val)
+            sum_data = summarize_flags(sum_data, drop_val, flag_cols)
+            type_dict_sum, format_dict_sum = get_types(sector_val)
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
-            print("End Display Summary")
+            
             return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
 
-
-@forecast.callback([Output('flag_filt', 'data'),
-                    Output('flag_filt', 'columns'),
-                    Output('flag_filt', 'style_table'),
-                    Output('flag_container', 'style')],
-                    [Input('dropflag', 'value'),
-                    Input('sector', 'data'),
-                    Input('store_submit_button', 'data')],
-                    [State('curryr', 'data'),
-                    State('currqtr', 'data'),
-                    State('fileyr', 'data'),
-                    State('init_trigger', 'data')])
-
-def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, fileyr, success_init):
+@forecast.callback(Output('show_skips', 'value'),
+                 [Input('store_submit_button', 'data'),
+                 Input('dropman', 'value'),
+                 Input('sector', 'data')],
+                 [State('init_trigger', 'data')])
+#@Timer("Remove Options")
+def remove_options(submit_button, drop_val, sector_val, success_init):
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
-
-        flag_filt_style = {'display': 'block', 'padding-top': '40px'}
-
-        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
-        dataframe = data.copy()
-        dataframe = dataframe[[drop_val, 'identity', 'flag_skip']]
-        dataframe = dataframe[(dataframe[drop_val] > 0) & (dataframe[drop_val] < 999999999)]
-        if len(dataframe) > 0:
-            count_skip = dataframe['flag_skip'].str.count(drop_val)
-            dataframe['count_skips'] = count_skip
-            dataframe['count_skips_all'] = dataframe.groupby('identity')['count_skips'].transform('sum')
-            dataframe['count_rows'] = dataframe.groupby('identity')[drop_val].transform('count')
-            dataframe['flags_left'] = dataframe['count_rows'] - dataframe['count_skips_all']
-            dataframe['flag_count_row'] = dataframe.groupby('identity').transform('cumcount', ascending=False)
-            dataframe['flag_count_row'] = dataframe['flag_count_row'] + 1
-            dataframe = dataframe[(dataframe['flag_count_row'] <= dataframe['flags_left'])]
-            dataframe = dataframe.drop(['flag_skip'], axis=1)
-            dataframe['Total Flags'] = dataframe[drop_val].count()
-            temp = dataframe.copy()
-            temp = temp.reset_index()
-            temp = temp.head(1)
-            temp = temp[['Total Flags']]
-            title = "Total Flags: " + str(temp['Total Flags'].loc[0])
-            dataframe.sort_values(by=['identity', drop_val], ascending=[True, True], inplace=True)
-            dataframe = dataframe.drop_duplicates('identity')
-            dataframe = dataframe[['identity', drop_val]]
-            dataframe[drop_val] = dataframe[drop_val].rank(ascending=True, method='first')
-            dataframe = dataframe.rename(columns={'identity': 'Submarkets With Flag', drop_val: 'Flag Ranking'})
-            dataframe.sort_values(by=['Flag Ranking'], inplace=True)
-        elif len(dataframe) == 0:
-            title =  'Total Flags: 0'
-            data_fill = {'Submarkets With Flag': ['No Submarkets Flagged'],
-                    'Flag Ranking': [0]}
-            dataframe = pd.DataFrame(data_fill, columns=['Submarkets With Flag', 'Flag Ranking'])
-        print("End Flag Filt")
-        if len(dataframe) >= 10:
-            return dataframe.to_dict('records'), [{'name': [title, dataframe.columns[i]], 'id': dataframe.columns[i]} 
-                    for i in range(0, len(dataframe.columns))], {'height': '350px', 'overflowY': 'auto'}, flag_filt_style
-        else:
-            return dataframe.to_dict('records'), [{'name': [title, dataframe.columns[i]], 'id': dataframe.columns[i]} 
-                    for i in range(0, len(dataframe.columns))], {'height': '350px', 'overflowY': 'visible'}, flag_filt_style
+        return ['N']
 
 
 @forecast.callback([Output('man_edits', 'data'),
@@ -2503,7 +2536,6 @@ def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, file
                     Output('vac-series', 'figure'),
                     Output('rent-series', 'figure'),
                     Output('man_edits_container', 'style'),
-                    Output('man_data_container', 'style'),
                     Output('comment_cons', 'value'),
                     Output('comment_avail', 'value'),
                     Output('comment_rent', 'value')],
@@ -2511,9 +2543,10 @@ def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, file
                     Input('dropman', 'value'),
                     Input('store_all_buttons', 'data'),
                     Input('key_met_radios', 'value'),
-                    Input('key_yr_radios', 'value')],
-                    [State('flag_list', 'data'),
-                    State('identity_val', 'data'),
+                    Input('key_yr_radios', 'value'),
+                    Input('show_skips', 'value')],
+                    [State('has_flag', 'data'),
+                    State('flag_list', 'data'),
                     State('store_orig_cols', 'data'),
                     State('curryr', 'data'),
                     State('currqtr', 'data'),
@@ -2522,9 +2555,14 @@ def filter_flag_table(drop_val, sector_val, submit_button, curryr, currqtr, file
                     State('store_flag_unresolve', 'data'),
                     State('store_flag_new', 'data'),
                     State('store_flag_skips', 'data'),
-                    State('init_trigger', 'data')])  
+                    State('init_trigger', 'data'),
+                    State('store_flag_cols', 'data'),
+                    State('comment_cons', 'value'),
+                    State('comment_avail', 'value'),
+                    State('comment_rent', 'value'),
+                    State('flag_description_noprev', 'children')])  
 #@Timer()
-def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_list, identity_val, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init):  
+def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips):  
     
     input_id = get_input_id()
 
@@ -2540,8 +2578,6 @@ def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_l
         shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
         # Since the flag counter was moved to its own callback, we can simply drop all flag cols here because we no longer need them to reduce dimensionality
-        r = re.compile("^._flag*")
-        flag_cols = list(filter(r.match, data.columns))
         data = data.drop(flag_cols, axis=1)
 
         # Determine what fields in the shim data set are editable and what are not
@@ -2554,76 +2590,94 @@ def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_l
                 edit_dict[x] = True
 
         # Reset the shim view to all nulls, unless the user is previewing a change, or if a non button input was selected and there are shims entered
-        if len(preview_data) == 0 or len(shim_data) == 0:
+        if len(shim_data) == 0:
             shim_data = data.copy()
             shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
-            shim_data = shim_data[(shim_data['identity'] == man_val) ].tail(10)
+            shim_data = shim_data[(shim_data['identity'] == drop_val) ].tail(10)
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
 
         # If the user changes the sub they want to edit, reset the shim section
-        if (len(preview_data) > 0 and  identity_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(identity_val).loc[0] == False):
+        if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
+            sub_change = True
+        else:
+            sub_change = False
+        if sub_change == True:
             preview_data = pd.DataFrame()
             shim_data = data.copy()
             shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
             shim_data = shim_data[(shim_data['yr'] >= curryr) & (shim_data['qtr'] == 5)]
-            shim_data = shim_data[(shim_data['identity'] == man_val)]
+            shim_data = shim_data[(shim_data['identity'] == drop_val)]
             shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
+            use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
+            use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
 
         # Get the Divs that will display the current flags at the sub, as well as the metrics to highlight based on the flag
-        issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped = get_issue(data, flag_list, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, len(preview_data), "specific", sector_val)
+        if init_skips is not None and init_skips != "No flags for this year at the submarket" and init_skips != "You have cleared all the flags" and sub_change == False:
+            init_skips = get_user_skips(init_skips, [], [], [], [])
+        else:
+            init_skips = []
+        if "Y" in show_skips:
+            show_skips = True
+        else:
+            show_skips = False
+            p_skip_list = []
+        issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, len(preview_data), init_skips)
         if len(issue_description_noprev) == 0:
             style_noprev = {'display': 'none'}
         else:
-            if flag_list[0] == "v_flag":
-                style_noprev = {'padding-left': '10px', 'display': 'block', 'font-size': '24px', 'text-align': 'center'}
+            if (has_flag == 0 or has_flag == 2) and (show_skips == False or len(p_skip_list) == 0):
+                style_noprev = {'padding-left': '10px', 'width': '60%', 'display': 'inline-block', 'font-size': '24px', 'vertical-align': 'top', 'text-align': 'center'}
             else:
-                style_noprev = {'padding-left': '10px', 'display': 'block', 'font-size': '16px', 'text-align-last': 'center'}
+                style_noprev = {'padding-left': '10px', 'width': '60%', 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top'}
         if len(issue_description_resolved) == 0:
             style_resolved = {'display': 'none'}
         else:
-            style_resolved = {'padding-left': '10px', 'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold'}
-            if len(issue_description_unresolved) == 0 and len(issue_description_new) == 0 and len(issue_description_skipped) > 0:
-                style_resolved['text-align-last'] = 'center'
+            width = str(len(flags_resolved) * 10) + '%'
+            style_resolved = {'padding-left': '10px', 'width': width, 'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold', 'vertical-align': 'top'}
         if len(issue_description_unresolved) == 0:
             style_unresolved = {'display': 'none'}
         else:
-            style_unresolved = {'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold'}
-            if len(issue_description_resolved) == 0:
-                style_unresolved['padding-left'] = '10px'
-            if len(issue_description_new) == 0 and len(issue_description_skipped) == 0:
-                style_unresolved['text-align-last'] = 'center'
+            width = str(len(flags_unresolved) * 10) + '%'
+            if len(issue_description_resolved) > 0:
+                style_unresolved = {'width': width, 'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold', 'vertical-align': 'top'}
+            else:
+                style_unresolved = {'padding-left': '10px', 'width': width, 'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold', 'vertical-align': 'top'}
         if len(issue_description_new) == 0:
             style_new = {'display': 'none'}
         else:
-            style_new = {'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold'}
-            if len(issue_description_resolved) == 0 and len(issue_description_unresolved) == 0:
-                style_new['padding-left'] = '10px'
-            if len(issue_description_skipped) == 0:
-                style_new['text-align-last'] = 'center'
+            width = str(len(flags_new) * 10) + '%'
+            if len(issue_description_resolved) > 0 or len(issue_description_unresolved) > 0:
+                style_new = {'width': width, 'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold', 'vertical-align': 'top'}
+            else:
+                style_new = {'padding-left': '10px', 'width': width, 'display': 'inline-block', 'font-size': '16px', 'font-weight': 'bold', 'vertical-align': 'top'}
         if len(issue_description_skipped) == 0:
             style_skipped = {'display': 'none'}
         else:
-            style_skipped = {'display': 'inline-block', 'font-size': '16px', 'text-align-last': 'center'}
-            if len(issue_description_resolved) == 0 and len(issue_description_unresolved) == 0 and len(issue_description_new) == 0:
-                style_skipped['padding-left'] = '10px'
+            width = str(len(flags_skipped) * 10) + '%'
+            if len(issue_description_resolved) > 0 or len(issue_description_unresolved) > 0 or len(issue_description_new) > 0:
+                style_skipped = {'width': width, 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top'}
+            else:
+                style_skipped = {'padding-left': '10px', 'width': width, 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top'}
         
         # Call the function to set up the sub time series graphs
         if len(preview_data) > 0:
             data_vac, data_rent = sub_met_graphs(preview_data, "sub", curryr, currqtr, fileyr, sector_val)
         else:
-            data_vac, data_rent = sub_met_graphs(data[(data['identity'] == man_val)], "sub", curryr, currqtr, fileyr, sector_val)
+            data_vac, data_rent = sub_met_graphs(data[(data['identity'] == drop_val)], "sub", curryr, currqtr, fileyr, sector_val)
         
         # Set the data for the main data display, using the correct data set based on whether the user is previewing a shim or not
         if len(preview_data) > 0:
             display_data = preview_data.copy()
         else:
             display_data = data.copy()
-            display_data = display_data[(display_data['identity'] == man_val)]
+            display_data = display_data[(display_data['identity'] == drop_val)]
         
-        # Set the display cols for the main data table
-        display_cols, key_met_cols, key_emp_cols = set_display_cols(data, man_val, sector_val, curryr, currqtr, key_met_val, yr_val)
-        display_data = display_frame(display_data, man_val, display_cols, curryr)
+        # Use key_met_val to set display cols, and if there is none selected, set the display cols based on the first flag type for the sub
+        if key_met_val is None:
+            key_met_val = flag_list[0][0]
+        display_cols, key_met_cols, key_emp_cols = set_display_cols(data, drop_val, sector_val, curryr, currqtr, key_met_val, yr_val)
+        display_data = display_frame(display_data, drop_val, display_cols, curryr)
 
         # Remove pipeline support cons columns if no cons flags are selected and the key metrics choice is not cons, to give us more space for the columns of the main data display
         has_cons_flag = sum([1 for x in flag_list if x[0:2] == 'c_'])
@@ -2640,9 +2694,15 @@ def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_l
         display_data = display_data.rename(columns={'rolscon': 'rol cons', 'rolsvac': 'rol vac', 'rolsvac chg': 'rol vac chg', 'rolsabs': 'rol abs',
                                                     'grolsmre': 'rol Gmrent', 'grolsmer': 'rol Gmerent', 'G mrent': 'Gmrent', 'G merent': 'Gmerent', 'rolsgap chg': 'rol gap chg'})
         
+        # Get the row index of the metric to be highlighted in the display table
+        temp = display_data.copy()
+        temp = temp.reset_index()
+        temp['id'] = temp.index
+        display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+        
         # Get the data types and data formats for the data display
-        type_dict_data, format_dict_data = get_types(display_data, sector_val)
-        highlighting_display = get_style("full", display_data, dash_curryr, dash_second_five)
+        type_dict_data, format_dict_data = get_types(sector_val)
+        highlighting_display = get_style("full", display_data, dash_curryr, dash_second_five, display_highlight_list, display_highlight_rows)
 
         # Set the pixels neccesary to maintain the correct alignment of the shim view and the main data view, based on what type of historical series the selected sub has
         # Since not all subs have history going back to curryr - 5, the length of the main data set is not always consistent, thus the need for a variable pixel number
@@ -2655,17 +2715,16 @@ def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_l
 
         if len_display < 19 + qtr_add:
             if len_display == 19 + qtr_add - 1:
-                padding = str(max((70 + (currqtr * 30)),0)) + 'px'
+                padding = str(max((62 + (currqtr * 30)),0)) + 'px'
             else:
-                padding = '40px'
+                padding = '32px'
         elif len_display == 19 + qtr_add:
-            padding = padding = str(max((98 + (currqtr * 30)),0)) + 'px'
+            padding = padding = str(max((90 + (currqtr * 30)),0)) + 'px'
         spacing_style_shim = {'padding-left': '30px', 'display': 'block', 'padding-top': padding}
-        spacing_style_data = {'display': 'block'}
 
         # Set the key metrics and employment metrics display
         key_metrics = data.copy()
-        key_metrics, key_emp = gen_metrics(key_metrics, man_val, key_met_cols, key_emp_cols, yr_val)
+        key_metrics, key_emp = gen_metrics(key_metrics, drop_val, key_met_cols, key_emp_cols, yr_val)
         
         for col_name in list(key_metrics.columns):
             if "_" in col_name:
@@ -2680,21 +2739,29 @@ def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_l
                     col_name_replace = col_name_replace.replace("G mrent", "Gmrent")
                 key_emp.rename(columns={col_name: col_name_replace}, inplace=True)
 
-        highlighting_metrics = get_style("partial", key_metrics, dash_curryr, dash_second_five)
-        highlighting_emp = get_style("partial", key_emp, dash_curryr, dash_second_five)
+        highlighting_metrics = get_style("metrics", key_metrics, dash_curryr, dash_second_five, key_metrics_highlight_list)
+        highlighting_emp = get_style("metrics", key_emp, dash_curryr, dash_second_five, key_emp_highlight_list)
      
         title_met = "Key Metrics " + str(yr_val)
         title_emp = "Employment Metrics " + str(yr_val)
-        type_dict_metrics, format_dict_metrics = get_types(key_metrics, sector_val)
-        type_dict_emp, format_dict_emp = get_types(key_emp, sector_val)
+        type_dict_metrics, format_dict_metrics = get_types(sector_val)
+        type_dict_emp, format_dict_emp = get_types(sector_val)
 
         # Retrieve the shim comments from the dataframe and display them to the user
-        comment = data.copy()
-        comment = comment[(comment['identity'] == man_val) & (comment['yr'] == curryr + 1)]
-        comment = comment.set_index('identity')
-        cons_comment = comment['cons_comment'].loc[man_val]
-        avail_comment = comment['avail_comment'].loc[man_val]
-        rent_comment = comment['rent_comment'].loc[man_val]
+        if sub_change == True or init_comment_cons is None:
+            comment = data.copy()
+            comment = comment[(comment['identity'] == drop_val) & (comment['yr'] == curryr + 1)]
+            comment = comment.set_index('identity')
+            cons_comment = comment['cons_comment'].loc[drop_val]
+            avail_comment = comment['avail_comment'].loc[drop_val]
+            rent_comment = comment['rent_comment'].loc[drop_val]
+        elif sub_change == False:
+            if init_comment_cons is not None:
+                cons_comment = init_comment_cons
+            if init_comment_avail is not None:
+                avail_comment = init_comment_avail
+            if init_comment_rent is not None:    
+                rent_comment = init_comment_rent
 
         if cons_comment == "":
             cons_comment = 'Enter Cons Shim Note Here'
@@ -2706,85 +2773,20 @@ def output_display(sector_val, man_val, all_buttons, key_met_val, yr_val, flag_l
 
         # Get the submarket name and use it in the data table header
         temp = data.copy()
-        sub_name = temp[temp['identity'] == man_val].reset_index().loc[0]['subname']
+        sub_name = temp[temp['identity'] == drop_val].reset_index().loc[0]['subname']
         if sub_name != "N/A":
-            data_title = man_val + " "  + sub_name + " Submarket Data"
+            data_title = drop_val + " "  + sub_name + " Submarket Data"
         else:
             data_title = "Submarket Data"
 
         # Output the main data set to a pickle file, to be read in and used by the scatter plot callback
         use_pickle("out", "scatter_data_" + sector_val, data, fileyr, currqtr, sector_val)
 
-    print("End Output Display")
     return shim_data.to_dict('records'), [{'name': ['Insert Manual Fix', shim_data.columns[i]], 'id': shim_data.columns[i], 'type': type_dict_data[shim_data.columns[i]], 'format': format_dict_data[shim_data.columns[i]], 'editable': edit_dict[shim_data.columns[i]]} 
                             for i in range(3, len(shim_data.columns))], highlighting_shim, display_data.to_dict('records'), [{'name': [data_title, display_data.columns[i]], 'id': display_data.columns[i], 'type': type_dict_data[display_data.columns[i]], 'format': format_dict_data[display_data.columns[i]]} 
                             for i in range(0, len(display_data.columns))], highlighting_display, key_metrics.to_dict('records'), [{'name': [title_met, key_metrics.columns[i]], 'id': key_metrics.columns[i], 'type': type_dict_metrics[key_metrics.columns[i]], 'format': format_dict_metrics[key_metrics.columns[i]]} 
                             for i in range(0, len(key_metrics.columns))], highlighting_metrics, key_emp.to_dict('records'), [{'name': [title_emp, key_emp.columns[i]], 'id': key_emp.columns[i], 'type': type_dict_emp[key_emp.columns[i]], 'format': format_dict_emp[key_emp.columns[i]]} 
-                            for i in range(0, len(key_emp.columns))], highlighting_emp, issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, style_noprev, style_resolved, style_unresolved, style_new, style_skipped, go.Figure(data=data_vac), go.Figure(data=data_rent), spacing_style_shim, spacing_style_data, cons_comment, avail_comment, rent_comment
-        
-@forecast.callback([Output('countdown', 'data'),
-                    Output('countdown', 'columns')],
-                    [Input('sector', 'data'),
-                    Input('store_submit_button', 'data')],
-                    [State('curryr', 'data'),
-                    State('currqtr', 'data'),
-                    State('fileyr', 'data'),
-                    State('init_trigger', 'data')])
-def output_flagcount(sector_val, submit_button, curryr, currqtr, fileyr, success_init):
-   
-    if sector_val is None or success_init == False:
-        raise PreventUpdate
-    else:
-        # Produce the countdown dataframe to show the number of flags left to clear
-        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
-        r = re.compile("^._flag*")
-        flag_cols = list(filter(r.match, data.columns))
-        countdown = data.copy()
-        countdown = data[(data['yr'] >= curryr) & (data['qtr'] == 5)]
-        countdown = countdown[['forecast_tag', 'identity_us', 'flag_skip'] + flag_cols]
-        countdown = live_flag_count(countdown, sector_val)
-        print("End Flag Countdown")
-        return countdown.to_dict('records'), [{'name': ['Flags Remaining', countdown.columns[i]], 'id': countdown.columns[i]} 
-                    for i in range(0, len(countdown.columns))]
-
-@forecast.callback([Output('droproll', 'value'),
-                    Output('roll_trigger', 'data')],
-                    [Input('store_submit_button', 'data'),
-                    Input('sector', 'data'),
-                    Input('dropman', 'value')],
-                    [State('curryr', 'data'),
-                    State('currqtr', 'data'),
-                    State('fileyr', 'data'),
-                    State('identity_val', 'data'),
-                    State('init_trigger', 'data')])
-def set_rolldrop(submit_button, sector_val, man_val, curryr, currqtr, fileyr, identity_val, success_init):
-    input_id = get_input_id()
-    
-    if sector_val is None or success_init == False:
-        raise PreventUpdate
-    else:
-        data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
-
-        # When all flags are cleared, man_val will get set to false, so change it to the first sub by default
-        if man_val == False:
-            man_val = data['metcode'].iloc[0] + str(data['subid'].iloc[0]) + data['subsector'].iloc[0]
-        
-        # Set the rollup data set to display the default based on the input id, unless the user actively selected something
-        # Set to the US as default if this is first load, otherwise if the input button is submit or preview, set it to the met/sect that was edited/previewed, if the input button is skip, set it to the next met/sect that is flagged
-        if input_id == 'sector':
-            roll_val = "US" + list(data['subsector'].unique())[0]
-        elif input_id == "store_submit_button-button" or input_id == "dropman":
-            if sector_val == "ind":
-                if man_val[-1:] == "F":
-                    roll_val= man_val[:2] + man_val[-1:]
-                else:
-                    roll_val= man_val[:2] + man_val[-2:]
-            else:
-                roll_val = man_val[:2] + man_val[-3:]
-        
-        print("End Set Roll Drop")
-        
-        return roll_val, True
+                            for i in range(0, len(key_emp.columns))], highlighting_emp, issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, style_noprev, style_resolved, style_unresolved, style_new, style_skipped, go.Figure(data=data_vac), go.Figure(data=data_rent), spacing_style_shim, cons_comment, avail_comment, rent_comment
 
 @forecast.callback([Output('vac_series_met', 'figure'),
                     Output('rent_series_met', 'figure'),
@@ -2793,33 +2795,35 @@ def set_rolldrop(submit_button, sector_val, man_val, curryr, currqtr, fileyr, id
                     Output('metroll', 'data'),
                     Output('metroll', 'columns'),
                     Output('metroll', 'style_data_conditional'),
-                    Output('met_rank', 'data'),
-                    Output('met_rank', 'columns'),
-                    Output('sub_rank', 'data'),
-                    Output('sub_rank', 'columns'),
-                    Output('sub_rank_container', 'style'),
-                    Output('met_rank_container', 'style'),
-                    Output('rank_view_container', 'style'),
                     Output('metroll', 'page_action'),
                     Output('metroll', 'style_table'),
                     Output('metroll', 'fixed_rows'),
-                    Output('roll_view', 'disabled')],
+                    Output('met_rank', 'data'),
+                    Output('met_rank', 'columns'),
+                    Output('met_rank', 'style_data_conditional'),
+                    Output('sub_rank', 'data'),
+                    Output('sub_rank', 'columns'),
+                    Output('sub_rank', 'style_data_conditional'),
+                    Output('sub_rank_container', 'style'),
+                    Output('met_rank_container', 'style'),
+                    Output('rank_view_container', 'style'),
+                    Output('roll_view', 'disabled'),
+                    Output('first_roll', 'data')],
                    [Input('droproll', 'value'),
-                    Input('dropman', 'value'),
-                    Input('roll_trigger', 'data'),
-                    Input('store_submit_button', 'data'),
-                    Input('store_preview_button', 'data'),
                     Input('roll_view', 'value'),
-                    Input('rank_view', 'value')],
+                    Input('rank_view', 'value'),
+                    Input('sector', 'data'),
+                    Input('tab_clicked', 'value')],
                     [State('store_orig_cols', 'data'),
                     State('curryr', 'data'),
                     State('currqtr', 'data'),
                     State('fileyr', 'data'),
-                    State('sector', 'data'),
-                    State('init_trigger', 'data')])
-def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button, multi_view, year_val, orig_cols, curryr, currqtr, fileyr, sector_val, success_init):
-    
-    if sector_val is None or success_init == False:
+                    State('init_trigger', 'data'),
+                    State('dropman', 'value'),
+                    State('first_roll', 'data')])
+def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_cols, curryr, currqtr, fileyr, success_init, drop_val, first_load):
+
+    if sector_val is None or curryr is None or success_init == False or (tab_clicked != 'rollups' and first_load == False):
         raise PreventUpdate
     else:
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -2837,22 +2841,22 @@ def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button
             data_temp = data_temp[filt_cols]
             preview_data_temp = preview_data.copy()
             preview_data_temp = preview_data_temp[filt_cols]
-            data_temp = data_temp[(data_temp['identity'] != man_val) | (data_temp['forecast_tag'] == 0)]
-            preview_data_temp = preview_data_temp[(preview_data_temp['identity'] == man_val) & (preview_data_temp['forecast_tag'] != 0)]
+            data_temp = data_temp[(data_temp['identity'] != drop_val) | (data_temp['forecast_tag'] == 0)]
+            preview_data_temp = preview_data_temp[(preview_data_temp['identity'] == drop_val) & (preview_data_temp['forecast_tag'] != 0)]
             data_temp = data_temp.append(preview_data_temp)
             data_temp.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
             roll = data_temp.copy()
         else:
             roll = data.copy()
-        
+
         # Call the rollup function to set the rollup data set, as well as the relevant vacancy and rent time series charts for the rollup tab
         if multi_view == False or roll_val[:2] == "US":
-            rolled = roll.copy()
+            rolled = rollup(roll, roll_val, curryr, currqtr, sector_val, "reg", False)
             if roll_val[:2] == "US":
                 rolled = rolled[(rolled['identity_us'] == roll_val)]
             else:
-                rolled = rolled[(rolled['metcode'] == roll_val[:2]) & (rolled['subsector'] == roll_val[2:])]
-            rolled = rollup(rolled, roll_val, curryr, currqtr, sector_val, "reg", False)   
+                rolled = rolled[(rolled['metcode'] == roll_val[:2]) & (rolled['subsector'] == roll_val[2:])] 
+
         elif multi_view == True:
             roll_combined = pd.DataFrame()
             all_subs = roll.copy()
@@ -2870,14 +2874,32 @@ def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button
 
             rolled_rank = rollup(roll, roll_val, curryr, currqtr, sector_val, "reg", False)
 
+        if rolled['merent'].isnull().all(axis=0) == True:
+            rolled = rolled.drop(['merent', 'G_merent', 'gap', 'gap_chg'], axis=1)
+
         if roll_val[:2] == "US":
             data_vac_roll, data_rent_roll = sub_met_graphs(rolled, "nat", curryr, currqtr, fileyr, sector_val)
+            vac_display_style = {'width': '100%', 'display': 'inline-block'}
+            rent_display_style =  {'width': '100%', 'display': 'inline-block', 'padding-left': '50px'}
+            sub_rank_display_style = {'display': 'none'}
+            met_rank_display_style = {'display': 'none'}
+            rank_view_display_style =  {'display': 'none'}
         else:
             if multi_view == False:
                 data_vac_roll, data_rent_roll = sub_met_graphs(rolled, "met", curryr, currqtr, fileyr, sector_val)
+                vac_display_style = {'width': '100%', 'display': 'inline-block'}
+                rent_display_style =  {'width': '100%', 'display': 'inline-block', 'padding-left': '50px'}
+                sub_rank_display_style = {'display': 'none'}
+                met_rank_display_style = {'display': 'none'}
+                rank_view_display_style =  {'display': 'none'}
             elif multi_view == True:
-                sub_rank, met_rank = rank_it(rolled_rank, roll, roll_val, curryr, currqtr, sector_val, year_val)
+                sub_rank, met_rank = metro_sorts(rolled_rank, roll, roll_val, curryr, currqtr, sector_val, year_val)
                 rolled = rolled[(rolled['metcode'] == roll_val[:2]) & (rolled['subsector'] == roll_val[2:])]
+                vac_display_style = {'display': 'none'}
+                rent_display_style = {'display': 'none'}
+                sub_rank_display_style = {'display': 'inline-block', 'padding-left': '100px', 'width': '45%'}
+                met_rank_display_style =  {'display': 'inline-block', 'padding-left': '250px', 'width': '50%'}
+                rank_view_display_style = {'display': 'block', 'padding-left': '850px'}
 
                 for x in list(sub_rank.columns):
                     sub_rank.rename(columns={x: x.replace('_', ' ')}, inplace=True)
@@ -2886,15 +2908,13 @@ def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button
                 sub_rank = sub_rank.rename(columns={'G mrent': 'Gmrent', 'imp G mrent': 'imp Gmrent'})
                 met_rank = met_rank.rename(columns={'G mrent': 'Gmrent', 'imp G mrent': 'imp Gmrent'})
                 
-                type_dict_rank = {}
-                format_dict_rank = {}
-                for x in list(sub_rank.columns):
-                    type_dict_rank[x] = 'numeric'
-                    format_dict_rank[x] =  Format(precision=0, scheme=Scheme.fixed)
-
-        rolled = rolled.drop(['cons_oob', 'vac_oob', 'vac_chg_oob',  'askrentoob', 'ask_chg_oob', 'rol_mrent'], axis=1)
+                type_dict_rank, format_dict_rank = get_types(sector_val)
+                highlighting_sub_rank = get_style("partial", sub_rank, curryr, currqtr, [], [])
+                highlighting_met_rank = get_style("partial", met_rank, curryr, currqtr, [], [])
+        
+        rolled = rolled.drop(['cons_oob', 'vac_oob', 'vac_chg_oob',  'mrent_oob', 'G_mrent_oob', 'rol_mrent'], axis=1)
         rolled = rolled.rename(columns={'rolscon': 'rol cons', 'rolsvac': 'rol vac', 'vac_chg': 'vac chg', 'rolsvac_chg': 'rol vac chg', 'rolsabs': 'rol abs', 'gap_chg': 'gap chg', 'G_mrent': 'Gmrent', 'G_merent': 'Gmerent', 'grolsmre': 'rol Gmrent', 'grolsmer': 'rol Gmerent'})
-        type_dict_roll, format_dict_roll = get_types(rolled, sector_val)
+        type_dict_roll, format_dict_roll = get_types(sector_val)
         highlighting_roll = get_style("full", rolled, dash_curryr, dash_second_five)
 
         if sector_val == "ind":
@@ -2932,16 +2952,17 @@ def output_rollup(roll_val, man_val, roll_trigger, submit_button, preview_button
             rolled = rolled.drop(['identity_us'], axis=1)
         else:
             disable_roll_view = False
-        
-        print("End Output Rollup")
+
+        first_load = False
+
         if multi_view == False or roll_val[:2] == "US":
-            return go.Figure(data=data_vac_roll), go.Figure(data=data_rent_roll), {'width': '100%', 'display': 'inline-block'}, {'width': '100%', 'display': 'inline-block', 'padding-left': '50px'}, rolled.to_dict('records'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
-            for i in range(0, len(rolled.columns))], highlighting_roll, no_update, no_update, no_update, no_update, {'display': 'none'}, {'display': 'none'}, {'display': 'none'}, 'none', {}, {}, disable_roll_view
+            return go.Figure(data=data_vac_roll), go.Figure(data=data_rent_roll), vac_display_style, rent_display_style, rolled.to_dict('records'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
+            for i in range(0, len(rolled.columns))], highlighting_roll, 'none', {}, {}, no_update, no_update, no_update, no_update, no_update, no_update, sub_rank_display_style, met_rank_display_style, rank_view_display_style, disable_roll_view, first_load
         elif multi_view == True:
-            return no_update, no_update, {'display': 'none'}, {'display': 'none'}, rolled.to_dict('records'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
-            for i in range(0, len(rolled.columns))], highlighting_roll, met_rank.to_dict('records'), [{'name': ['Met Rank', met_rank.columns[i]], 'id': met_rank.columns[i], 'type': type_dict_rank[met_rank.columns[i]], 'format': format_dict_rank[met_rank.columns[i]]} 
-                            for i in range(0, len(met_rank.columns))], sub_rank.to_dict('records'), [{'name': ['Sub Rank', sub_rank.columns[i]], 'id': sub_rank.columns[i], 'type': type_dict_rank[sub_rank.columns[i]], 'format': format_dict_rank[sub_rank.columns[i]]} 
-                            for i in range(0, len(sub_rank.columns))], {'display': 'inline-block', 'padding-left': '100px', 'width': '45%'}, {'display': 'inline-block', 'padding-left': '250px', 'width': '45%'}, {'display': 'block', 'padding-left': '850px'}, 'none', style_it, fixed_rows, disable_roll_view
+            return no_update, no_update, vac_display_style, rent_display_style, rolled.to_dict('records'), [{'name': [data_title, rolled.columns[i]], 'id': rolled.columns[i], 'type': type_dict_roll[rolled.columns[i]], 'format': format_dict_roll[rolled.columns[i]]} 
+            for i in range(0, len(rolled.columns))], highlighting_roll, 'none', style_it, fixed_rows, met_rank.to_dict('records'), [{'name': ['Met Rank', met_rank.columns[i]], 'id': met_rank.columns[i], 'type': type_dict_rank[met_rank.columns[i]], 'format': format_dict_rank[met_rank.columns[i]]} 
+                            for i in range(0, len(met_rank.columns))], highlighting_met_rank, sub_rank.to_dict('records'), [{'name': ['Sub Rank', sub_rank.columns[i]], 'id': sub_rank.columns[i], 'type': type_dict_rank[sub_rank.columns[i]], 'format': format_dict_rank[sub_rank.columns[i]]} 
+                            for i in range(0, len(sub_rank.columns))], highlighting_sub_rank, sub_rank_display_style, met_rank_display_style, rank_view_display_style, disable_roll_view, first_load
 
 @forecast.callback(Output('store_shim_finals', 'data'),
                   [Input('man_edits', 'data'),
@@ -2962,7 +2983,7 @@ def finalize_shims(shim_data, sector_val, curryr, currqtr, fileyr, success_init,
             shims_final = shims_final.append(x, ignore_index=True)
         shims_final = shims_final.set_index('identity_row')
         use_pickle("out", "shim_data_" + sector_val, shims_final, fileyr, currqtr, sector_val)
-        print("End Finalize Shims")
+
         return False
         
 @forecast.callback([Output('scatter_xaxis_var', 'options'),
@@ -3042,13 +3063,12 @@ def set_scatter_drops(year_value, comp_value, sector_val, curryr, currqtr, filey
         x_options_list = sorted(x_options_list, key=lambda v: v.upper())
         y_options_list = sorted(y_options_list, key=lambda v: v.upper())
 
-
-        print("End Set Scatter Drops")
         return [{'label': i, 'value': i} for i in x_options_list], [{'label': i, 'value': i} for i in y_options_list], lock, placeholder, x_var, y_var
 
 @forecast.callback([Output('scatter_graph', 'figure'),
                     Output('store_scatter_check', 'data'),
-                    Output('scatter_graph', 'hoverData')],
+                    Output('scatter_graph', 'hoverData'),
+                    Output('first_scatter', 'data')],
                     [Input('scatter_xaxis_var', 'value'),
                     Input('scatter_yaxis_var', 'value'),
                     Input('scatter_year_radios', 'value'),
@@ -3056,14 +3076,17 @@ def set_scatter_drops(year_value, comp_value, sector_val, curryr, currqtr, filey
                     Input('flags_only', 'value'),
                     Input('aggreg_level', 'value'),
                     Input('sector', 'data'),
-                    Input('store_submit_button', 'data')],
+                    Input('store_submit_button', 'data'),
+                    Input('tab_clicked', 'value')],
                     [State('curryr', 'data'),
                     State('currqtr', 'data'),
                     State('fileyr', 'data'),
-                    State('init_trigger', 'data')])
-def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_only, aggreg_met, sector_val, submit_button, curryr, currqtr, fileyr, success_init):
+                    State('init_trigger', 'data'),
+                    State('store_flag_cols', 'data'),
+                    State('first_scatter', 'data')])
+def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_only, aggreg_met, sector_val, submit_button, tab_val, curryr, currqtr, fileyr, success_init, flag_cols, first_scatter):
 
-    if sector_val is None or success_init == False:
+    if sector_val is None or success_init == False or curryr is None or (tab_val != "graphs" and first_scatter == False):
         raise PreventUpdate
     else:
 
@@ -3081,8 +3104,6 @@ def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_on
         
         # Tag subs as flagged or not flagged based on the xaxis var (or the yaxis var if the x is employment) for color purposes on scatter plot
         if aggreg_met == False:
-            r = re.compile("^._flag*")
-            flag_cols = list(filter(r.match, graph_data.columns))
             graph_data[flag_cols] = np.where((graph_data[flag_cols] != 0) & (graph_data[flag_cols] != 999999999), 1, graph_data[flag_cols])
             graph_data[flag_cols] = np.where((graph_data[flag_cols] == 999999999), 0, graph_data[flag_cols])
 
@@ -3177,34 +3198,36 @@ def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_on
             graph_data['identity_eco'] = graph_data['metcode'] + graph_data['yr'].astype(str) + graph_data['qtr'].astype(str)
             graph_data = graph_data.join(emp_data, on='identity_eco')
 
-
         scatter_graph, init_hover = filter_graph(graph_data, curryr, currqtr, year_value, xaxis_var, yaxis_var, sector_val, comp_value, flags_only, aggreg_met, False)
         
-        scatter_layout = create_scatter_plot(scatter_graph, xaxis_var, yaxis_var, comp_value)
+        scatter_layout = create_scatter_plot(scatter_graph, xaxis_var, yaxis_var, comp_value, aggreg_met)
 
         #Need to set this variable so that the succeeding callbacks will only fire once the intial load is done. 
         # This works because it makes the callbacks that use elements produced in this callback have an input that is linked to an output of this callback, ensuring that they will only be fired once this one completes
         scatter_check = True
-        print("End Produce Scatter")
-        return scatter_layout, scatter_check, init_hover
+
+        return scatter_layout, scatter_check, init_hover, False
 
 @forecast.callback([Output('x_time_series', 'figure'),
-                   Output('y_time_series', 'figure')],
+                   Output('y_time_series', 'figure'),
+                   Output('first_ts', 'data')],
                    [Input('scatter_graph', 'hoverData'),
                    Input('scatter_xaxis_var', 'value'),
                    Input('scatter_yaxis_var', 'value'),
                    Input('sector', 'data'),
                    Input('store_scatter_check', 'data'),
-                   Input('init_trigger', 'data')],
+                   Input('init_trigger', 'data'),
+                   Input('tab_clicked', 'value')],
                    [State('curryr', 'data'),
                    State('currqtr', 'data'),
                    State('fileyr', 'data'),
                    State('init_trigger', 'data'),
                    State('scatter_comparison_radios', 'value'),
-                   State('aggreg_level', 'value')])
-def produce_timeseries(hoverData, xaxis_var, yaxis_var, sector_val, scatter_check, init_trigger, curryr, currqtr, fileyr, success_init, comp_value, aggreg_met):
+                   State('aggreg_level', 'value'),
+                   State('first_ts', 'data')])
+def produce_timeseries(hoverData, xaxis_var, yaxis_var, sector_val, scatter_check, init_trigger, tab_val, curryr, currqtr, fileyr, success_init, comp_value, aggreg_met, first_ts):
     
-    if sector_val is None or success_init == False:
+    if sector_val is None or success_init == False or curryr is None or (tab_val != "graphs" and first_ts == False):
         raise PreventUpdate
     else:
         
@@ -3357,8 +3380,8 @@ def produce_timeseries(hoverData, xaxis_var, yaxis_var, sector_val, scatter_chec
 
         fig_x = set_ts_layout(fig_x, xaxis_var, identity, x_y_tick_range, x_dtick, x_tick_0, curryr, currqtr, chart_type_x, x_cons_range_list, x_bar_dtick, sector_val)
         fig_y = set_ts_layout(fig_y, yaxis_var, identity, y_y_tick_range, y_dtick, y_tick_0, curryr, currqtr, chart_type_y, y_cons_range_list, y_bar_dtick, sector_val)
-    print("End Produce Time Series")
-    return fig_x, fig_y
+
+    return fig_x, fig_y, False
 
 @forecast.callback(Output('home-url','pathname'),
                   [Input('logout-button','n_clicks')])

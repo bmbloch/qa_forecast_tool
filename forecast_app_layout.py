@@ -23,14 +23,11 @@ def get_app_layout():
         dcc.Store(id='currqtr'),
         dcc.Store(id='fileyr'),
         dcc.Store(id='flag_list'),
+        dcc.Store(id='p_skip_list'),
         dcc.Store(id='identity_val'),
         dcc.Store(id='input_file'),
         dcc.Store(id='store_user'),
         dcc.Store(id='init_trigger'),
-        dcc.Store(id='out_flag_trigger'),
-        dcc.Store(id='skip_list_trigger'),
-        dcc.Store(id='comment_trigger'),
-        dcc.Store(id='roll_trigger'),
         dcc.Store(id='download_trigger'),
         dcc.Store(id='finalize_trigger'),
         dcc.Store(id='store_rol_close'),
@@ -38,10 +35,17 @@ def get_app_layout():
         dcc.Store(id='store_flag_unresolve'),
         dcc.Store(id='store_flag_new'),
         dcc.Store(id='store_flag_skips'),
+        dcc.Store(id='first_update', data=True),
+        dcc.Store(id='first_roll', data=True),
+        dcc.Store(id='first_scatter', data=True),
+        dcc.Store(id='first_ts', data=True),
+        dcc.Store(id='flag_flow'),
+        dcc.Store(id='store_flag_cols'),
+        dcc.Store('has_flag'),
         dcc.Store(id='sector'),
         dcc.ConfirmDialog(id='manual_message'),
-            dcc.Tabs([
-                dcc.Tab(label='Home', children=[
+            dcc.Tabs(id='tab_clicked', value='home', children=[
+                dcc.Tab(label='Home', value='home', children=[
                     html.Div([
                         dbc.Alert(
                             "Something is wrong with the input file. Double check and re-start the program",
@@ -105,7 +109,7 @@ def get_app_layout():
                                                     'width': '50%'},
                                                     ],
                                                 ),
-                                ], style={'display': 'none'}, id='flag_container'),
+                                ], style={'display': 'none'}, id='flag_filt_container'),
                             ], style={'width': '35%', 'display': 'inline-block', 'padding-left': '30px', 'padding-top': '78px'}),
                     html.Div([
                         html.Div([
@@ -184,17 +188,28 @@ def get_app_layout():
                                 ], style={'display': 'block'}),
                             ], style={'width': '65%', 'display': 'inline-block', 'vertical-align': 'top', 'padding-right': '30px', 'padding-left': '150px'}),
                         ]),
-                dcc.Tab(label='Data', children=[
+                dcc.Tab(label='Data', value='data', children=[
                     html.Div([
                         html.Div([
-                            dcc.Dropdown(
-                                id='dropman',
-                                        ),
-                                ], style={'padding-left': '10px', 'width': '105%', 'display': 'block'}),
+                            html.Div([
+                                dcc.Dropdown(
+                                    id='dropman',
+                                            ),
+                                    ], style={'padding-left': '10px', 'width': '60%', 'display': 'inline-block'}),
+                            html.Div([
+                                dcc.Checklist(
+                                    id='show_skips',
+                                    value=["N"],
+                                    options=[
+                                                {'label': ' Show Skips', 'value': 'Y'},
+                                                ],
+                                    labelStyle={'display': 'block'}), 
+                                ],  style={'padding-left': '10px', 'width': '40%', 'display': 'inline-block', 'vertical-align': 'top'}),
+                        ], style={'display': 'block'}),
                         html.Div([
                             dcc.Textarea(
                                 id='comment_cons',
-                                style={'width': '105%', 'height': 60},
+                                style={'width': '100%', 'height': 60},
                                 title="Cons Shim Note",
                                 draggable=False,
                                 spellCheck=False
@@ -203,7 +218,7 @@ def get_app_layout():
                         html.Div([
                             dcc.Textarea(
                                 id='comment_avail',
-                                style={'width': '105%', 'height': 60},
+                                style={'width': '100%', 'height': 60},
                                 title="Avail Shim Note",
                                 draggable=False,
                                 spellCheck=False
@@ -212,7 +227,7 @@ def get_app_layout():
                         html.Div([
                             dcc.Textarea(
                                 id='comment_rent',
-                                style={'width': '105%', 'height': 60},
+                                style={'width': '100%', 'height': 60},
                                 title="Rent Shim Note",
                                 draggable=False,
                                 spellCheck=False
@@ -246,7 +261,7 @@ def get_app_layout():
                                             ),
                                     ], style={'display': 'inline-block', 'padding-left': '45px', 'padding-top': '5px'}),
                             ], style={'display': 'block'}, id='button_container'),
-                        ], style={'display': 'inline-block'}),
+                        ], style={'display': 'inline-block', 'width': '15%'}),
                         html.Div([
                                 html.Div([
                                     html.Div([
@@ -316,7 +331,7 @@ def get_app_layout():
                                             {'if': {'column_id': 'gap chg'},
                                                     'width': '3%'},
                                             {'if': {'column_id': 'rol gap chg'},
-                                                    'width': '3%'},
+                                                    'width': '4%'},
                                             {'if': {'column_id': 'h'},
                                                     'width': '3%'},
                                             {'if': {'column_id': 'e'},
@@ -377,7 +392,7 @@ def get_app_layout():
                                         ], style={'width': '49%', 'display': 'inline-block', 'padding-left': '50px'}),
                                     ], style={'display': 'block'}),
                             ]),
-                dcc.Tab(label='Graphs', children=[
+                dcc.Tab(label='Graphs', value='graphs', children=[
                     html.Div([
                         html.Div([
                             html.Div([
@@ -448,7 +463,7 @@ def get_app_layout():
                             ], style={'display': 'inline-block', 'width': '49%', 'padding-left': '150px'}),   
                         ], style={'display': 'block'}),
                     ]),
-                dcc.Tab(label='Rollups', children=[
+                dcc.Tab(label='Rollups', value='rollups', children=[
                     html.Div([
                         html.Div([
                             dcc.Dropdown(
@@ -559,7 +574,7 @@ def get_app_layout():
                                             {'if': {'column_id': 'gap chg'},
                                                     'width': '2%'},
                                             {'if': {'column_id': 'emp chg'},
-                                                    'width': '2%'},
+                                                    'width': '3%'},
                                             {'if': {'column_id': 'imp cons'},
                                                     'width': '2%'},
                                             {'if': {'column_id': 'imp vac chg'},
@@ -584,38 +599,36 @@ def get_app_layout():
                                 style_header={'fontWeight': 'bold', 'textAlign': 'center', 'whiteSpace': 'normal'},
                                 style_cell_conditional =[
                                             {'if': {'column_id': 'metcode'},
-                                                    'width': '2%'},
-                                            {'if': {'column_id': 'subid'},
-                                                    'width': '2%'},
+                                                    'width': '8%'},
                                             {'if': {'column_id': 'cons'},
                                                     'width': '2%'},
                                             {'if': {'column_id': 'vac chg'},
-                                                    'width': '2%'},
+                                                    'width': '6%'},
                                             {'if': {'column_id': 'abs'},
                                                     'width': '2%'},
                                             {'if': {'column_id': 'Gmrent'},
-                                                    'width': '2%'},
+                                                    'width': '7%'},
                                             {'if': {'column_id': 'gap chg'},
-                                                    'width': '2%'},
+                                                    'width': '6%'},
                                             {'if': {'column_id': 'emp chg'},
-                                                    'width': '2%'},
+                                                    'width': '8%'},
                                             {'if': {'column_id': 'imp cons'},
-                                                    'width': '2%'},
+                                                    'width': '5%'},
                                             {'if': {'column_id': 'imp vac chg'},
-                                                    'width': '2%'},
+                                                    'width': '7%'},
                                             {'if': {'column_id': 'imp abs'},
-                                                    'width': '2%'},
+                                                    'width': '5%'},
                                             {'if': {'column_id': 'imp Gmrent'},
-                                                    'width': '2%'},
+                                                    'width': '7%'},
                                             {'if': {'column_id': 'imp gap chg'},
-                                                    'width': '2%'},
+                                                    'width': '6%'},
                                             {'if': {'column_id': 'imp emp chg'},
-                                                    'width': '2%'},
+                                                    'width': '8%'},
                                                     ],
                                 sort_action="native",
                                 filter_action="native",
                                 ),
-                            ], style={'width': '45%'}, id='met_rank_container'),
+                            ], style={'width': '50%'}, id='met_rank_container'),
                         ], style={'display': 'block'}),
                     ]),
                 ]),

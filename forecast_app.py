@@ -2194,6 +2194,44 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
             decision_log_out_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val, 'csv'))
             decision_log.to_csv(decision_log_out_path, na_rep='')
 
+            # Save a csv file with all the historical rebenches that crossed the data governance threshold
+            rebench_log = decision_log.copy()
+            comments = decision_log.copy()
+            comments = comments[(comments['yr'] == curryr) & (comments['qtr'] == 5)]
+            comments = comments.set_index('identity')
+            comments = comments[['avail_comment', 'rent_comment']]
+            rebench_log = rebench_log[['identity', 'subsector', 'metcode', 'subid', 'yr', 'currmon', 'rol_vac', 'rol_mrent', 'rol_merent', 'vac_new', 'mrent_new', 'merent_new', 'v_user', 'g_user', 'e_user']]
+            rebench_log = rebench_log[(rebench_log['yr'] > curryr) | ((rebench_log['yr'] == curryr) & (rebench_log['qtr'] == 5))]
+            rebench_log['vac_diff'] = rebench_log['vac_new'] - rebench_log['rol_vac']
+            rebench_log['mrent_diff'] = (rebench_log['mrent_new'] - rebench_log['rol_mrent']) / rebench_log['rol_mrent']
+            rebench_log['merent_diff'] = (rebench_log['merent_new'] - rebench_log['rol_merent']) / rebench_log['rol_merent']
+            
+            for var in ['vac_diff', 'mrent_diff', 'merent_diff']:
+                first_rebench = rebench_log.copy()
+                first_rebench = first_rebench[abs(first_rebench[var]) > 0.001]
+                first_rebench.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], ascending=[True, True, True, True, True], inplace=True)
+                first_rebench = first_rebench.drop_duplicates('identity')
+                first_rebench['init_shim_period_' + var.replace("_diff", '')] = first_rebench['yr'].astype(str) + "q" + first_rebench['qtr'].astype(str)
+                first_rebench = first_rebench.set_index('identity')
+                first_rebench = first_rebench[['init_shim_period_' + var.replace("_diff", '')]]
+                rebench_log = rebench_log.join(first_rebench, on='identity')
+            rebench_log = rebench_log[(abs(rebench_log['vac_diff'] >= 0.03)) | (abs(rebench_log['mrent_diff'] >= 0.05)) | (abs(rebench_log['merent_diff'] >= 0.05))]
+            rebench_log['vac_diff'] = np.where(abs(rebench_log['vac_diff']) < 0.03, np.nan, rebench_log['vac_diff'])
+            rebench_log['mrent_diff'] = np.where(abs(rebench_log['mrent_diff']) < 0.05, np.nan, rebench_log['mrent_diff'])
+            rebench_log['merent_diff'] = np.where(abs(rebench_log['merent_diff']) < 0.05, np.nan, rebench_log['merent_diff'])
+            rebench_log['init_shim_period_vac'] = np.where(abs(rebench_log['vac_diff']) < 0.03, np.nan, rebench_log['init_shim_period_vac'])
+            rebench_log['init_shim_period_mrent'] = np.where(abs(rebench_log['mrent_diff']) < 0.05, np.nan, rebench_log['init_shim_period_mrent'])
+            rebench_log['init_shim_period_merent'] = np.where(abs(rebench_log['merent_diff']) < 0.05, np.nan, rebench_log['init_shim_period_merent'])
+            rebench_log['v_user'] = np.where(abs(rebench_log['vac_diff']) < 0.03, np.nan, rebench_log['v_user'])
+            rebench_log['g_user'] = np.where(abs(rebench_log['mrent_diff']) < 0.05, np.nan, rebench_log['g_user'])
+            rebench_log['e_user'] = np.where(abs(rebench_log['merent_diff']) < 0.05, np.nan, rebench_log['e_user'])
+            rebench_log = rebench_log.join(comments, on='identity')
+            rebench_log = rebench_log.rename(columns={'avail_comment': 'vac_comment'})
+            rebench_log.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], ascending=[True, True, True, False, False], inplace=True)
+            rebench_log = rebench_log.drop_duplicates('identity')
+            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/rebench_log_{}_{}m{}.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val, str(fileyr), str(currqtr)))
+            rebench_log.to_csv(file_path, index=False, na_rep='')
+
         return True, alert_display, alert_text
 
 @forecast.callback([Output('manual_message', 'message'),

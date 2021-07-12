@@ -85,6 +85,7 @@ def get_types(sector_val):
     type_dict['avg Gmrent'] = 'numeric'
     type_dict['Gmrent quart'] = 'numeric'
     type_dict['f var Gmrent'] = 'numeric'
+    type_dict['f var gap chg'] = 'numeric'
     type_dict['Gmrent sub var'] = 'numeric'
     type_dict['f var cons'] = 'numeric'
     type_dict['imp cons'] = 'numeric'
@@ -228,6 +229,7 @@ def get_types(sector_val):
     format_dict['imp emp chg'] = FormatTemplate.percentage(2)
 
     
+    format_dict['f var gap chg'] = FormatTemplate.percentage(3)
     format_dict['f var Gmrent'] = FormatTemplate.percentage(3)
     format_dict['Gmrent sub var'] = FormatTemplate.percentage(3)
     format_dict['vac chg sub var'] = FormatTemplate.percentage(3)
@@ -2436,7 +2438,8 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
                 [Input('dropman', 'value'),
                 Input('sector', 'data'),
                 Input('init_trigger', 'data'),
-                Input('store_preview_button', 'data')],
+                Input('store_preview_button', 'data'),
+                Input('key_yr_radios', 'value')],
                 [State('curryr', 'data'),
                 State('currqtr', 'data'),
                 State('fileyr', 'data'),
@@ -2444,10 +2447,9 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
                 State('store_flag_cols', 'data'),
                 State('store_flag_unresolve', 'data'),
                 State('store_flag_new', 'data'),
-                State('flag_flow', 'data'),
-                State('key_yr_radios', 'value')])
+                State('flag_flow', 'data')])
 
-def process_man_drop(drop_val, sector_val, init_fired, preview_status, curryr, currqtr, fileyr, success_init, flag_cols, flags_unresolved, flags_new, flag_flow, yr_val):
+def process_man_drop(drop_val, sector_val, init_fired, preview_status, yr_val, curryr, currqtr, fileyr, success_init, flag_cols, flags_unresolved, flags_new, flag_flow):
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:    
@@ -2691,7 +2693,9 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         else:
             show_skips = False
             p_skip_list = []
+        
         issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, len(preview_data), init_skips)
+        
         if len(issue_description_noprev) == 0:
             style_noprev = {'display': 'none'}
         else:

@@ -162,7 +162,8 @@ def get_types(sector_val):
     type_dict['Cons Flags'] = 'numeric'
     type_dict['Vac Flags'] = 'numeric'
     type_dict['Rent Flags'] = 'numeric'
-
+    type_dict['rol mrent'] = 'numeric'
+    type_dict['rol merent'] = 'numeric'
 
 
     format_dict['emp 5'] = FormatTemplate.percentage(1)
@@ -287,6 +288,8 @@ def get_types(sector_val):
 
     format_dict['mrent'] = Format(precision=2, scheme=Scheme.fixed)
     format_dict['merent'] = Format(precision=2, scheme=Scheme.fixed)
+    format_dict['rol mrent'] = Format(precision=2, scheme=Scheme.fixed)
+    format_dict['rol merent'] = Format(precision=2, scheme=Scheme.fixed)
 
     return type_dict, format_dict
 
@@ -322,7 +325,7 @@ def get_style(type_filt, dataframe_in, curryr, second_five, highlight_cols=[], h
                             'filter_query':  '{qtr} eq 5  && {yr} <' + curryr,
                                     },
                     
-                        'backgroundColor': 'lightgreen'
+                        'backgroundColor': 'darkgrey'
                         },
                         {
                             'if': {
@@ -1577,7 +1580,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         
         if no_shim == False:
-            data, has_diff = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c)
+            data, has_diff, avail_check, mrent_check, merent_check = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c)
         else:
             has_diff = 0
 
@@ -1619,7 +1622,13 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
 
     if rebench_trigger == True:
-        message = "You entered a shim that resulted in a change from rol above the data governance threshold. To process the shim, enter a supporting comment to document why the shim was made."
+        if avail_check == True:
+            var = "vacancy"
+        elif mrent_check == True:
+            var = "market rent"
+        elif merent_check == True:
+            var = "effective rent"
+        message = "You entered a {} shim that resulted in a change from rol above the data governance threshold. To process the shim, enter a supporting comment to document why the shim was made.".format(var)
         message_display = True
 
     return data, preview_data, shim_data, message, message_display, data_save
@@ -1678,7 +1687,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
         shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
         
         preview_data = data.copy()
-        preview_data, has_diff = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False)
+        preview_data, has_diff, avail_check, mrent_check, merent_check = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False)
             
         if has_diff == 1:    
             
@@ -2619,9 +2628,10 @@ def remove_options(submit_button, drop_val, sector_val, success_init):
                     State('comment_cons', 'value'),
                     State('comment_avail', 'value'),
                     State('comment_rent', 'value'),
-                    State('flag_description_noprev', 'children')])  
+                    State('flag_description_noprev', 'children'),
+                    State('manual_message', 'message')])  
 #@Timer()
-def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips):  
+def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips, message):  
     
     input_id = get_input_id()
 
@@ -2735,7 +2745,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         # Use key_met_val to set display cols, and if there is none selected, set the display cols based on the first flag type for the sub
         if key_met_val is None:
             key_met_val = flag_list[0][0]
-        display_cols, key_met_cols, key_emp_cols = set_display_cols(data, drop_val, sector_val, curryr, currqtr, key_met_val, yr_val)
+        display_cols, key_met_cols, key_emp_cols = set_display_cols(data, drop_val, sector_val, curryr, currqtr, key_met_val, yr_val, message)
         display_data = display_frame(display_data, drop_val, display_cols, curryr)
 
         # Remove pipeline support cons columns if no cons flags are selected and the key metrics choice is not cons, to give us more space for the columns of the main data display
@@ -2751,13 +2761,26 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
                 col_name_replace = col_name.replace("_", " ")
                 display_data.rename(columns={col_name: col_name_replace}, inplace=True)
         display_data = display_data.rename(columns={'rolscon': 'rol cons', 'rolsvac': 'rol vac', 'rolsvac chg': 'rol vac chg', 'rolsabs': 'rol abs',
-                                                    'grolsmre': 'rol Gmrent', 'grolsmer': 'rol Gmerent', 'G mrent': 'Gmrent', 'G merent': 'Gmerent', 'rolsgap chg': 'rol gap chg'})
+                                                    'grolsmre': 'rol Gmrent', 'grolsmer': 'rol Gmerent', 'G mrent': 'Gmrent', 'G merent': 'Gmerent', 'rolsgap chg': 'rol gap chg', 'rolmrent': 'rol mrent', 'rolmerent': 'rol merent'})
         
         # Get the row index of the metric to be highlighted in the display table
-        temp = display_data.copy()
-        temp = temp.reset_index()
-        temp['id'] = temp.index
-        display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+        if "governance" not in message:
+            temp = display_data.copy()
+            temp = temp.reset_index()
+            temp['id'] = temp.index
+            display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+        else:
+            temp = display_data.copy()
+            temp = temp.reset_index()
+            temp['id'] = temp.index
+            display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+            if "vacancy" in message:
+                display_highlight_list = ['vac', 'rol vac']
+            elif "market rent" in message:
+                display_highlight_list = ['mrent', 'rol mrent']
+            elif "effective rent" in message:
+                display_highlight_list = ['merent', 'rol merent']
+
         
         # Get the data types and data formats for the data display
         type_dict_data, format_dict_data = get_types(sector_val)

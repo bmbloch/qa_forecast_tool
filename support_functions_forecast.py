@@ -576,7 +576,7 @@ def summarize_flags_ranking(dataframe_in, type_filt, flag_cols):
     return dataframe
     
 def summarize_flags(dataframe_in, sum_val, flag_cols):
-
+    
     dataframe = dataframe_in.copy()
     dataframe = dataframe.reset_index()
     if sum_val[0:2] == "US":
@@ -683,7 +683,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "e_flag_imp": "The implied gap change is not in line with the implied vacancy change.",
         "e_flag_vac": "The gap change is moving in the opposite direction of vacancy change sentiment.",
         "e_flag_market": "The market rent and effective rent are moving in opposite directions.",
-        "e_flag_emp": "The gap change quartile is at the opposite end of the sector specific employment change quartile."
+        "e_flag_emp": "The gap change quartile is at the opposite end of the sector specific employment change quartile.",
+        "e_flag_lowv": "The overall forecast gap change series exhibits low variability compared to the general national submarket average."
     }
 
     highlighting = {
@@ -740,6 +741,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "e_flag_vac": [['gap chg', 'vac chg'], [], []],
         "e_flag_market": [['Gmerent', 'Gmrent'], [], []],
         "e_flag_emp": [['gap chg'], ['gap quart'], ['emp_quart', 'off_emp_quart', 'ind_emp_quart', 'emp chg', 'off emp chg', 'ind emp chg']],
+        "e_flag_lowv": [['gap chg'], ['f var gap chg'], []]
     }
 
     if type_return == "specific":
@@ -1071,7 +1073,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
         merent_check = False
         
         if button == 'submit':
-            
+
             init_avail_c = data_temp.loc[drop_val + str(curryr) + str(5)]['avail_comment']
             init_rent_c = data_temp.loc[drop_val + str(curryr) + str(5)]['rent_comment']
 

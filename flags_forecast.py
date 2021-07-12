@@ -1600,6 +1600,20 @@ def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
         data['e_flag_emp'] = np.where((data['e_flag_emp'] == 1) & (data['e_flag_vac'] == 0) & (data['forecast_tag'] == 2), 0, data['e_flag_emp'])
     data = calc_flag_ranking(data, 'e_flag_emp', False)
 
+    # Flag if the gap change variance throughout the forecast series at a sub is too low
+    data['calc'] = data['f_var_gap_chg'] - data['f_5_var_gap_chg']
+
+    if currqtr == 4:
+        data['e_flag_lowv'] = np.where((data['forecast_tag'] == 1) & 
+                                        (data['f_var_gap_chg'] < data['f_5_var_gap_chg']) & (data['f_var_gap_chg'].shift(1).isnull() == True),
+                                         1, 0)
+    elif currqtr != 4:
+        data['e_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
+                                    (data['f_var_gap_chg'] < data['f_5_var_gap_chg']),
+                                    1, 0)                                   
+    
+    data = calc_flag_ranking(data, 'e_flag_lowv', True)
+
     data = data.drop(['cons_prem_mod'], axis=1)
    
     return data

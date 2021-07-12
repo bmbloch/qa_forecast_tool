@@ -13,13 +13,18 @@ import math
 from init_load_forecast import get_home
 
 # Function that filters the dataframe for the columns to display on the data tab to the user, based on what type of flag is currently being analyzed
-def set_display_cols(dataframe_in, identity_val, sector, curryr, currqtr, key_met_val, yr_val):
+def set_display_cols(dataframe_in, identity_val, sector, curryr, currqtr, key_met_val, yr_val, message):
     dataframe = dataframe_in.copy()
     if key_met_val == False:
         key_met_val = "v"
         
     display_cols = ['identity_row', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 'rol_e', 't', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'occ', 'avail', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolsgap_chg']
-    
+
+    if "market rent" in message:
+        display_cols.insert(20, 'rolmrent')
+    elif "effective rent" in message:
+        display_cols.insert(24, 'rolmerent')
+
     if key_met_val == "c":
         key_met_cols = ['three_yr_avg_cons', 'curr_yr_trend_cons', 'f_var_cons', 'implied_cons', 'avg_abs_cons']
 
@@ -955,6 +960,44 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
     elif type_return == "list":
         return issue_descriptions
 
+# Function that checks to see if there was an adjustment made from last published data (ROL) that crosses the data governance threshold by a manual analyst shim, thus requiring a support note documenting why the change was made
+def manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, thresh, var, drop_val):
+    orig_to_check = data.copy()
+    if var == 'vac':
+        new_vac = data_temp.copy()
+        new_vac = new_vac[new_vac['identity'] == drop_val]
+        new_vac = new_vac[[var, 'rolsvac', var + "_oob"]]
+        rebench_to_check = rebench_to_check.join(new_vac)
+        rebench_to_check = rebench_to_check.rename(columns={'rolsvac': 'rolvac'})
+    else:
+        rol_var = data_temp.copy()
+        rol_var = rol_var[rol_var['identity'] == drop_val]
+        rol_var = rol_var[['rol' + var, var + "_oob"]]
+        rebench_to_check = rebench_to_check.join(rol_var)
+    rebench_to_check = rebench_to_check[[var, 'rol' + var, var + '_oob']]
+    orig_to_check = orig_to_check[orig_to_check['identity'] == drop_val]
+    orig_to_check = orig_to_check[[var]]
+    orig_to_check = orig_to_check.rename(columns={var: var + "_orig"})
+    rebench_to_check = rebench_to_check.join(orig_to_check)
+    if var == "vac":
+        rebench_to_check['diff_to_oob'] = rebench_to_check[var] - rebench_to_check[var + "_oob"]
+        rebench_to_check['diff_to_rol'] = rebench_to_check[var] - rebench_to_check['rol' + var]
+        rebench_to_check['orig_diff_to_rol'] = rebench_to_check[var + "_orig"] - rebench_to_check['rol' + var]
+    else:
+        rebench_to_check['diff_to_oob'] = (rebench_to_check[var] - rebench_to_check[var + "_oob"]) / rebench_to_check[var + "_oob"]
+        rebench_to_check['diff_to_rol'] = (rebench_to_check[var] - rebench_to_check['rol' + var]) / rebench_to_check['rol' + var]
+        rebench_to_check['orig_diff_to_rol'] = (rebench_to_check[var + "_orig"] - rebench_to_check['rol' + var]) / rebench_to_check['rol' + var]
+    
+    rebench_to_check = rebench_to_check[((abs(rebench_to_check['diff_to_oob']) >= thresh) & (abs(rebench_to_check['diff_to_rol']) >= thresh) & (abs(rebench_to_check['diff_to_rol']) >= abs(rebench_to_check['orig_diff_to_rol']))) | 
+                                        ((abs(rebench_to_check['diff_to_rol']) > abs(rebench_to_check['orig_diff_to_rol'])) & (abs(rebench_to_check['diff_to_rol']) >= thresh))]
+    
+    if len(rebench_to_check) > 0:
+        check = True
+    else:
+        check = False
+
+    return check
+
 # Function that analyzes where edits are made in the display dataframe if manual edit option is selected
 def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c):
     data_update = shim_data.copy()
@@ -991,6 +1034,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
         diffs = diffs.drop(['merent_check'], axis=1)
 
     if len(diffs) > 0:
+        data_temp = data.copy()
         try:
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
             coeff_data = pd.read_pickle(file_path)
@@ -1014,74 +1058,33 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                         col_issue_diffs = "g_flag"
                     elif col_name == "merent":
                         col_issue_diffs = "e_flag"
-                    yr_change_diffs = data.loc[row_to_fix_diffs]['yr']
+                    yr_change_diffs = data_temp.loc[row_to_fix_diffs]['yr']
                     
                     if using_coeff == 1:
-                        data_temp = insert_fix_coeffs(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                        data_temp = insert_fix_coeffs(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
                     else:
-                        data_temp = insert_fix(data, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                        data_temp = insert_fix(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
         
         # Check to see if a vacancy or rent shim created a change from ROL above the data governance threshold set by key stakeholders. If it did, do not process the shim unless there is an accompanying note explaining why the change was made
+        avail_check = False
+        mrent_check = False
+        merent_check = False
+        
         if button == 'submit':
-
+            
             init_avail_c = data_temp.loc[drop_val + str(curryr) + str(5)]['avail_comment']
             init_rent_c = data_temp.loc[drop_val + str(curryr) + str(5)]['rent_comment']
 
-            avail_check = False
-            mrent_check = False
-            merent_check = False
-            if len(shim_data[shim_data['avail'].isnull() == False]) > 0:
-                avail_check = True
-            if len(shim_data[shim_data['mrent'].isnull() == False]) > 0:
-                mrent_check = True
-            if len(shim_data[shim_data['merent'].isnull() == False]) > 0:
-                merent_check = True
-
-            if avail_check == True:
-                if shim_data[shim_data['avail'].isnull() == False].reset_index().loc[0]['yr'] != curryr or (shim_data[shim_data['avail'].isnull() == False].reset_index().loc[0]['yr'] == curryr and shim_data[shim_data['avail'].isnull() == False].reset_index().loc[0]['currmon'] != currmon):
-                    shim_check = data_temp.copy()
-                    shim_check = shim_check[shim_check['identity'] == drop_val]
-                    shim_check = shim_check[shim_check['curr_tag'] != 1]
-                    shim_check = shim_check[['vac_oob', 'vac', 'yr', 'currmon']]
-                    shim_check['vac_diff'] = shim_check['vac'] - shim_check['vac_oob']
-                    shim_check = shim_check[abs(shim_check['vac_diff']) >= 0.03]
-                    if len(shim_check) > 0:
-                        if avail_c[-9:] != "Note Here" and len(avail_c.strip()) > 0 and avail_c != init_avail_c:
-                            avail_check = False
-                    else:
-                        avail_check = False
-                else:
-                    avail_check = False
-            if mrent_check == True:
-                if shim_data[shim_data['mrent'].isnull() == False].reset_index().loc[0]['yr'] != curryr or (shim_data[shim_data['mrent'].isnull() == False].reset_index().loc[0]['yr'] == curryr and shim_data[shim_data['mrent'].isnull() == False].reset_index().loc[0]['currmon'] != currmon):
-                        shim_check = data_temp.copy()
-                        shim_check = shim_check[shim_check['identity'] == drop_val]
-                        shim_check = shim_check[shim_check['curr_tag'] != 1]
-                        shim_check = shim_check[['mrent_oob', 'mrent', 'yr', 'currmon']]
-                        shim_check['mrent_diff'] = (shim_check['mrent'] - shim_check['mrent_oob']) / shim_check['mrent_oob']
-                        shim_check = shim_check[abs(shim_check['mrent_diff']) >= 0.05]
-                        if len(shim_check) > 0:
-                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0 and rent_c != init_rent_c:
-                                mrent_check = False
-                        else:
-                            mrent_check = False
-                else:
-                    mrent_check = False
-            if merent_check == True:
-                if shim_data[shim_data['merent'].isnull() == False].reset_index().loc[0]['yr'] != curryr or (shim_data[shim_data['merent'].isnull() == False].reset_index().loc[0]['yr'] == curryr and shim_data[shim_data['merent'].isnull() == False].reset_index().loc[0]['currmon'] != currmon):
-                        shim_check = data_temp.copy()
-                        shim_check = shim_check[shim_check['identity'] == drop_val]
-                        shim_check = shim_check[shim_check['curr_tag'] != 1]
-                        shim_check = shim_check[['merent_oob', 'merent', 'yr', 'currmon']]
-                        shim_check['merent_diff'] = (shim_check['merent'] - shim_check['merent_oob']) / shim_check['merent_oob']
-                        shim_check = shim_check[abs(shim_check['merent_diff']) >= 0.05]
-                        if len(shim_check) > 0:
-                            if rent_c[-9:] != "Note Here" and len(rent_c.strip()) > 0 and rent_c != init_rent_c:
-                                merent_check = False
-                        else:
-                            merent_check = False
-                else:
-                    merent_check = False
+            for var in ['avail', 'mrent', 'merent']:
+                rebench_to_check = diffs.copy()
+                if var in list(rebench_to_check.columns):
+                    if rebench_to_check[var].isnull().values.all() == False:
+                        if var == "avail" and (avail_c[-9:] == "Note Here" or len(avail_c.strip()) == 0 or avail_c == init_avail_c):
+                            avail_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "vac", drop_val)
+                        elif var == "mrent" and avail_check == False and (rent_c[-9:] == "Note Here" or len(rent_c.strip()) == 0 or rent_c == init_rent_c):
+                            mrent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.05, "mrent", drop_val)
+                        elif var == "merent" and mrent_check == False and avail_check == False and (rent_c[-9:] == "Note Here" or len(rent_c.strip()) == 0 or rent_c == init_rent_c):
+                            merent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.05, "merent", drop_val)
 
             if avail_check == False and mrent_check == False and merent_check == False:
                 has_diff = 1
@@ -1093,8 +1096,8 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
             data = data_temp.copy()
     else:
         has_diff = 0
-   
-    return data, has_diff
+    
+    return data, has_diff, avail_check, mrent_check, merent_check
 
 # Function to identify if a submarket has a flag for review
 def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow, yr_val):

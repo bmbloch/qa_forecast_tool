@@ -1590,7 +1590,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
             rebench_trigger = True
 
         # Update decision log with new values entered via shim, and save the updates
-        if has_diff == 1 or (len(skip_list) > 0 and rebench_triger == False) or comment_check == True:
+        if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
             decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
         if has_diff == 1:
             decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "submit", False, yr_val, cons_c, avail_c, rent_c)
@@ -2453,7 +2453,6 @@ def process_man_drop(drop_val, sector_val, init_fired, preview_status, yr_val, c
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:    
-
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
         flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, True, curryr, currqtr, flag_cols, flag_flow, yr_val)
 
@@ -2634,7 +2633,7 @@ def remove_options(submit_button, drop_val, sector_val, success_init):
                     State('manual_message', 'message')])  
 #@Timer()
 def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips, message):  
-    
+
     input_id = get_input_id()
 
     if sector_val is None or success_init == False:
@@ -2693,9 +2692,9 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         else:
             show_skips = False
             p_skip_list = []
-        
+
         issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, len(preview_data), init_skips)
-        
+
         if len(issue_description_noprev) == 0:
             style_noprev = {'display': 'none'}
         else:

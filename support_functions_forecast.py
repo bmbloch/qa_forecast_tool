@@ -795,7 +795,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                 else:
                     flags_use = flag_list
                     disabled_list = [False] * len(flag_list)
-                
+
                 issue_description_noprev = html.Div([
                                         html.Div([
                                             dbc.Container(
@@ -818,8 +818,9 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                             fluid=True),
                                                 
                                         ]), 
-                                    ])              
-                
+                                    ])
+            else:               
+                issue_description_noprev = []
                 if len(flags_resolved) > 0:
                     issue_description_resolved = html.Div([
                                             html.Div([
@@ -844,6 +845,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
+                else:
+                    issue_description_resolved = []
                 
                 if len(flags_unresolved) > 0:
                     issue_description_unresolved = html.Div([
@@ -869,6 +872,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
+                else:
+                    issue_description_unresolved = []
 
                 if len(flags_new) > 0:
                     issue_description_new = html.Div([
@@ -894,7 +899,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
-
+                else:
+                    issue_description_new = []
                 if len(flags_skipped) > 0 or len(p_skip_list) > 0:
                     issue_description_skipped = html.Div([
                                             html.Div([
@@ -920,6 +926,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
+                else:
+                    issue_description_skipped = []
 
             if preview_status == 0:
                 display_issue_cols = highlighting[flag_list[0]][0]
@@ -1095,10 +1103,10 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
     
     if filt == True:
         dataframe = dataframe[dataframe['identity'] == identity_val]
+        skip_list = list(dataframe.loc[identity_val + str(curryr) + str(5)][['flag_skip']][0].split(","))
+        skip_list = [x.strip() for x in skip_list]
+        skip_list = [x[:-4] for x in skip_list if x[-4:] == str(yr_val)]
         dataframe = dataframe[dataframe['yr'] == yr_val]
-        skip_list = list(dataframe.loc[identity_val + str(yr_val) + str(5)][['flag_skip']])
-        if skip_list[0] == '':
-            skip_list = []
 
     else:
         first_sub = dataframe.reset_index().loc[0]['identity']
@@ -1133,9 +1141,8 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
     cols_to_keep = flag_cols + ['identity', 'flag_skip', 'yr']
     dataframe = dataframe[cols_to_keep]
     dataframe['sum_flags'] = dataframe[flag_cols].sum(axis=1)
-    dataframe['sum_commas'] = dataframe['flag_skip'].str.count(',')
-    dataframe['sum_skips'] = np.where((dataframe['flag_skip'] == ''), 0, np.nan)
-    dataframe['sum_skips'] = np.where((dataframe['flag_skip'] != ''), dataframe['sum_commas'] + 1, dataframe['sum_skips'])
+    dataframe['flag_skip'] = dataframe['flag_skip'].fillna('')
+    dataframe['sum_skips'] = dataframe['flag_skip'].str.count(str(yr_val))
     dataframe['total_flags'] = dataframe.groupby('identity')['sum_flags'].transform('sum')
     dataframe['total_skips'] = dataframe.groupby('identity')['sum_skips'].transform('sum')
     dataframe['flags_left'] = round(dataframe['total_flags'] - dataframe['total_skips'],0)
@@ -1154,7 +1161,6 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
         if filt == False:
             identity_val = dataframe.reset_index().loc[0]['identity']
             dataframe = dataframe[dataframe['identity'] == identity_val]
-
             testing_orig_yr_val = dataframe.copy()
             test_skip_list = [x for x in skip_list if x[-4:] == str(yr_val)]
             testing_orig_yr_val = testing_orig_yr_val[(testing_orig_yr_val['yr'] == yr_val) & (testing_orig_yr_val['identity'] == identity_val)]
@@ -1163,16 +1169,16 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
                 new_yr = dataframe.copy()
                 new_yr = new_yr[(new_yr['identity'] == identity_val) & (new_yr['sum_flags'] > 0)]
                 yr_val = new_yr.reset_index().loc[0]['yr']
+            skip_list = list(dataframe.loc[identity_val + str(curryr) + str(5)][['flag_skip']][0].split(","))
+            skip_list = [x.strip() for x in skip_list]
+            skip_list = [x[:-4] for x in skip_list if x[-4:] == str(yr_val)]
             dataframe = dataframe[dataframe['yr'] == yr_val]
-        
+
         flags = dataframe.copy()
         flags = flags[flag_cols + ['flag_skip']]
         flags = flags[flags.columns[(flags != 0).any()]]
         flag_list = list(flags.columns)
-        flags = flags.reset_index()
-        skip_list = str.split(flags.loc[flags.index[-1]]['flag_skip'].replace(",", ""))
-        flag_list = [x for x in flag_list if x not in skip_list]
-        flag_list.remove('flag_skip')
+        flag_list = [x for x in flag_list if x not in skip_list and x != 'flag_skip']
         
         if len(flag_list) > 0:
             has_flag = 1
@@ -1185,7 +1191,7 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
                 if identity_val is None:
                     identity_val = dataframe.reset_index().loc[0]['identity']  
                 flag_list = ['v_flag']
-
+    
     return flag_list, skip_list, identity_val, has_flag, yr_val
 
 def reset_subsequent_years(dataframe, row_to_fix, identity_val, variable_fix, yr_change, period, sector_val):

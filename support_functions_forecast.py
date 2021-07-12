@@ -39,7 +39,7 @@ def set_display_cols(dataframe_in, identity_val, sector, curryr, currqtr, key_me
                         'G_mrent_sub_var']
 
     elif key_met_val == "e":
-        key_met_cols = ['min_gap', 'min_gap_chg', 'max_gap', 'max_gap_chg', 'gap_5', 'gap_95', 'implied_gap_chg', 'implied_G_merent', 'gap_quart', 'implied_vac_chg']
+        key_met_cols = ['min_gap', 'min_gap_chg', 'max_gap', 'max_gap_chg', 'gap_5', 'gap_95', 'implied_gap_chg', 'implied_G_merent', 'gap_quart', 'implied_vac_chg', 'f_var_gap_chg']
     
     key_emp_cols = ['emp_chg', 'emp_chg_z', 'three_yr_avg_emp_chg', 'emp_5', 'emp_95', 'hist_emp_10', 'hist_emp_90']
     if sector == "apt" or sector == "ret":
@@ -745,31 +745,25 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
     }
 
     if type_return == "specific":
+
+        display_issue_cols = []
+        key_metric_issue_cols = []
+        key_emp_issue_cols = []
+        issue_description_noprev = []
+        issue_description_resolved = []
+        issue_description_unresolved = []
+        issue_description_new = []
+        issue_description_skipped = []
+
         if has_flag == 0:
             issue_description_noprev = "No flags for this year at the submarket"
-            display_issue_cols = []
-            key_metric_issue_cols = []
-            key_metric_emp_cols = []
-            issue_description_resolved = []
-            issue_description_unresolved = []
-            issue_description_new = []
-            issue_description_skipped = []
+            
         elif has_flag == 2 and (show_skips == False or len(p_skip_list) == 0):
             issue_description_noprev = "No flags for this year at the submarket"
-            display_issue_cols = []
-            key_metric_issue_cols = []
-            issue_description_resolved = []
-            issue_description_unresolved = []
-            issue_description_new = []
-            issue_description_skipped = []
+
         elif has_flag == 2 and show_skips == True and len(p_skip_list) > 0:
             p_skip_list = p_skip_list[0].replace(' ', '').split(",")
-            display_issue_cols = []
-            key_metric_issue_cols = []
-            issue_description_resolved = []
-            issue_description_unresolved = []
-            issue_description_new = []
-            issue_description_skipped = []
+            
             issue_description_noprev = html.Div([
                                         html.Div([
                                             dbc.Container(
@@ -801,10 +795,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                 else:
                     flags_use = flag_list
                     disabled_list = [False] * len(flag_list)
-                issue_description_resolved = []
-                issue_description_unresolved = []
-                issue_description_new = []
-                issue_description_skipped = []
+                
                 issue_description_noprev = html.Div([
                                         html.Div([
                                             dbc.Container(
@@ -827,9 +818,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                             fluid=True),
                                                 
                                         ]), 
-                                    ])
-            else:                
-                issue_description_noprev = []
+                                    ])              
+                
                 if len(flags_resolved) > 0:
                     issue_description_resolved = html.Div([
                                             html.Div([
@@ -854,8 +844,6 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
-                else:
-                    issue_description_resolved = []
                 
                 if len(flags_unresolved) > 0:
                     issue_description_unresolved = html.Div([
@@ -881,8 +869,6 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
-                else:
-                    issue_description_unresolved = []
 
                 if len(flags_new) > 0:
                     issue_description_new = html.Div([
@@ -908,8 +894,6 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
-                else:
-                    issue_description_new = []
 
                 if len(flags_skipped) > 0 or len(p_skip_list) > 0:
                     issue_description_skipped = html.Div([
@@ -936,8 +920,6 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     
                                             ]), 
                                         ])
-                else:
-                    issue_description_skipped = []
 
             if preview_status == 0:
                 display_issue_cols = highlighting[flag_list[0]][0]

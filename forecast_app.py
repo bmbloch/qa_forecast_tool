@@ -327,7 +327,7 @@ def get_style(type_filt, dataframe_in, curryr, second_five, highlight_cols=[], h
                             'filter_query':  '{qtr} eq 5  && {yr} <' + curryr,
                                     },
                     
-                        'backgroundColor': 'darkgrey'
+                        'backgroundColor': 'wheat'
                         },
                         {
                             'if': {

@@ -642,6 +642,7 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
     data = gen_variability_metrics(data, 'vac_chg', curryr, currqtr, first)
     data = gen_variability_metrics(data, 'cons', curryr, currqtr, first)
     data = gen_variability_metrics(data, 'G_mrent', curryr, currqtr, first)
+    data = gen_variability_metrics(data, 'gap_chg', curryr, currqtr, first)
     
     if first == False:
         # Calculate the abs/cons ratio for forecast years if this is not the first calc stats

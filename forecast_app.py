@@ -1703,6 +1703,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
                 flags_unresolved = []
                 new_flags = []
             
+            preview_data = preview_data[(preview_data['identity'] == drop_val)]
             preview_data['sub_prev'] = np.where(preview_data['identity'] == drop_val, 1, 0)
         else:
             preview_data = pd.DataFrame()

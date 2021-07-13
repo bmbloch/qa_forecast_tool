@@ -992,40 +992,33 @@ def manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sec
 
 # Function that analyzes where edits are made in the display dataframe if manual edit option is selected
 def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c):
+    
+    # First see if there is a true diff, and that the shims entered do not all match what is already in the published dataset
+    has_true_diff = True
     data_update = shim_data.copy()
     indexes = data_orig.index.values
     data_update['new_index'] = indexes
     data_update = data_update.set_index('new_index')
 
-    diffs = data_update.where(data_update.values==data_orig.values).notna()
+    diffs = data_update.copy()
+    diffs = diffs == data_orig
     diffs = data_update[~diffs]
-    diffs = diffs.dropna(how='all')
+    diffs = diffs.dropna(axis=0, how='all')
     diffs = diffs.dropna(axis=1, how='all')
 
-    # Because a user might want to retain the current avail in the case of an inv or cons shim ro conversion/demolition shim, or similarly, merent in the case of an mrent shim, we need an additional check to add them back in to the diffs dataframe since they will be nulled out with the boolean indexing method
-    if "avail" not in list(diffs.columns) and ("inv" in list(diffs.columns) or "cons" in list(diffs.columns)):
-        diffs['avail'] = np.nan
-    if "inv" in list(diffs.columns) or "cons" in list(diffs.columns):
-        check_avail = data_update.copy()
-        check_avail = check_avail[(check_avail['avail'].isnull() == False) & ((check_avail['inv'].isnull() == False) | (check_avail['cons'].isnull() == False))]
-        check_avail = check_avail[['avail']]
-        check_avail = check_avail.rename(columns={'avail': 'avail_check'})
-        diffs = diffs.join(check_avail)
-        diffs['avail'] = np.where(diffs['avail_check'].isnull() == False, diffs['avail_check'], diffs['avail'])
-        diffs = diffs.drop(['avail_check'], axis=1)
+    if len(diffs) == 0:
+        has_true_diff = False
 
-    if "merent" not in list(diffs.columns) and "mrent" in list(diffs.columns):
-        diffs['merent'] = np.nan
-    if "mrent" in list(diffs.columns):
-        check_merent = data_update.copy()
-        check_merent = check_merent[(check_merent['merent'].isnull() == False) & (check_merent['mrent'].isnull() == False)]
-        check_merent = check_merent[['merent']]
-        check_merent = check_merent.rename(columns={'merent': 'merent_check'})
-        diffs = diffs.join(check_merent)
-        diffs['merent'] = np.where(diffs['merent_check'].isnull() == False, diffs['merent_check'], diffs['merent'])
-        diffs = diffs.drop(['merent_check'], axis=1)
+    # If there is at least one shim that is different than current published, process the shims. We will want to process all shims, in case one value matches the level in published but because of a shim in a prior period, it is there to maintain the value and is actually a true shim
+    if has_true_diff == True:
+    
+        diffs = shim_data.copy()
+        diffs[['cons', 'avail', 'mrent', 'merent']] = np.where(diffs[['cons', 'avail', 'mrent', 'merent']] == "None", np.nan, diffs[['cons', 'avail', 'mrent', 'merent']])
+        diffs = diffs[~diffs.isnull().all(axis=1)]
+        diffs = diffs[['cons', 'avail', 'mrent', 'merent']]
+        diffs = diffs.dropna(axis='columns', how='all')
+        diffs = diffs.dropna(axis='rows', how='all')
 
-    if len(diffs) > 0:
         data_temp = data.copy()
         try:
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
@@ -1262,7 +1255,7 @@ def reset_subsequent_years(dataframe, row_to_fix, identity_val, variable_fix, yr
 
 # Function to insert the suggested or user fix to the fixed dataframe for review by user, as originally formatted by BB before HSY suggestion of using model coefficients directly
 def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change, curryr, currqtr, sector_val):
-    
+
     if sector_val == "apt":
         a_round_val = 0
         m_round_val = 0
@@ -1329,11 +1322,13 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
             dataframe['occ'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['inv'] - dataframe['avail'], dataframe['occ'])
             dataframe['vac'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round(dataframe['avail'] / dataframe['inv'],4), dataframe['vac'])
             dataframe['abs'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['occ'] - dataframe['occ'].shift(periods=period), dataframe['abs'])
-            dataframe['vac_chg'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['vac'] - dataframe['vac'].shift(periods=period), dataframe['vac_chg'])
-                
+            dataframe['vac_chg'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['vac'] - dataframe['vac'].shift(periods=period), dataframe['vac_chg'])   
         elif variable_fix == "g":
             if x == 0:
                 dataframe.loc[row_to_fix, 'mrent'] = fix
+            if x > 0:
+                dataframe['mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['mrent'].shift(periods=period) * (1 + dataframe['G_mrent']), dataframe['mrent'])
+                dataframe['mrent'] = round(dataframe['mrent'], m_round_val)
             dataframe['G_mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['mrent'] - dataframe['mrent'].shift(periods=period)) / dataframe['mrent'].shift(periods=period), 4), dataframe['G_mrent'])
             dataframe['merent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['mrent'] * (dataframe['gap'] * -1)) + dataframe['mrent'], 4), dataframe['merent'])
             dataframe['merent'] = round(dataframe['merent'], m_round_val)
@@ -1342,6 +1337,9 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
         elif variable_fix == "e":
             if x == 0:
                 dataframe.loc[row_to_fix, 'merent'] = fix   
+            if x > 0:
+                dataframe['merent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['merent'].shift(periods=period) * (1 + dataframe['G_merent']), dataframe['merent'])
+                dataframe['merent'] = round(dataframe['merent'], m_round_val)
             dataframe['G_merent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['merent'] - dataframe['merent'].shift(periods=period)) / dataframe['merent'].shift(periods=period), 4), dataframe['G_merent'])
             dataframe['gap'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round(((dataframe['merent'] - dataframe['mrent']) / dataframe['mrent']) * -1, 4), dataframe['gap'])
             dataframe['gap_chg'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['gap'] - dataframe['gap'].shift(periods=period), dataframe['gap_chg'])

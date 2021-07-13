@@ -30,6 +30,7 @@ def get_app_layout():
         dcc.Store(id='init_trigger'),
         dcc.Store(id='download_trigger'),
         dcc.Store(id='finalize_trigger'),
+        dcc.Store(id='out_flag_trigger'),
         dcc.Store(id='store_rol_close'),
         dcc.Store(id='store_flag_resolve'),
         dcc.Store(id='store_flag_unresolve'),

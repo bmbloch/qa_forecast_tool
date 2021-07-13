@@ -1304,7 +1304,8 @@ def use_pickle(direction, file_name, dataframe, fileyr, currqtr, sector_val):
             dataframe.to_pickle(file_path)
     elif "original_flags" in file_name:
         path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), file_name))
-        path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr)))
+        orig_flags = pd.read_pickle(path_in)
+        path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
         orig_flags.reset_index().set_index('identity').to_csv(path_out, na_rep='')
 
     else:
@@ -1635,7 +1636,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
 
     return data, preview_data, shim_data, message, message_display, data_save
 
-def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols):
+def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols, flag_yr_val, use_rol_close):
     resolve_test = preview_data.copy()
     resolve_test = calc_stats(resolve_test, curryr, currqtr, False, sector_val)
     resolve_test = resolve_test[resolve_test['identity'] == drop_val]
@@ -1696,13 +1697,13 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
             # Test if the flag will be resolved by the edit by re-running calc stats flag and the relevant flag function 
             # Dont run if the col_issue is simply v_flag, which is an indication that there are no flags at the sub even though an edit is being made
             if orig_flag_list[0] != "v_flag":
-                flags_resolved, flags_unresolved, new_flags = test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols)
+                flags_resolved, flags_unresolved, new_flags = test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols, flag_yr_val, use_rol_close)
             else:
                 flags_resolved = []
                 flags_unresolved = []
                 new_flags = []
             
-            preivew_data['sub_prev'] = np.where(preview_data['identity'] == drop_val, 1, 0)
+            preview_data['sub_prev'] = np.where(preview_data['identity'] == drop_val, 1, 0)
         else:
             preview_data = pd.DataFrame()
             flags_resolved = []
@@ -1935,7 +1936,7 @@ def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr,
             current_flags = current_flags[current_flags['yr'] >= curryr]
             current_flags = current_flags[current_flags['qtr'] == 5]
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_current_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-            current_flags.reset_index().set_index('identity').to_csv(path_out, na_rep='')
+            current_flags.reset_index().set_index('identity').to_csv(file_path, na_rep='')
 
         return True
 

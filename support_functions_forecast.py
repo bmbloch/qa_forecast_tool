@@ -1072,11 +1072,11 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                 if var in list(rebench_to_check.columns):
                     if rebench_to_check[var].isnull().values.all() == False:
                         if var == "avail" and (avail_c[-9:] == "Note Here" or len(avail_c.strip()) == 0 or avail_c == init_avail_c):
-                            avail_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "vac", drop_val)
+                            avail_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.01, "vac", drop_val)
                         elif var == "mrent" and avail_check == False and (rent_c[-9:] == "Note Here" or len(rent_c.strip()) == 0 or rent_c == init_rent_c):
-                            mrent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.05, "mrent", drop_val)
+                            mrent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "mrent", drop_val)
                         elif var == "merent" and mrent_check == False and avail_check == False and (rent_c[-9:] == "Note Here" or len(rent_c.strip()) == 0 or rent_c == init_rent_c):
-                            merent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.05, "merent", drop_val)
+                            merent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "merent", drop_val)
 
             if avail_check == False and mrent_check == False and merent_check == False:
                 has_diff = 1

@@ -644,7 +644,7 @@ def split_trend_forecast(dataframe, col_name, curryr, currqtr, sector_val):
     elif currqtr == 4:
         trend = trend[(trend['yr'] < curryr)]
     forecast = forecast[(forecast['yr'] >= curryr) & (forecast['qtr'] == 5)]
-
+    
     # Filter out the variable for LEVEL for the choice that the user selected
     trend_level = trend.copy()
     forecast_level = forecast.copy()
@@ -666,8 +666,8 @@ def split_trend_forecast(dataframe, col_name, curryr, currqtr, sector_val):
     forecast_chg = forecast_chg[forecast_chg['variable'] == col_name]
     
     if currqtr != 4:
-        if "rol" in col_name_1 and currqtr == 1:
-            if col_name_1 == "rolscon":
+        if "rol" in col_name_1:
+            if col_name_1 == "rolscon" and currqtr == 1:
                 connector = []
             else:
                 connector = list(trend_level['value'])[-1], list(forecast_level['value'])[0]

@@ -788,7 +788,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                         ]), 
                                     ])
         elif has_flag == 1:
-            if preview_status == 0:
+            if preview_status == False:
                 if show_skips == True:
                     flags_use = flag_list + p_skip_list
                     disabled_list = [False] * len(flag_list) + [True] * len(p_skip_list)
@@ -929,7 +929,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                 else:
                     issue_description_skipped = []
 
-            if preview_status == 0:
+            if preview_status == False:
                 display_issue_cols = highlighting[flag_list[0]][0]
                 key_metric_issue_cols = highlighting[flag_list[0]][1]
                 key_emp_issue_cols = highlighting[flag_list[0]][2]
@@ -985,10 +985,13 @@ def manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sec
     
     if len(rebench_to_check) > 0:
         check = True
+        first_yr = rebench_to_check.reset_index().loc[0]['identity_row']
+        first_yr = first_yr[-5:-1]
     else:
         check = False
+        first_yr = False
 
-    return check
+    return check, first_yr
 
 # Function that analyzes where edits are made in the display dataframe if manual edit option is selected
 def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c):
@@ -1054,6 +1057,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
         avail_check = False
         mrent_check = False
         merent_check = False
+        first_yr = False
         
         if button == 'submit':
 
@@ -1065,11 +1069,11 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                 if var in list(rebench_to_check.columns):
                     if rebench_to_check[var].isnull().values.all() == False:
                         if var == "avail" and (avail_c[-9:] == "Note Here" or len(avail_c.strip()) == 0 or avail_c == init_avail_c):
-                            avail_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.01, "vac", drop_val)
+                            avail_check, first_yr = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.01, "vac", drop_val)
                         elif var == "mrent" and avail_check == False and (rent_c[-9:] == "Note Here" or len(rent_c.strip()) == 0 or rent_c == init_rent_c):
-                            mrent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "mrent", drop_val)
+                            mrent_check, first_yr = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "mrent", drop_val)
                         elif var == "merent" and mrent_check == False and avail_check == False and (rent_c[-9:] == "Note Here" or len(rent_c.strip()) == 0 or rent_c == init_rent_c):
-                            merent_check = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "merent", drop_val)
+                            merent_check, first_yr = manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sector_val, 0.03, "merent", drop_val)
 
             if avail_check == False and mrent_check == False and merent_check == False:
                 has_diff = 1
@@ -1081,8 +1085,9 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
             data = data_temp.copy()
     else:
         has_diff = 0
+        first_yr = False
     
-    return data, has_diff, avail_check, mrent_check, merent_check
+    return data, has_diff, avail_check, mrent_check, merent_check, first_yr
 
 # Function to identify if a submarket has a flag for review
 def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow, yr_val):

@@ -1583,7 +1583,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         
         if no_shim == False:
-            data, has_diff, avail_check, mrent_check, merent_check = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c)
+            data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c)
         else:
             has_diff = 0
 
@@ -1617,9 +1617,6 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
             use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
             data_save = True
-            
-
-    preview_data = pd.DataFrame()
 
     if rebench_trigger == False:
         shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
@@ -1631,10 +1628,10 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
             var = "market rent"
         elif merent_check == True:
             var = "effective rent"
-        message = "You entered a {} shim that resulted in a change from rol above the data governance threshold. To process the shim, enter a supporting comment to document why the shim was made.".format(var)
+        message = "You entered a {} shim in {} that resulted in a change from rol above the data governance threshold. To process the shim, enter a supporting comment to document why the shim was made.".format(var, first_yr)
         message_display = True
 
-    return data, preview_data, shim_data, message, message_display, data_save
+    return data, shim_data, message, message_display, data_save, rebench_trigger
 
 def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig_flag_list, skip_list, p_skip_list, flag_cols, flag_yr_val, use_rol_close):
     resolve_test = preview_data.copy()
@@ -1690,7 +1687,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
         shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
         
         preview_data = data.copy()
-        preview_data, has_diff, avail_check, mrent_check, merent_check = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False)
+        preview_data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False)
             
         if has_diff == 1:    
             
@@ -2316,20 +2313,21 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
         else:
             skip_list = []
 
+        if input_id != 'submit-button':
+            rebench_trigger = False
         
         # Load preview data if previewing
         if input_id == 'preview-button':
             preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
-        else:
-            preview_data = pd.DataFrame()
         
         # Load shim data if previewing or submitting
         if input_id == 'submit-button' or input_id == 'preview-button':
             shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
         
         if input_id == 'submit-button':
-            data, preview_data, shim_data, message, message_display, data_save = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c)
-
+            data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c)
+            if rebench_trigger == False:
+                preview_data = pd.DataFrame()
         elif input_id == 'preview-button':
             data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols)
         
@@ -2379,7 +2377,8 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, False, curryr, currqtr, flag_cols, flag_flow, yr_val)
             use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
         
-        use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
+        if rebench_trigger == False:
+            use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
         use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
 
         if input_id == "submit-button":
@@ -2695,7 +2694,12 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             show_skips = False
             p_skip_list = []
 
-        issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, len(preview_data), init_skips)
+        if len(preview_data) > 0 and "governance" not in message:
+            preview_status = True
+        else:
+            preview_status = False
+        
+        issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, preview_status, init_skips)
 
         if len(issue_description_noprev) == 0:
             style_noprev = {'display': 'none'}
@@ -2769,7 +2773,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
                                                     'grolsmre': 'rol Gmrent', 'grolsmer': 'rol Gmerent', 'G mrent': 'Gmrent', 'G merent': 'Gmerent', 'rolsgap chg': 'rol gap chg', 'rolmrent': 'rol mrent', 'rolmerent': 'rol merent'})
         
         # Get the row index of the metric to be highlighted in the display table
-        if "governance" not in message:
+        if "governance" not in message or len(preview_data) == 0:
             temp = display_data.copy()
             temp = temp.reset_index()
             temp['id'] = temp.index
@@ -2778,7 +2782,10 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             temp = display_data.copy()
             temp = temp.reset_index()
             temp['id'] = temp.index
-            display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+            for yr in range(curryr, curryr + 10):
+                if str(yr) in message:
+                    display_highlight_rows = list(temp[(temp['yr'] == yr) & (temp['qtr'] == 5)]['id'])
+                    break
             if "vacancy" in message:
                 display_highlight_list = ['vac', 'rol vac']
             elif "market rent" in message:

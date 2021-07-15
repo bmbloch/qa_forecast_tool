@@ -78,7 +78,6 @@ def get_types(sector_val):
     type_dict['max gap chg'] = 'numeric'
     type_dict['gap 5'] = 'numeric'
     type_dict['gap 95'] = 'numeric'
-    type_dict['imp gapchg'] = 'numeric'
     type_dict['imp Gmerent'] = 'numeric'
     type_dict['gap quart'] = 'numeric'
     type_dict['vac chg sub var'] = 'numeric'
@@ -131,7 +130,7 @@ def get_types(sector_val):
     type_dict['histimp Gmrent'] = 'numeric'
     type_dict['3yr avg empchg'] = 'numeric'
     type_dict['imp offemp chg'] = 'numeric'
-    type_dict['imp empchg'] = 'numeric'
+    type_dict['imp emp chg'] = 'numeric'
     type_dict['vac chg'] =  'numeric'
     type_dict['rol vac chg'] =  'numeric'
     type_dict['avg abs cons'] = 'numeric'
@@ -178,7 +177,7 @@ def get_types(sector_val):
     format_dict['rol ind emp chg'] = FormatTemplate.percentage(1)
     format_dict['off emp chg'] = FormatTemplate.percentage(1)
     format_dict['rol off emp chg'] = FormatTemplate.percentage(1)
-    format_dict['imp empchg'] = FormatTemplate.percentage(1)
+    format_dict['imp emp chg'] = FormatTemplate.percentage(1)
     format_dict['imp indemp chg'] = FormatTemplate.percentage(1)
     format_dict['imp offemp chg'] = FormatTemplate.percentage(1)
     format_dict['% Fcast Rows W Flag'] = FormatTemplate.percentage(1)
@@ -203,7 +202,6 @@ def get_types(sector_val):
     format_dict['min vac'] = FormatTemplate.percentage(2)
     format_dict['max vac'] = FormatTemplate.percentage(2)
     format_dict['imp Gmerent'] = FormatTemplate.percentage(2)
-    format_dict['imp gapchg'] = FormatTemplate.percentage(2)
     format_dict['sd vacchg'] = FormatTemplate.percentage(2)
     format_dict['sd Gmrent'] = FormatTemplate.percentage(2)
     format_dict['avg Gmrent'] = FormatTemplate.percentage(2)

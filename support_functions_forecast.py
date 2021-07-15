@@ -135,14 +135,14 @@ def gen_metrics(dataframe, identity_val, key_met_cols, key_emp_cols, yr_val):
                    'hist_implied_G_mrent': 'histimp_Gmrent', 
                    'implied_using_grolsmre': 'imp_Gmrent_rol', 
                    'total_trend_gap_chg': 'trendgapchg', 
-                   'implied_gap_chg': 'imp_gapchg',
+                   'implied_gap_chg': 'imp gap chg',
                    'implied_G_merent': 'imp_Gmerent', 
                    'three_yr_avg_emp_chg': '3yr_avg_empchg',
                    'implied_avg_inc_chg': 'imp_avginc_chg',
-                   'implied_emp_chg': 'imp_empchg',
+                   'implied_emp_chg': 'imp emp chg',
                    'implied_off_emp_chg': 'imp_offemp_chg',
                    'implied_ind_emp_chg': 'imp_indemp_chg',
-                   'implied_vac_chg': 'imp vacchg'
+                   'implied_vac_chg': 'imp vac chg'
                    }
     
     dataframe_met = dataframe_met.rename(columns=rename_dict)
@@ -736,8 +736,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "e_flag_min": [['gap'], ['min gap', 'gap 95'], []],
         "e_flag_min_chg": [['gap chg'], ['min gap chg'], []],
         "e_flag_max_chg": [['gap chg'], ['max gap chg'], []],
-        "e_flag_improls": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], ['imp gapchg', 'imp vacchg'], []],
-        "e_flag_imp": [['gap chg'], ['imp gapchg', 'imp vacchg'], []],
+        "e_flag_improls": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], ['imp gap chg', 'imp vac chg'], []],
+        "e_flag_imp": [['gap chg'], ['imp gap chg', 'imp vac chg'], []],
         "e_flag_vac": [['gap chg', 'vac chg'], [], []],
         "e_flag_market": [['Gmerent', 'Gmrent'], [], []],
         "e_flag_emp": [['gap chg'], ['gap quart'], ['emp_quart', 'off_emp_quart', 'ind_emp_quart', 'emp chg', 'off emp chg', 'ind emp chg']],

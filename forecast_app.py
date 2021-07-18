@@ -1545,7 +1545,7 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
 
 # This function produces the outputs needed for the update_data callback if the submit button is clicked
 #@Timer()
-def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c):
+def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent):
     
     data_save = False
     rebench_trigger = False
@@ -1581,7 +1581,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         
         if no_shim == False:
-            data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c)
+            data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c, proc_subsequent)
         else:
             has_diff = 0
 
@@ -1662,7 +1662,7 @@ def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig
     return flags_resolved, flags_unresolved, new_flags
 
 # This function produces the outputs needed for the update_data callback if the preview button is clicked
-def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, orig_flag_list, skip_list, p_skip_list, use_rol_close, flag_yr_val, flag_cols): 
+def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, orig_flag_list, skip_list, p_skip_list, use_rol_close, flag_yr_val, flag_cols, proc_subsequent): 
     
     shim_data['cons'] = np.where(shim_data['cons'] == '', np.nan, shim_data['cons'])
     shim_data['avail'] = np.where(shim_data['avail'] == '', np.nan, shim_data['avail'])
@@ -1685,7 +1685,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
         shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
         
         preview_data = data.copy()
-        preview_data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False)
+        preview_data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False, proc_subsequent)
             
         if has_diff == 1:    
             
@@ -2291,9 +2291,10 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     State('store_flag_cols', 'data'),
                     State('first_update', 'data'),
                     State('flag_flow', 'data'),
-                    State('key_yr_radios', 'value')])
+                    State('key_yr_radios', 'value'),
+                    State('process_subsequent', 'value')])
 #@Timer()
-def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val):
+def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent):
 
     input_id = get_input_id()
     
@@ -2323,11 +2324,11 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
         
         if input_id == 'submit-button':
-            data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c)
+            data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent)
             if rebench_trigger == False:
                 preview_data = pd.DataFrame()
         elif input_id == 'preview-button':
-            data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols)
+            data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols, proc_subsequent)
         
         else:
             message = ''
@@ -2566,17 +2567,17 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
 
-@forecast.callback(Output('show_skips', 'value'),
-                 [Input('store_submit_button', 'data'),
-                 Input('dropman', 'value'),
-                 Input('sector', 'data')],
-                 [State('init_trigger', 'data')])
-#@Timer("Remove Options")
+@forecast.callback([Output('show_skips', 'value'),
+                   Output('process_subsequent', 'value')],
+                   [Input('store_submit_button', 'data'),
+                   Input('dropman', 'value'),
+                   Input('sector', 'data')],
+                   [State('init_trigger', 'data')])
 def remove_options(submit_button, drop_val, sector_val, success_init):
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
-        return ['N']
+        return ['N'], 'c'
 
 
 @forecast.callback([Output('man_edits', 'data'),
@@ -2603,7 +2604,7 @@ def remove_options(submit_button, drop_val, sector_val, success_init):
                     Output('skipped_container', 'style'),
                     Output('vac-series', 'figure'),
                     Output('rent-series', 'figure'),
-                    Output('man_edits_container', 'style'),
+                    Output('process_subsequent_container', 'style'),
                     Output('comment_cons', 'value'),
                     Output('comment_avail', 'value'),
                     Output('comment_rent', 'value')],
@@ -2807,12 +2808,12 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
 
         if len_display < 19 + qtr_add:
             if len_display == 19 + qtr_add - 1:
-                padding = str(max((62 + (currqtr * 30)),0)) + 'px'
+                padding = str(max((35 + (currqtr * 30)),0)) + 'px'
             else:
-                padding = '32px'
+                padding = '35px'
         elif len_display == 19 + qtr_add:
-            padding = padding = str(max((90 + (currqtr * 30)),0)) + 'px'
-        spacing_style_shim = {'padding-left': '30px', 'display': 'block', 'padding-top': padding}
+            padding = padding = str(max((63 + (currqtr * 30)),0)) + 'px'
+        spacing_style_shim = {'padding-left': '100px', 'display': 'block', 'padding-top': padding}
 
         # Set the key metrics and employment metrics display
         key_metrics = data.copy()

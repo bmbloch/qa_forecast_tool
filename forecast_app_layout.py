@@ -235,13 +235,24 @@ def get_app_layout():
                                 ),
                                 ], style={'padding-left': '10px', 'padding-top': '10px'}),
                         html.Div([
+                            dcc.RadioItems(
+                                id='process_subsequent',
+                                value = 'c',
+                                options=[
+                                            {'label': 'Curr', 'value': 'c'},
+                                            {'label': 'ROL', 'value': 'r'},
+                                        ],
+                                labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px'}
+                                            ), 
+                                ], style={'display': 'block'}, id='process_subsequent_container'),
+                        html.Div([
                                 dash_table.DataTable(
                                     id='man_edits',
                                     style_header={'fontWeight': 'bold', 'textAlign': 'center'},
                                     merge_duplicate_headers=True,
                                     editable=True,
                                     ),
-                                    ], style={'display': 'block'}, id='man_edits_container'),
+                                    ], style={'display': 'block', 'padding-left': '30px'}, id='man_edits_container'),
                         html.Div([
                             html.Div([ 
                                 dbc.Row(

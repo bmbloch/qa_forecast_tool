@@ -994,7 +994,7 @@ def manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sec
     return check, first_yr
 
 # Function that analyzes where edits are made in the display dataframe if manual edit option is selected
-def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c):
+def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c, proc_subsequent):
     
     # First see if there is a true diff, and that the shims entered do not all match what is already in the published dataset
     has_true_diff = True
@@ -1049,9 +1049,9 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                     yr_change_diffs = data_temp.loc[row_to_fix_diffs]['yr']
                     
                     if using_coeff == 1:
-                        data_temp = insert_fix_coeffs(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                        data_temp = insert_fix_coeffs(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val, proc_subsequent)
                     else:
-                        data_temp = insert_fix(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val)
+                        data_temp = insert_fix(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val, proc_subsequent)
         
         # Check to see if a vacancy or rent shim created a change from ROL above the data governance threshold set by key stakeholders. If it did, do not process the shim unless there is an accompanying note explaining why the change was made
         avail_check = False
@@ -1200,7 +1200,7 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
 
 
 # Function to insert the suggested or user fix to the fixed dataframe for review by user, as originally formatted by BB before HSY suggestion of using model coefficients directly
-def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change, curryr, currqtr, sector_val):
+def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change, curryr, currqtr, sector_val, proc_subsequent):
 
     if sector_val == "apt":
         a_round_val = 0
@@ -1261,9 +1261,13 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
                 avail_diff = fix - orig_avail
                 dataframe.loc[row_to_fix, 'avail'] = fix
             else:
-                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe['abs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 >= 0) & ((dataframe['abs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 <= dataframe['inv']), (dataframe['abs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1, dataframe['avail'])
-                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe['abs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 < 0), dataframe['avail'].shift(periods=period), dataframe['avail'])
-                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe['abs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 > dataframe['inv']), dataframe['avail'].shift(periods=period), dataframe['avail'])
+                if proc_subsequent == "c":
+                    var = 'abs'
+                elif proc_subsequent == "r":
+                    var = 'rolsabs'
+                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe[var] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 >= 0) & ((dataframe[var] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 <= dataframe['inv']), (dataframe[var] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1, dataframe['avail'])
+                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe[var] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 < 0), dataframe['avail'].shift(periods=period), dataframe['avail'])
+                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe[var] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 > dataframe['inv']), dataframe['avail'].shift(periods=period), dataframe['avail'])
             dataframe['avail'] = round(dataframe['avail'], a_round_val)
             dataframe['occ'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['inv'] - dataframe['avail'], dataframe['occ'])
             dataframe['vac'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round(dataframe['avail'] / dataframe['inv'],4), dataframe['vac'])
@@ -1273,7 +1277,11 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
             if x == 0:
                 dataframe.loc[row_to_fix, 'mrent'] = fix
             if x > 0:
-                dataframe['mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['mrent'].shift(periods=period) * (1 + dataframe['G_mrent']), dataframe['mrent'])
+                if proc_subsequent == "c":
+                    var = 'G_mrent'
+                elif proc_subsequent == "r": 
+                    var = 'grolsmre'
+                dataframe['mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['mrent'].shift(periods=period) * (1 + dataframe[var]), dataframe['mrent'])
                 dataframe['mrent'] = round(dataframe['mrent'], m_round_val)
             dataframe['G_mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['mrent'] - dataframe['mrent'].shift(periods=period)) / dataframe['mrent'].shift(periods=period), 4), dataframe['G_mrent'])
             dataframe['merent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['mrent'] * (dataframe['gap'] * -1)) + dataframe['mrent'], 4), dataframe['merent'])
@@ -1293,7 +1301,7 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
     return dataframe
 
 # Function to insert the suggested or user fix to the fixed dataframe for review by user based on oob model coefficients
-def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change, curryr, currqtr, sector_val):
+def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change, curryr, currqtr, sector_val, proc_subsequent):
 
     # Cap the inv_chg_to_vac coeff at minimum of zero, since it doesnt really make sense to say that a decrease in inventory will have a predictive effect on vac
     # Likely there are negative coeffs because of demos/conversions
@@ -1395,7 +1403,7 @@ def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr
                 dataframe['vac_chg'] = np.where((dataframe['yr'] == yr_change) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['vac'] - dataframe['vac'].shift(periods=period), dataframe['vac_chg'])
 
             # Adjust vac chg using the coefficients that affect vac, and calculate the new vac level once we have the new vac chg
-            if x > 0:
+            if x > 0 and proc_subsequent == "c":
                 total_effect = 0
                 total_effect += (dataframe.loc[index_val]['vac'] - dataframe.loc[index_val]['vac_oob']) * dataframe.loc[index_val]['vac_level_to_vac']
                 dataframe['vac'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['vac_oob'] + total_effect, dataframe['vac'])
@@ -1410,6 +1418,14 @@ def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr
                 dataframe['vac'] = round(dataframe['vac'], 4)
                 dataframe['vac_chg'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['vac'] - dataframe['vac'].shift(periods=period), dataframe['vac_chg'])
             
+            elif x > 0 and proc_subsequent == "r":
+                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe['rolsabs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 >= 0) & ((dataframe['rolsabs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 <= dataframe['inv']), (dataframe['rolsabs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1, dataframe['avail'])
+                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe['rolsabs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 < 0), dataframe['avail'].shift(periods=period), dataframe['avail'])
+                dataframe['avail'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val) & ((dataframe['rolsabs'] + dataframe['occ'].shift(periods=period) - dataframe['inv']) * -1 > dataframe['inv']), dataframe['avail'].shift(periods=period), dataframe['avail'])
+                dataframe['avail'] = round(dataframe['avail'], a_round_val)
+                dataframe['vac'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round(dataframe['avail'] / dataframe['inv'],4), dataframe['vac'])
+                dataframe['vac_chg'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['vac'] - dataframe['vac'].shift(periods=period), dataframe['vac_chg'])
+                
             # Recalculate the new occ stock based on the new avail stock
             dataframe['occ'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['inv'] - dataframe['avail'], dataframe['occ'])
             
@@ -1457,14 +1473,17 @@ def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr
                 dataframe['G_mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), (dataframe['mrent'] - dataframe['mrent'].shift(periods=period)) / dataframe['mrent'].shift(periods=period), dataframe['G_mrent'])
             
             # Adjust the market rent growth using the coefficients that affect rent, and calculate the new market rent level once we have the new market rent chg
-            if x > 0:
+            if x > 0 and proc_subsequent == "c":
                 total_effect = 0
                 total_effect += (np.log(dataframe.loc[index_val]['mrent']) - np.log(dataframe.loc[index_val]['mrent_oob'])) * dataframe.loc[index_val]['rent_lchg_to_rent']
                 dataframe['G_mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['G_mrent_oob'] + total_effect, dataframe['G_mrent'])
                 dataframe['mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), (1+ dataframe['G_mrent']) * dataframe['mrent'].shift(periods=period), dataframe['mrent'])
                 dataframe['mrent'] = round(dataframe['mrent'], m_round_val)
+            elif x > 0 and proc_subsequent == "r":
+                dataframe['mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['mrent'].shift(periods=period) * (1 + dataframe['grolsmre']), dataframe['mrent'])
+                dataframe['mrent'] = round(dataframe['mrent'], m_round_val)
+                dataframe['G_mrent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['mrent'] - dataframe['mrent'].shift(periods=period)) / dataframe['mrent'].shift(periods=period), 4), dataframe['G_mrent'])
 
-         
             # Recalculate the effective rent level to maintain the original gap level due to the change in market rent level
             dataframe['merent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), (dataframe['mrent'] * (dataframe['gap'] * -1)) + dataframe['mrent'], dataframe['merent'])
             dataframe['merent'] = round(dataframe['merent'], m_round_val)

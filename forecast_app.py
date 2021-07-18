@@ -2776,7 +2776,28 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             temp = display_data.copy()
             temp = temp.reset_index()
             temp['id'] = temp.index
-            display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+            var_flags = ['c_flag_lowv', 'v_flag_lowv', 'g_flag_lowv', 'g_flag_highv']
+            if len(preview_data) == 0:
+                if flag_list[0] in var_flags:
+                    display_highlight_rows = list(temp.tail(10)['id'])
+                else:
+                    display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+            else:
+                if len(flags_new) > 0:
+                    if flags_new[0] in var_flags:
+                        display_highlight_rows = list(temp.tail(10)['id'])
+                    else:
+                        display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+                elif len(flags_unresolved) > 0:
+                    if flags_unresolved[0] in var_flags:
+                        display_highlight_rows = list(temp.tail(10)['id'])
+                    else:
+                        display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
+                else:
+                    if flag_list[0] in var_flags:
+                        display_highlight_rows = list(temp.tail(10)['id'])
+                    else:
+                        display_highlight_rows = list(temp[(temp['yr'] == yr_val) & (temp['qtr'] == 5)]['id'])
         else:
             temp = display_data.copy()
             temp = temp.reset_index()

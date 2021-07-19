@@ -1242,7 +1242,7 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
                 if orig_abs_cons_r >= 1:
                     avail_add = cons_diff
                 elif orig_abs_cons_r >= 0:
-                    avail_add = cons_diff * orig_abs_cons
+                    avail_add = cons_diff * orig_abs_cons_r
                 else:
                     avail_add = cons_diff * avg_abs_cons
             if x == 0:

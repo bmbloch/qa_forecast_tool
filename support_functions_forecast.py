@@ -1086,6 +1086,9 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
     else:
         has_diff = 0
         first_yr = False
+        avail_check = False
+        mrent_check = False
+        merent_check = False
     
     return data, has_diff, avail_check, mrent_check, merent_check, first_yr
 

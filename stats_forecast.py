@@ -606,18 +606,8 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
             data = sub_variance(data, 'vac_chg', 'vac_chg_svar', 'vac_chg_sub_var', curryr, currqtr)
             data = sub_variance(data, 'G_mrent_nonc', 'G_mrent_nonc_svar', 'G_mrent_sub_var', curryr, currqtr)
 
-            # Calculate the rol inventory and rol occupied stock
-            data['rolinv'] = np.where((data['yr'] <= curryr - 1) & (data['qtr'] == 5) & (data['identity'] == data['identity'].shift(5)), data['rolscon'] + data['inv'].shift(5), np.nan)
-            if currqtr == 4:
-                period = 1
-            else:
-                period = currqtr + 1
-            data['rolinv'] = np.where(data['forecast_tag'] == 1, data['rolscon'] + data['inv'].shift(periods=period), data['rolinv'])
-            for index, row in data.iterrows():
-                if row['yr'] > curryr:
-                    rolinv = data['rolscon'] + data['rolinv'].shift(1) 
-                    data['rolinv'] = np.where((data['yr'] == row['yr']) & (data['identity'] == row['identity']), rolinv, data['rolinv'])
-            data['rolocc'] = (1 - data['rolsvac']) * data['rolinv']
+            # Calculate rol occupied stock
+            data['rolocc'] = (1 - data['rolsvac']) * data['rolsinv']
             if sector_val != "apt":
                 data['rolocc'] = round(data['rolocc'], -3)
             elif sector_val == "apt":

@@ -2483,29 +2483,49 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
     input_id = get_input_id()
     if sector_val is None or success_init == False:
         raise PreventUpdate
-    # Need this callback to tie to update_data callback so the csv is not set before the data is actually updated, but dont want to call the set csv function each time submit is clicked, so only do that when the input id is for the download button
+    
+    # Need this to tie to update_data callback so the csv is not set before the data is actually updated, but dont want to call the set csv function each time submit is clicked, so only do that when the input id is for the download button
     elif input_id == "store_submit_button" or input_id == "sector":
         raise PreventUpdate
     else:
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
         
-        edits_output = data.copy()
-        edits_output = edits_output[orig_cols]
+        sub_edits_output = data.copy()
+        if sector_val == "ret" or sector_val == "off":
+            orig_cols += ['rolmerent']
+        sub_edits_output = sub_edits_output[orig_cols]
         deep_file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val))
         deep_history = pd.read_pickle(deep_file_path)
         deep_history = deep_history[orig_cols]
-        edits_output = edits_output.append(deep_history)
-        edits_output.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
-        edits_output['cons_comment'] = np.where(edits_output['cons_comment'] == "Enter Cons Shim Note Here", '', edits_output['cons_comment'])
-        edits_output['avail_comment'] = np.where(edits_output['avail_comment'] == "Enter Avail Shim Note Here", '', edits_output['avail_comment'])
-        edits_output['rent_comment'] = np.where(edits_output['rent_comment'] == "Enter Rent Shim Note Here", '', edits_output['rent_comment'])
+        sub_edits_output = sub_edits_output.append(deep_history)
+        sub_edits_output.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
+        sub_edits_output['cons_comment'] = np.where(sub_edits_output['cons_comment'] == "Enter Cons Shim Note Here", '', sub_edits_output['cons_comment'])
+        sub_edits_output['avail_comment'] = np.where(sub_edits_output['avail_comment'] == "Enter Avail Shim Note Here", '', sub_edits_output['avail_comment'])
+        sub_edits_output['rent_comment'] = np.where(sub_edits_output['rent_comment'] == "Enter Rent Shim Note Here", '', sub_edits_output['rent_comment'])
         if sector_val == "apt" or sector_val == "off" or sector_val == "ret":
-            edits_output['inv'] = np.where(edits_output['yr'] == 1998, "", edits_output['inv'])
-            edits_output['inv'] = np.where((edits_output['yr'] == 2003) & ((edits_output['metcode'] == "PV") | (edits_output['metcode'] == "WS")), "", edits_output['inv'])
+            sub_edits_output['inv'] = np.where(sub_edits_output['yr'] == 1998, "", sub_edits_output['inv'])
+            sub_edits_output['inv'] = np.where((sub_edits_output['yr'] == 2003) & ((sub_edits_output['metcode'] == "PV") | (sub_edits_output['metcode'] == "WS")), "", sub_edits_output['inv'])
 
-        file_path = "{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_edits_forecast.csv".format(get_home(), sector_val, fileyr, currqtr, sector_val)
-        edits_output.to_csv(file_path, index=False, na_rep='')
+        file_path = "{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_edits_sub.csv".format(get_home(), sector_val, fileyr, currqtr, sector_val)
+        sub_edits_output.to_csv(file_path, index=False, na_rep='')
 
+        met_edits_output = data.copy()
+        met_edits_output = rollup(met_edits_output, 'met_finalizer', curryr, currqtr, sector_val, "reg", True)
+        met_edits_output = met_edits_output[['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'rol_mrent', 'G_mrent', 'grolsmre', 'merent', 'rol_merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap']]
+        met_edits_output = met_edits_output.rename(columns={'rolscon': 'rol_cons', 'rolsvac': 'rol_vac', 'rolsvac_chg': 'rol_vac_chg', 'rolsabs': 'rol_abs', 'grolsmre': 'rol_G_mrent', 'grolsmer': 'rol_G_merent', 'rolgap': 'rol_gap'})
+        met_edits_output = met_edits_output[((met_edits_output['yr'] >= curryr - 5) & (met_edits_output['qtr'] == 5)) | (met_edits_output['yr'] == curryr)]
+        file_path = "{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_edits_met.csv".format(get_home(), sector_val, fileyr, currqtr, sector_val)
+        met_edits_output.to_csv(file_path, index=False, na_rep='')
+
+        nat_edits_output = data.copy()
+        nat_edits_output = rollup(nat_edits_output, 'US_finalizer', curryr, currqtr, sector_val, "reg", True)
+        nat_edits_output = nat_edits_output[['subsector', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'rol_mrent', 'G_mrent', 'grolsmre', 'merent', 'rol_merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap']]
+        nat_edits_output.sort_values(by=['subsector', 'yr', 'qtr'], ascending=[True, True, True], inplace=True)
+        nat_edits_output = nat_edits_output.rename(columns={'rolscon': 'rol_cons', 'rolsvac': 'rol_vac', 'rolsvac_chg': 'rol_vac_chg', 'rolsabs': 'rol_abs', 'grolsmre': 'rol_G_mrent', 'grolsmer': 'rol_G_merent', 'rolgap': 'rol_gap'})
+        nat_edits_output = nat_edits_output[((nat_edits_output['yr'] >= curryr - 5) & (nat_edits_output['qtr'] == 5)) | (nat_edits_output['yr'] == curryr)]
+        file_path = "{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_edits_nat.csv".format(get_home(), sector_val, fileyr, currqtr, sector_val)
+        nat_edits_output.to_csv(file_path, index=False, na_rep='')
+        
         return True
 
 @forecast.callback([Output('rank_table_met', 'data'),

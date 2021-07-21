@@ -2211,7 +2211,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
             comments = comments[(comments['yr'] == curryr) & (comments['qtr'] == 5)]
             comments = comments.set_index('identity')
             comments = comments[['avail_comment', 'rent_comment']]
-            rebench_log = rebench_log[['identity', 'subsector', 'metcode', 'subid', 'yr', 'currmon', 'vac_oob', 'mrent_oob', 'merent_oob', 'vac_new', 'mrent_new', 'merent_new', 'v_user', 'g_user', 'e_user']]
+            rebench_log = rebench_log[['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr', 'vac_oob', 'mrent_oob', 'merent_oob', 'vac_new', 'mrent_new', 'merent_new', 'v_user', 'g_user', 'e_user']]
             rebench_log = rebench_log[(rebench_log['yr'] > curryr) | ((rebench_log['yr'] == curryr) & (rebench_log['qtr'] == 5))]
             rebench_log['vac_diff'] = rebench_log['vac_new'] - rebench_log['vac_oob']
             rebench_log['mrent_diff'] = (rebench_log['mrent_new'] - rebench_log['mrent_oob']) / rebench_log['mrent_oob']

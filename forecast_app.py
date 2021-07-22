@@ -2025,7 +2025,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
         alert_display = False
         alert_text = ""
         vac_check = finalized_sub.copy()
-        if sector_val == "ind" or sector_val == "ret":
+        if sector_val == "ind":
             vac_check['identity'] = vac_check['metcode'] + vac_check['subid'].astype(str) + vac_check['subsector']
         else:
             vac_check['identity'] = vac_check['metcode'] + vac_check['subid'].astype(str)
@@ -2037,7 +2037,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
             alert_text = "The following subs have illogical vacancy level values. Cannot the finalize forecast until they have been fixed: " + ', '.join(map(str, subs_flagged)) 
         else:
             gap_check = finalized_sub.copy()
-            if sector_val == "ind" or sector_val == "ret":
+            if sector_val == "ind":
                 gap_check['identity'] = gap_check['metcode'] + gap_check['subid'].astype(str) + gap_check['subsector']
             else:
                 gap_check['identity'] = gap_check['metcode'] + gap_check['subid'].astype(str)

@@ -497,7 +497,7 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
         roll = roll[(roll['yr'] >= curryr - 5)]
 
     elif finalizer == True:
-        cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap', 'rol_mrent', 'rol_merent', 'cons_oob', 'vac_oob', 'vac_chg_oob', 'mrent_oob', 'merent_oob', 'G_mrent_oob', 'G_merent_oob', 'abs_oob', 'gap_oob']
+        cols_to_display = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap', 'rol_mrent', 'rol_merent', 'cons_oob', 'vac_oob', 'vac_chg_oob', 'mrent_oob', 'merent_oob', 'G_mrent_oob', 'G_merent_oob', 'abs_oob', 'gap_oob', 'avail']
         roll = roll[cols_to_display]
 
     roll['rolscon'] = np.where((roll['yr'] == curryr + 9) & (currqtr == 4), np.nan, roll['rolscon'])

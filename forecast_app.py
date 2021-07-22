@@ -2116,6 +2116,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
             finalized_us = finalized_met.copy()
             
             finalized_met = rollup(finalized_met, 'met_finalizer', curryr, currqtr, sector_val, "reg", True)
+            finalized_met = finalized_met.drop(['avail'], axis=1)
 
             if sector_val == "ind":
                 output_cols_met = ['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolcons', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'occ', 'abs', 'rolabs', 'vac',	'rolvac', 
@@ -2164,6 +2165,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                 finalized_met.to_csv(file_path_out, index=False, na_rep='')
 
             finalized_us = rollup(finalized_us, 'US_finalizer', curryr, currqtr, sector_val, "reg", True)
+            finalized_us = finalized_us.drop(['avail'], axis=1)
 
             if sector_val == "ind":
                 output_cols_us = ['subsector', 'yr', 'qtr', 'US_inv', 'US_cons', 'US_rolcons', 'US_h', 'US_rol_h', 'US_e', 'US_t', 'US_vac', 'US_abs', 'US_rolabs',
@@ -2511,7 +2513,7 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
 
         met_edits_output = data.copy()
         met_edits_output = rollup(met_edits_output, 'met_finalizer', curryr, currqtr, sector_val, "reg", True)
-        met_edits_output = met_edits_output[['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'rol_mrent', 'G_mrent', 'grolsmre', 'merent', 'rol_merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap']]
+        met_edits_output = met_edits_output[['subsector', 'metcode', 'yr', 'qtr', 'inv', 'cons', 'rolscon', 'avail', 'vac', 'vac_chg', 'rolsvac', 'rolsvac_chg', 'abs', 'rolsabs', 'mrent', 'rol_mrent', 'G_mrent', 'grolsmre', 'merent', 'rol_merent', 'G_merent', 'grolsmer', 'gap', 'gap_chg', 'rolgap']]
         met_edits_output = met_edits_output.rename(columns={'rolscon': 'rol_cons', 'rolsvac': 'rol_vac', 'rolsvac_chg': 'rol_vac_chg', 'rolsabs': 'rol_abs', 'grolsmre': 'rol_G_mrent', 'grolsmer': 'rol_G_merent', 'rolgap': 'rol_gap'})
         met_edits_output = met_edits_output[((met_edits_output['yr'] >= curryr - 5) & (met_edits_output['qtr'] == 5)) | (met_edits_output['yr'] == curryr)]
         file_path = "{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_edits_met.csv".format(get_home(), sector_val, fileyr, currqtr, sector_val)

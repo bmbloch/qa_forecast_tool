@@ -1711,8 +1711,8 @@ def login_layout():
 
 # Main page layout
 @validate_login_session
-def app_layout():
-    return get_app_layout()
+def app_layout(curryr, currqtr, sector_val):
+    return get_app_layout(curryr, currqtr, sector_val)
 
 # Full multipage app layout
 forecast.layout = html.Div([
@@ -1725,10 +1725,13 @@ forecast.layout = html.Div([
 
 # Check to see what url the user entered into the web browser, and return the relevant page based on their choice
 @forecast.callback(Output('page-content','children'),
-                  [Input('url','pathname')])
-def router(pathname):
+                  [Input('url','pathname')],
+                  [State('login-curryr', 'value'),
+                  State('login-currqtr', 'value'),
+                  State('sector_input', 'value')])
+def router(pathname, curryr, currqtr, sector_val):
     if pathname[0:5] == '/home':
-        return app_layout()
+        return app_layout(curryr, currqtr, sector_val)
     elif pathname == '/login':
         return login_layout()
     else:

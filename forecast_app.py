@@ -2196,7 +2196,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     finalized_copy.to_csv(file_path_out, index=False, na_rep='')
             
             elif sector_val == "apt" or sector_val == "off" or sector_val == "ret":
-                if sector_val == "aot":
+                if sector_val == "apt":
                     prefix = "US"
                 else:
                     prefix = "US_"

@@ -80,7 +80,7 @@ def get_login_layout():
                                 html.Div([
                                     dcc.Dropdown(id='login-curryr', 
                                                 options=[{'value': latest_year - 1, 'label': latest_year - 1}, 
-                                                            {'value': latest_year, 'label': datetime.now().year},
+                                                            {'value': latest_year, 'label': latest_year},
                                                             {'value': latest_year + 1, 'label': latest_year + 1}],
                                                 multi=False,
                                                 value=latest_year,

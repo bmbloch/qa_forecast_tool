@@ -2246,7 +2246,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
             rebench_log = rebench_log.rename(columns={'avail_comment': 'vac_comment'})
             rebench_log.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], ascending=[True, True, True, False, False], inplace=True)
             rebench_log = rebench_log.drop_duplicates('identity')
-            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/rebench_log_{}_{}m{}.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val, str(fileyr), str(currqtr)))
+            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/rebench_log_{}_{}q{}.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val, str(fileyr), str(currqtr)))
             rebench_log.to_csv(file_path, index=False, na_rep='')
 
         return True, alert_display, alert_text

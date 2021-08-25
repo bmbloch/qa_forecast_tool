@@ -1248,7 +1248,7 @@ def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
                                           1, 0)
     data['g_flag_vac'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) |
                                          (data['forecast_tag'] == 2)) & 
-                                         (abs(data['vac_chg']) > data['avg_vac_chg'] ) & (data['vac_chg'] < 0) & (data['G_mrent'] < data['avg_G_mrent_chg_nonc']),
+                                         (abs(data['vac_chg']) < data['avg_vac_chg'] ) & (data['vac_chg'] < 0) & (data['G_mrent'] < data['avg_G_mrent_chg_nonc']),
                                           1, data['g_flag_vac'])
     if currqtr != 4:
         data['calc'] = np.where((data['forecast_tag'] == 1), (abs(data['implied_G_mrent'] - (data['avg_G_mrent_chg_nonc'] * ((4 - currqtr)/4)))) * (abs(data['implied_vac_chg'] - ((data['avg_vac_chg'] + data['std_dev_vac_chg']) * ((4 - currqtr)/4)))), data['calc'])

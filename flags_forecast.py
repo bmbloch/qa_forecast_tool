@@ -142,7 +142,7 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
                         1, data['c_flag_sup'])
 
     # Additional flag that is not based on diff as percentage of inventory to handle cases where there is cons forecasted with no history to support any completions
-    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & (data['cons'] > 0) & (data['h'] == 0) & (data['five_yr_avg_cons'] == 0), 1, data['c_flag_sup'])
+    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & (data['cons'] > 0) & (data['h'] == 0) & (data['five_yr_avg_cons'] == 0) & ((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.25), 1, data['c_flag_sup'])
 
     # Additional flag testing if high level of cons is justifiable given the lagged vac rate, even if supported by three year average cons
     data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['cons'] / data['inv'] > data['avg_us_cons_inv']) & (data['vac'].shift(1) > data['10_yr_vac']) & (data['cons'] > data['round_h_temp']), 1, data['c_flag_sup'])

@@ -1176,7 +1176,11 @@ def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
                                          ((data['cons'] - data['prev_cons']) / data['inv'] >= 0.01) &
                                          (data['cons'] > data['prev_cons']) & (data['G_mrent'] > data['prev_G_mrent']) & (data['G_mrent'] - data['prev_G_mrent'] <= (data['cons_prem'] * data['cons_prem_mod'])),
                                          0, data['g_flag_yrdiff'])
-
+    data['g_flag_yrdiff'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) |
+                                         (data['forecast_tag'] == 2)) &
+                                         ((data['cons'] - data['prev_cons']) / data['inv'] <= -0.01) &
+                                         (data['cons'] < data['prev_cons']) & (data['G_mrent'] < data['prev_G_mrent']) & (data['G_mrent'] - data['prev_G_mrent'] >= (data['cons_prem'] * data['cons_prem_mod'])),
+                                         0, data['g_flag_yrdiff'])
     
     # Dont flag if the prior year's change was an outlier compared to the history at the sub, and this year's change is returning to a more normal submarket movement
     # Note: Calculate the G_mrent_z directly here, since the 2021 value stored as that var will be based on implied chg, and we want the full change for this check

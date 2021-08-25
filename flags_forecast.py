@@ -241,9 +241,15 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
     data['c_flag_hist'] = np.where((data['forecast_tag'] == 2) & 
                         ((data['cons'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1) < data['threshold']) & (data['count_cons'] >= 2),
                         1, 0)
-
+    
+    # Dont flag if the forecast is for no construction and the prior year has cons if there is no stock in the pipeline to support it
+    data['c_flag_hist'] = np.where((data['c_flag_hist'] == 1) & (data['cons'] == 0) & (data['cons'] >= data['t']) & (data['cons'].shift(1) != 0), 0, data['c_flag_hist'])
+    
     # Dont flag if the sub is above the 10 year avg vac rate and cons isnt zero
     data['c_flag_hist'] = np.where((data['c_flag_hist'] == 1) & (data['cons'] > 0) & (data['vac'] > data['10_yr_vac']), 0, data['c_flag_hist'])
+
+    # Dont flag if the prior year row has cons above the historical average and there is no pipeline stock to support in this year
+    data['c_flag_hist'] = np.where((data['c_flag_hist'] == 1) & (data['yr'] > curryr) & (data['cons'].shift(1) >= data['three_yr_avg_cons']) & (data['cons'] >= data['t']), 0, data['c_flag_hist'])
     
     # Dont flag if there is not enough t stock in curryr + 1 to build - if not in the pipeline, hard to say we will reach three year average at this point
     data['c_flag_hist'] = np.where((data['c_flag_hist'] == 1) & (data['yr'] == curryr + 1) & (data['cons'] >= data['t']), 0, data['c_flag_hist'])

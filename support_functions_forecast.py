@@ -646,7 +646,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "v_flag_roll": "A significant amount of Construction in the period 3 years prior to the flagged period remains unabsorbed.",
         "v_flag_improls": "The vacancy level changed from last period's forecast, and it caused a wider gap between implied absorption and the typical average absorption for this submarket.",
         "v_flag_rol": "The vacancy change is very different from ROL.",
-        "v_flag_switch": "The absorption sentiment is in the opposite direction from ROL.",
+        "v_flag_switch": "The vacancy rate is in the opposite direction from ROL.",
         "v_flag_imp": "The vacancy level results in an implied absorption for the rest of the forecast period that is very different than the typical average absorption for this submarket.",
         "v_flag_z": "The vacancy change is not consistent with the historical vacancy change at the submarket.",
         "v_flag_min": "The vacancy level is below the 10 year historical minimum vacancy level for this submarket.",

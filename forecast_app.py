@@ -1535,6 +1535,8 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
         file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
         temp = data.copy()
         temp = temp[['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols]
+        temp = temp[temp['yr'] >= curryr]
+        temp = temp[temp['qtr'] == 5]
         temp.to_pickle(file_path)
 
     return data, rank_data_met, rank_data_sub, sum_data, flag_cols

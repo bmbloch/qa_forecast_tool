@@ -1167,7 +1167,7 @@ def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
             (abs(round(data['G_mrent'],3) - round(data['prev_G_mrent'],3)) <= 0.005) & (round(data['G_mrent'],3) * round(data['prev_G_mrent'],3) >= 0) & (abs(data['G_mrent']) < 0.03),
             0, data['g_flag_yrdiff'])
     data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] != 0) & 
-            (abs(round(data['G_mrent'],3) - round(data['prev_G_mrent'],3)) <= 0.01) & (round(data['G_mrent'],3) * round(data['prev_G_mrent'],3) < 0) & (abs(data['G_mrent']) < 0.01),
+            (abs(round(data['G_mrent'],3) - round(data['prev_G_mrent'],3)) <= 0.02) & (round(data['G_mrent'],3) * round(data['prev_G_mrent'],3) < 0) & (abs(data['G_mrent']) < 0.01),
             0, data['g_flag_yrdiff'])
 
     # Dont flag if there is a significant difference in construction between the two years

@@ -512,6 +512,9 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
                 data['three_yr_avg_' + var] = data[(data['yr'] > curryr - 4) & (data['yr'] < curryr) & (data['qtr'] == 5)].groupby('identity')[var].transform('mean')
                 data = fill_forward(data, 'three_yr_avg_' + var, 'identity_fill_1')
             
+            data['five_yr_avg_G_mrent'] = data[(data['yr'] > curryr - 6) & (data['yr'] < curryr) & (data['qtr'] == 5)].groupby('identity')['G_mrent'].transform('mean')
+            data = fill_forward(data, 'five_yr_avg_G_mrent', 'identity_fill_1')
+
             if sector_val != "apt":
                 data['three_yr_avg_cons'] = round(data['three_yr_avg_cons'], -3)
                 data['three_yr_avg_abs'] = round(data['three_yr_avg_abs'], -3)

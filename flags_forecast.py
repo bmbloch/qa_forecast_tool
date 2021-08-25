@@ -1564,7 +1564,7 @@ def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
     data['e_flag_vac'] = np.where((data['e_flag_vac'] == 1) & (data['gap'].shift(1) <= data['gap_95']) & (data['gap_chg'] <= 0.005) & (data['gap_chg'] >= 0) & (abs((data['vac_chg'] * 0.7) - data['gap_chg']) < 0.015) & (round(data['gap_chg'],3) * round(data['vac_chg'],3) <= 0), 0, data['e_flag_vac'])
     
     # Dont flag if gap is falling and was at an outlier level, even if vac chg is relatively flat
-    data['e_flag_vac'] = np.where((data['e_flag_vac'] == 1) & (abs(data['vac_chg']) <= 0.002) & (data['gap_chg'] < 0) & (data['gap'] - data['gap_chg'] > data['gap_5']) & (abs(data['gap_chg']) < 0.02), 0, ata['e_flag_vac'])
+    data['e_flag_vac'] = np.where((data['e_flag_vac'] == 1) & (data['forecast_tag'] == 2) & (abs(data['vac_chg']) <= 0.002) & (data['gap_chg'] < 0) & (data['gap'] - data['gap_chg'] > data['gap_5']) & (abs(data['gap_chg']) < 0.02), 0, data['e_flag_vac'])
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":

@@ -102,9 +102,12 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
 
     # Flag if construction is above t stock in the most recent two forecast years
     data['calc'] = data['cons'] - data['round_t_temp']
-    data['c_flag_t'] = np.where((data['yr'] <= curryr + 1) & (data['qtr'] == 5) & (data['forecast_tag'] != 0) &
+    data['c_flag_t'] = np.where((data['yr'] == curryr) & (data['qtr'] == 5) & (data['forecast_tag'] != 0) &
                                    (data['cons'] > data['round_t_temp']),
                                    1, 0)
+    data['c_flag_t'] = np.where((data['yr'] == curryr + 1) & (data['qtr'] == 5) & (data['forecast_tag'] != 0) &
+                                   (data['cons'] > (data['round_t_temp'] + (data['round_t_temp'].shift(1)*0.25))),
+                                   1, data['c_flag_t'])
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":

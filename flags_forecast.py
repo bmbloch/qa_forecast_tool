@@ -105,9 +105,14 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
     data['c_flag_t'] = np.where((data['yr'] == curryr) & (data['qtr'] == 5) & (data['forecast_tag'] != 0) &
                                    (data['cons'] > data['round_t_temp']),
                                    1, 0)
+    
+    data['unused_t'] = data['round_t_temp'].shift(1) - data['cons'].shift(1)
+    data['unused_t'] = np.where(data['unused_t'] < 0, 0, data['unused_t'])
     data['c_flag_t'] = np.where((data['yr'] == curryr + 1) & (data['qtr'] == 5) & (data['forecast_tag'] != 0) &
-                                   (data['cons'] > (data['round_t_temp'] + (data['round_t_temp'].shift(1)*0.25))),
+                                   (data['cons'] > (data['round_t_temp'] + (data['unused_t']*0.25))),
                                    1, data['c_flag_t'])
+    
+    data = data.drop(['unused_t'], axis=1)
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":

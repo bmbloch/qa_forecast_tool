@@ -111,8 +111,6 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
     data['c_flag_t'] = np.where((data['yr'] == curryr + 1) & (data['qtr'] == 5) & (data['forecast_tag'] != 0) &
                                    (data['cons'] > (data['round_t_temp'] + (data['unused_t']*0.25))),
                                    1, data['c_flag_t'])
-    
-    data = data.drop(['unused_t'], axis=1)
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":
@@ -125,65 +123,68 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
 
     # Flag if construction is higher than h stock and greater than either: the three year historical average for all non current forecast years in the first five forecast years, or greater than the three year rolling average for all years in the second five forecast years 
     data['calc'] = (data['cons'] - data['three_yr_avg_cons']) / data['inv']
-    data['three_yr_roll_cons'] = np.where((data['yr'] >= curryr + 5), (data['cons'].shift(1) + data['cons'].shift(2) + data['cons'].shift(3)) / 3, np.nan)
-    data['calc'] = np.where((data['yr'] >= curryr + 5), (data['cons'] - data['three_yr_roll_cons']) / data['inv'], data['calc'])
-    
-    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & 
+    data['three_yr_roll_cons'] = np.where((data['yr'] >= curryr + 3), ((data['h'].shift(1) + data['e'].shift(1) * 0.2) + (data['h'].shift(2) + data['e'].shift(2) * 0.2) + (data['h'].shift(3) +  + data['e'].shift(3) * 0.2)) / 3, np.nan)
+    data['calc'] = np.where((data['yr'] >= curryr + 3), (data['cons'] - data['three_yr_roll_cons']) / data['inv'], data['calc'])
+
+    data['t_thresh'] = np.where((data['five_yr_avg_cons'] == 0), 0.25, 0.5)
+
+    data['cons_cumcount'] = data[(data['forecast_tag'] > 0) & (data['cons'] > 0)].groupby('identity')['cons'].transform('cumcount')
+    data['cons_cumcount'] = data['cons_cumcount'] + 1
+
+    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] < curryr + 3) & 
                         (data['cons'] > data['round_h_temp']) & 
-                        ((data['cons'] - data['three_yr_avg_cons']) / (data['inv']) >= 0.01) &
-                        ((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.50),
+                        ((data['cons'] - data['three_yr_avg_cons']) / data['inv'] >= 0.01) &
+                        (((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.50) | (data['t'] == 0)),
                         1, 0)
 
-    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] >= curryr + 5) & 
+    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] >= curryr + 3) & 
                         (data['cons'] > data['round_h_temp']) & 
-                        ((data['cons'] - data['three_yr_roll_cons']) / (data['inv']) >= 0.01) &
-                        ((data['cons'] - data['three_yr_avg_cons']) / (data['inv']) >= 0.01) &
-                        ((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.50),
+                        ((data['cons'] - data['three_yr_roll_cons']) / data['inv'] >= 0.01) &
+                        ((data['cons'] - data['three_yr_avg_cons']) / data['inv'] >= 0.01) &
+                        (((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.50) | (data['t'] == 0)),
                         1, data['c_flag_sup'])
 
     # Additional flag that is not based on diff as percentage of inventory to handle cases where there is cons forecasted with no history to support any completions
-    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & (data['cons'] > 0) & (data['h'] == 0) & (data['five_yr_avg_cons'] == 0) & ((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.25), 1, data['c_flag_sup'])
-
-    # Additional flag testing if high level of cons is justifiable given the lagged vac rate, even if supported by three year average cons
-    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['cons'] / data['inv'] > data['avg_us_cons_inv']) & (data['vac'].shift(1) > data['10_yr_vac']) & (data['cons'] > data['round_h_temp']), 1, data['c_flag_sup'])
+    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & ((data['yr'] >= curryr + 3) | (data['h'] == 0)) & (data['cons'] > 0) & (data['h'] == 0) & (data['five_yr_avg_cons'] == 0) & (((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= data['t_thresh']) | (data['t'] == 0)), 1, data['c_flag_sup'])
     
+    # Additional flag testing if high level of cons is justifiable given the lagged vac rate, even if supported by three year average cons
+    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['cons'] / data['inv'] > data['avg_us_cons_inv']) & (data['vac'].shift(1) > data['10_yr_vac']) & (data['cons'] > data['round_h_temp']) & (data['lim_hist'] > 5) & ((data['cons'] - data['round_h_temp']) >= (data['t'] - data['round_h_temp']) * data['t_thresh']), 1, data['c_flag_sup'])
+    
+    # Additional flag for outer years to ensure that there is not too many individual forecast years with construction that are unsupported by trend history
+    data['c_flag_sup'] = np.where((data['forecast_tag'] == 2) & (data['yr'] >= curryr + 3) & ((data['cons'] - data['three_yr_avg_cons']) / (data['inv']) >= 0.01) & (data['cons_cumcount'] > 1), 1, data['c_flag_sup'])
+    
+    # Dont flag if there is some t stock in the prior year to support the cons figure
+    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & ((data['cons'] - data['h'] <= data['unused_t'] * 0.25) + ((data['t'] - data['round_h_temp']) * data['t_thresh'])), 0, data['c_flag_sup'])
+
     # Dont flag if the vacancy level is well below the 10 year historical average for the submarket. Here we can assume that there can be some cons, as long as the level is reasonable
-    data['c_flag_sup'] = np.where((data['yr'] >= curryr + 5) & (data['vac'].shift(1) <= data['10_yr_35p_vac']) & (data['c_flag_sup'] == 1) & (data['cons'] / data['inv'] < (data['avg_us_cons_inv']) * 0.5), 0, data['c_flag_sup'])
+    data['c_flag_sup'] = np.where((data['yr'] >= curryr + 3) & (data['vac'].shift(1) <= data['10_yr_35p_vac']) & (data['c_flag_sup'] == 1) & (data['cons'] / data['inv'] < (data['avg_us_cons_inv']) * 0.5) & (data['lim_hist'] > 5), 0, data['c_flag_sup'])
     
     # Dont flag if the employment forecast for the year is significantly better than the historical performance at the metro                    
     data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & (data['emp_chg_z'] >= 1.5), 999999999, data['c_flag_sup'])
 
     # Failsafe for cases where the employment forecast indicates history not in line with current economic conditions - widen the threshold for flagging
-    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 999999999) & (data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & 
+    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 999999999) & (data['forecast_tag'] == 2) & (data['yr'] < curryr + 3) & 
                         (data['cons'] > data['round_h_temp']) & 
                         ((data['cons'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1) >= 0.75) &
                         ((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.50),
                         1, data['c_flag_sup'])
 
-    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 999999999) & (data['forecast_tag'] == 2) & (data['yr'] >= curryr + 5) & 
+    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 999999999) & (data['forecast_tag'] == 2) & (data['yr'] >= curryr + 3) & 
                         (data['cons'] > data['round_h_temp']) & 
                         ((data['cons'] - data['three_yr_roll_cons']) / (data['three_yr_roll_cons'] + 1) >= 0.75) &
                         ((data['cons'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1) >= 0.75) &
                         ((data['cons'] - data['round_h_temp']) / (data['t'] - data['round_h_temp']) >= 0.50),
                         1, data['c_flag_sup'])
 
-    # Dont flag if there is prior year e stock that can help support, so long as that e stock isnt being used in the that year
-    if currqtr == 4:
-        period = 1
-    else:
-        period = currqtr + 1
-    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & (data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & (data['three_yr_avg_cons'] + (data['e'].shift(periods=period) * 0.20) > data['cons']) & (data['cons'].shift(periods=period) - data['h'].shift(periods=period) < data['e'].shift(periods=period) * 0.8), 0, data['c_flag_sup'])
-    data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & (data['forecast_tag'] == 2) & (data['yr'] < curryr + 5) & (data['three_yr_roll_cons'] + (data['e'].shift(periods=period) * 0.20) > data['cons']) & (data['cons'].shift(periods=period) - data['h'].shift(periods=period) < data['e'].shift(periods=period) * 0.8), 0, data['c_flag_sup'])
-
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":
         data = rol_close(data, 'c_flag_sup', 'cons', 'rolscon', False, False, 1, 'h', 'rol_h', sector_val, curryr, currqtr)
         
         if currqtr != 4:
-            data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & ((data['cons'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1) < (data['rolscon'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1)) & (data['yr'] < curryr + 5), 0, data['c_flag_sup'])
-            data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & ((data['cons'] - data['three_yr_roll_cons']) / (data['three_yr_roll_cons'] + 1) < (data['rolscon'] - data['three_yr_roll_cons']) / (data['three_yr_roll_cons'] + 1)) & (data['yr'] >= curryr + 5), 0, data['c_flag_sup'])
+            data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & ((data['cons'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1) < (data['rolscon'] - data['three_yr_avg_cons']) / (data['three_yr_avg_cons'] + 1)) & (data['yr'] < curryr + 3), 0, data['c_flag_sup'])
+            data['c_flag_sup'] = np.where((data['c_flag_sup'] == 1) & ((data['cons'] - data['three_yr_roll_cons']) / (data['three_yr_roll_cons'] + 1) < (data['rolscon'] - data['three_yr_roll_cons']) / (data['three_yr_roll_cons'] + 1)) & (data['yr'] >= curryr + 3), 0, data['c_flag_sup'])
 
-    data = data.drop(['three_yr_roll_cons'], axis=1)
+    data = data.drop(['three_yr_roll_cons', 'unused_t', 't_thresh', 'cons_cumcount'], axis=1)
     
     data = data = calc_flag_ranking(data, 'c_flag_sup', False)
     

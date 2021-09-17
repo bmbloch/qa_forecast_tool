@@ -276,6 +276,10 @@ def calc_stats(data, curryr, currqtr, first, sector_val):
         # Do it when the var is G_mrent because dont want to calc multiple times, and G_mrent is the last call of this function
         if var_name == 'G_mrent' and first == True:
 
+            # Calculate the number of times a sub has seen new construction in the past 5 years
+            data['five_yr_count_cons'] = data[(data['yr'] > curryr - 5) & (data['forecast_tag'] == 0) & (data['qtr'] == 5) & (data['cons'] > 0)].groupby('identity')['cons'].transform('count')
+            data = fill_forward(data, 'five_yr_count_cons', 'identity_fill_1')
+
             # Calculate the 5th and 95th percentile for gap level on the national level by subsector
             gap_quarts = data.copy()
             if currqtr == 4:

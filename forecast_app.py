@@ -1752,11 +1752,31 @@ def router(pathname, curryr, currqtr, sector_val):
                     State('rol_close','value'),
                     State('flag_flow_input', 'value')])
 def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close, flag_flow):
+
+    input_file_alert = False
+
+    if sector_input == "ind":
+        for subsector in ["DW", "F"]:
+            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/InputFiles/{}subdiag_{}_{}q{}_OOB.csv".format(get_home(), sector_input, str(curryr), str(currqtr), sector_input, subsector, str(curryr), str(currqtr)))
+            isFile = os.path.isfile(file_path)
+            if isFile == True:
+                input_file_alert = False
+            else:
+                input_file_alert = True
+                break
+    else:
+        file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/InputFiles/{}subdiag_{}q{}_OOB.csv".format(get_home(), sector_input, str(curryr), str(currqtr), sector_input, str(curryr), str(currqtr)))
+        isFile = os.path.isfile(file_path)
+        if isFile == True:
+            input_file_alert = False
+        else:
+            input_file_alert = True
+
     if n_clicks is None or n_clicks==0:
         return '/login', no_update, ''
     else:
         credentials = {'user': username, "password": pw, "sector": sector_input}
-        if authenticate_user(credentials) == True:
+        if authenticate_user(credentials) == True and input_file_alert == False:
             session['authed'] = True
             pathname = '/home' + '?'
             if len(rol_close) == 0:
@@ -1768,8 +1788,10 @@ def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close,
             session['authed'] = False
             if sector_input is None:
                 message = "Select a Sector."
-            else:
+            elif authenticate_user(credentials) == False:
                 message = 'Incorrect credentials.'
+            elif input_file_alert == True:
+                message = 'Input files not set up correctly.'
             return no_update, dbc.Alert(message, color='danger', dismissable=True), no_update
 
 
@@ -1821,21 +1843,19 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
             curryr = fileyr + 1
         else:
             curryr = fileyr
-        oob_data, orig_cols, file_used, file_load_error = initial_load(sector_val, curryr, currqtr, fileyr)
+        oob_data, orig_cols, file_used = initial_load(sector_val, curryr, currqtr, fileyr)
 
-        if file_load_error == False:
-
-            try:
-                path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.csv".format(get_home(), sector_val))
-                path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.pickle".format(get_home(), sector_val))
-                coeffs = pd.read_csv(path_in)
-                if sector_val != "ind":
-                    coeffs['identity'] = coeffs['identity'] + sector_val.title()
-                else:
-                    print("set this up")
-                coeffs.to_pickle(path_out)
-            except:
-                print("No coeffs file to load")
+        try:
+            path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.csv".format(get_home(), sector_val))
+            path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.pickle".format(get_home(), sector_val))
+            coeffs = pd.read_csv(path_in)
+            if sector_val != "ind":
+                coeffs['identity'] = coeffs['identity'] + sector_val.title()
+            else:
+                print("set this up")
+            coeffs.to_pickle(path_out)
+        except:
+            print("No coeffs file to load")
 
             # Export the pickled oob values to begin setting up the decision log if this is the first time the user is running the program
             if file_used == "oob":

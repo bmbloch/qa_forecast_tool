@@ -175,7 +175,7 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
     data['identity_eco'] = data['metcode'] + data['yr'].astype(str) + data['qtr'].astype(str)
     
     # Load the economic data on employment change and join it to the main dataset
-    eco_file_path_curr = Path("{}central/square/data/zzz-bb-test2/python/forecast/employment/{}q{}/eco_data.csv".format(get_home(), str(fileyr), str(currqtr)))
+    eco_file_path_curr = Path("{}central/metcast/data/rfa/current/rfa_{}q{}_final.dta".format(get_home(), fileyr, currqtr))
     if currqtr == 1:
         yr_past = str(curryr - 1)
         qtr_past = "4"
@@ -185,10 +185,10 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
     else:
         yr_past = str(curryr)
         qtr_past = str(currqtr - 1)
-    eco_file_path_past = Path("{}central/square/data/zzz-bb-test2/python/forecast/employment/{}q{}/eco_data.csv".format(get_home(), yr_past, qtr_past))
-    ecodemo_curr = pd.read_csv(eco_file_path_curr, na_values= "", keep_default_na = False)
+    eco_file_path_past = Path("{}central/metcast/data/rfa/current/rfa_{}q{}_final.dta".format(get_home(), yr_past, qtr_past))
+    ecodemo_curr = pd.read_stata(eco_file_path_curr, columns=['metcode', 'yr', 'qtr', 'qfet', 'offemp', 'indemp', 'avginc'])
     ecodemo_curr = ecodemo_curr.rename(columns={'qfet': 'totalemp_c', 'offemp': 'officeemp_c', 'indemp': 'indusemp_c', 'avginc': 'avg_inc'})
-    ecodemo_past = pd.read_csv(eco_file_path_past, na_values= "", keep_default_na = False)
+    ecodemo_past = pd.read_stata(eco_file_path_past, columns=['metcode', 'yr', 'qtr', 'qfet', 'offemp', 'indemp', 'avginc'])
     ecodemo_past = ecodemo_past.rename(columns={'qfet': 'totalemp_p', 'offemp': 'officeemp_p', 'indemp': 'indusemp_p',  'avginc': 'avg_inc_p'})
     ecodemo_curr['identity_eco'] = ecodemo_curr['metcode'] + ecodemo_curr['yr'].astype(str) + ecodemo_curr['qtr'].astype(str)
     ecodemo_curr = ecodemo_curr.set_index('identity_eco')

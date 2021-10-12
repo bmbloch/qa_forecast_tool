@@ -211,7 +211,6 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
         if currqtr == 3:
             data['c_flag_e'] = np.where((data['yr'] == curryr) & (data['qtr'] == 5), data['orig_flag'], data['c_flag_e'])
         data = data.drop(['orig_flag'], axis=1)
-        test
 
     data = data = calc_flag_ranking(data, 'c_flag_e', False)
     

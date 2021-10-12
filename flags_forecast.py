@@ -205,12 +205,9 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":
-        data['orig_flag'] = data['c_flag_e']
-        data = rol_close(data, 'c_flag_e', 'cons', 'rolscon', False, False, 1, 't', 'rol_t', sector_val, curryr, currqtr)
-        data['c_flag_e'] = np.where((data['c_flag_e'] == 1) & ((data['cons'] - data['e']) / data['e'] < (data['rolscon'] - data['rol_e']) / data['rol_e']), 0, data['c_flag_e'])
-        if currqtr == 3:
-            data['c_flag_e'] = np.where((data['yr'] == curryr) & (data['qtr'] == 5), data['orig_flag'], data['c_flag_e'])
-        data = data.drop(['orig_flag'], axis=1)
+        if currqtr != 3:
+            data = rol_close(data, 'c_flag_e', 'cons', 'rolscon', False, False, 1, 't', 'rol_t', sector_val, curryr, currqtr)
+            data['c_flag_e'] = np.where((data['c_flag_e'] == 1) & ((data['cons'] - data['e']) / data['e'] < (data['rolscon'] - data['rol_e']) / data['rol_e']), 0, data['c_flag_e'])
 
     data = data = calc_flag_ranking(data, 'c_flag_e', False)
     

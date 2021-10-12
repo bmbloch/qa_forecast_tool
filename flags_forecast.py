@@ -58,7 +58,7 @@ def rol_close(dataframe, flag_name, var, rol_var, var_2, rol_var_2, type_filt, c
     # There are some flags that need to be checked to ensure that the rol value wasnt within a threshold and now the value is outside the threshold, even if it is close. For those vars, leave the dummy 7777 so it can be checked "locally", otherwise, change it to a 0 to remove the flag
     thresh_list = ['c_flag_t', 'v_flag_min', 'v_flag_max', 'v_flag_level', 'v_flag_cons_neg', 'g_flag_max', 'e_flag_min_chg', 'e_flag_max_chg', 'e_flag_min', 'e_flag_max', 'e_flag_market']
     if flag_name in thresh_list:
-        False 
+        False
     else:
         dataframe[flag_name] = np.where((dataframe[flag_name] == 7777), 0, dataframe[flag_name])
 
@@ -190,13 +190,13 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
     
     # Flag if construction is higher than h stock plus a reasonable amount of e stock in the current forecast year.
     if currqtr == 1:
-        e_stock_thresh = 0.15
+        e_stock_thresh = 0.25
     elif currqtr == 2:
-        e_stock_thresh = 0.10
-    elif currqtr == 3:
-        e_stock_thresh = 0.05
-    elif currqtr == 4:
         e_stock_thresh = 0.20
+    elif currqtr == 3:
+        e_stock_thresh = 0.10
+    elif currqtr == 4:
+        e_stock_thresh = 0.30
     
     data['calc'] = data['cons'] - (data['round_h_temp'] + (data['e'] * e_stock_thresh))
     data['c_flag_e'] = np.where((data['forecast_tag'] == 1) & (data['qtr'] == 5) & 
@@ -205,9 +205,12 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":
+        data['orig_flag'] = data['c_flag_e']
         data = rol_close(data, 'c_flag_e', 'cons', 'rolscon', False, False, 1, 't', 'rol_t', sector_val, curryr, currqtr)
         data['c_flag_e'] = np.where((data['c_flag_e'] == 1) & ((data['cons'] - data['e']) / data['e'] < (data['rolscon'] - data['rol_e']) / data['rol_e']), 0, data['c_flag_e'])
-
+        if currqtr == 3:
+            data['c_flag_e'] = np.where((data['yr'] == curryr) & (data['qtr'] == 5), data['orig_flag'], data['c_flag_e'])
+        data = data.drop(['orig_flag'], axis=1)
 
     data = data = calc_flag_ranking(data, 'c_flag_e', False)
     

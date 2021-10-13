@@ -3000,6 +3000,8 @@ def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_
         if len(preview_data) > 0:
             data_temp = data.copy()
             filt_cols = orig_cols + ['identity', 'forecast_tag', 'identity_met', 'identity_us', 'rolsinv']
+            if sector_val == "ret" or sector_val == "off":
+                filt_cols += ['rolmerent']
             data_temp = data_temp[filt_cols]
             preview_data_temp = preview_data.copy()
             preview_data_temp = preview_data_temp[filt_cols]

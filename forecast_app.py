@@ -2222,9 +2222,9 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     prefix = "US"
                 else:
                     prefix = "US_"
-                file_path_dta = "{}central/metcast/data/{}/forecast/current/prefix{}test_{}q{}.dta".format(get_home(), sector_val, prefix, sector_val, str(curryr), str(currqtr))
+                file_path_dta = "{}central/metcast/data/{}/forecast/current/{}test_{}q{}.dta".format(get_home(), sector_val, prefix, sector_val, str(curryr), str(currqtr))
                 finalized_us.to_stata(file_path_dta, write_index=False)
-                file_path_out = "{}central/metcast/data/{}/forecast/current/prefix{}test_{}q{}.out".format(get_home(), sector_val, prefix, sector_val, str(curryr), str(currqtr))
+                file_path_out = "{}central/metcast/data/{}/forecast/current/{}test_{}q{}.out".format(get_home(), sector_val, prefix, sector_val, str(curryr), str(currqtr))
                 finalized_us.to_csv(file_path_out, index=False, na_rep='')
 
             # Convert decision log to csv file and save in OutputFiles folder

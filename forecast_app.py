@@ -764,7 +764,7 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
         vac_variable_list = ['cons', 'rolscon', 'vac', 'rolsvac', 'cons_oob', 'vac_oob']
         rent_variable_list = ['cons', 'rolscon', 'mrent', 'rolmrent', 'cons_oob', 'mrent_oob']
         vac_tag_list = ['cons', 'rolscon', 'vac_chg', 'rolsvac_chg', 'cons_oob', 'vac_chg_oob']
-        rent_tag_list = ['cons', 'rolscon', 'G_mrent', 'grolsmer', 'cons_oob', 'G_mrent_oob']
+        rent_tag_list = ['cons', 'rolscon', 'G_mrent', 'grolsmre', 'cons_oob', 'G_mrent_oob']
     else:
         vac_variable_list = ['cons', 'rolscon', 'vac', 'rolsvac', 'cons_oob', 'vac_oob']
         rent_variable_list = ['cons', 'rolscon', 'mrent', 'rol_mrent', 'cons_oob', 'mrent_oob']
@@ -806,63 +806,63 @@ def sub_met_graphs(data, type_filt, curryr, currqtr, fileyr, sector_val):
         rent_tick_format = '.0f'
     else:
         rent_tick_format = '.1f'
-    
-    for x in range(0, len(vac_variable_list)):
-        if "con" in vac_variable_list[x]:
+
+    for var, name, color, tag, axis, display, group in zip(vac_variable_list, vac_name_list, scatter_color_list, vac_tag_list, axis_list, vac_display_list, scatter_group_list):
+        if "con" in var:
             fig_vac.add_trace(
             go.Bar(
                 x=list(graph['yr'].unique()),
-                y=list(graph[graph['variable'] == vac_variable_list[x]]['value']),
-                name = vac_name_list[x],
-                marker_color = scatter_color_list[x],
+                y=list(graph[graph['variable'] == var]['value']),
+                name = name,
+                marker_color = color,
                 hovertemplate='%{x}, ' + '%{text:,}<extra></extra>',
-                text = ['{}'.format(i) for i in list(graph[graph['variable'] == vac_tag_list[x]]['value'])],
-                yaxis=axis_list[x],
-                visible= vac_display_list[x],
-                legendgroup = scatter_group_list[x],
+                text = ['{}'.format(i) for i in list(graph[graph['variable'] == tag]['value'])],
+                yaxis=axis,
+                visible= display,
+                legendgroup = group,
                     )
                 )
         else:
             fig_vac.add_trace(
             go.Scatter(
                 x=list(graph['yr'].unique()),
-                y=list(graph[graph['variable'] == vac_variable_list[x]]['value']),
-                name = vac_name_list[x],
-                marker_color = scatter_color_list[x],
+                y=list(graph[graph['variable'] == var]['value']),
+                name = name,
+                marker_color = color,
                 hovertemplate='%{x}, ' + '%{text:.2%}<extra></extra>',
-                text = ['{}'.format(i) for i in list(graph[graph['variable'] == vac_tag_list[x]]['value'])],
-                yaxis=axis_list[x],
-                visible= vac_display_list[x],
-                legendgroup = scatter_group_list[x],
+                text = ['{}'.format(i) for i in list(graph[graph['variable'] == tag]['value'])],
+                yaxis=axis,
+                visible= display,
+                legendgroup = group,
                     )
                 )
-    for x in range(0, len(rent_variable_list)):
-        if "con" in rent_variable_list[x]:
+    for var, name, color, tag, axis, display, group in zip(rent_variable_list, rent_name_list, scatter_color_list, rent_tag_list, axis_list, rent_display_list, scatter_group_list):
+        if "con" in var:
             fig_rent.add_trace(
             go.Bar(
                 x=list(graph['yr'].unique()),
-                y=list(graph[graph['variable'] == rent_variable_list[x]]['value']),
-                name= rent_name_list[x],
-                marker_color = scatter_color_list[x],
+                y=list(graph[graph['variable'] == var]['value']),
+                name= name,
+                marker_color = color,
                 hovertemplate='%{x}, ' + '%{text:,}<extra></extra>',
-                text = ['{}'.format(i) for i in list(graph[graph['variable'] == rent_tag_list[x]]['value'])],
-                yaxis=axis_list[x],
-                visible = rent_display_list[x],
-                legendgroup = scatter_group_list[x],
+                text = ['{}'.format(i) for i in list(graph[graph['variable'] == tag]['value'])],
+                yaxis=axis,
+                visible = display,
+                legendgroup = group,
                     )
                 ) 
         else:    
             fig_rent.add_trace(
             go.Scatter(
                 x=list(graph['yr'].unique()),
-                y=list(graph[graph['variable'] == rent_variable_list[x]]['value']),
-                name= rent_name_list[x],
-                marker_color = scatter_color_list[x],
+                y=list(graph[graph['variable'] == var]['value']),
+                name= name,
+                marker_color = color,
                 hovertemplate='%{x}, ' + '%{text:.2%}<extra></extra>',
-                text = ['{}'.format(i) for i in list(graph[graph['variable'] == rent_tag_list[x]]['value'])],
-                yaxis=axis_list[x],
-                visible = rent_display_list[x],
-                legendgroup = scatter_group_list[x],
+                text = ['{}'.format(i) for i in list(graph[graph['variable'] == tag]['value'])],
+                yaxis=axis,
+                visible = display,
+                legendgroup = group,
                     )
                 )
             

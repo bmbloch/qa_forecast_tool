@@ -658,15 +658,23 @@ def vac_flags(data, curryr, currqtr, sector_val, use_rol_close):
     data['v_flag_level'] = np.where((data['yr'] >= curryr + 5) & (abs((data['vac'] - data['10_yr_vac']) / data['10_yr_vac']) > 0.20) & (abs(data['vac'] - data['10_yr_vac']) > 0.01), 1, 0)
 
     # Dont flag if the submarket has a limited trend history and vac chg is reasonable
-    data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['lim_hist'] <= 3) & (abs(data['vac_chg']) < 0.005), 0, data['v_flag_level'])
+    data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['lim_hist'] <= 5) & (abs(data['vac_chg']) < 0.005), 0, data['v_flag_level'])
 
     # Dont flag if the vac chg is moving closer to the 10 year vac avg
     data['v_flag_level'] = np.where(((data['vac'] > data['10_yr_vac']) & (data['vac_chg'] < 0)) | ((data['vac'] < data['10_yr_vac']) & (data['vac_chg'] > 0)), 0, data['v_flag_level']) 
 
-    # Dont flag if the sector is industrial and t10 year vacancy level is high and the decrease in vac is reasonable.
+    # Dont flag if the sector is industrial and the 10 year vacancy level is high and the decrease in vac is reasonable.
     # Since Ind subs typically had inflated vac levels compared to what other market providers published, moving away from a high ten year vac level is understandable
     if sector_val == "ind":
-        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.1) & (data['vac_chg'] >= -0.01), 0, data['v_flag_level'])
+        data['curr_trend_vac'] = np.where((data['yr'] == curryr) & (data['qtr'] == currqtr), data['vac'], np.nan)
+        data['curr_trend_vac'] = data.groupby('identity')['curr_trend_vac'].ffill()
+        data['outer_vac_chg'] = np.where((data['yr'] == curryr + 5), data['vac'].shift(5) - data['vac'], np.nan)
+        data['outer_vac_chg'] = data.groupby('identity')['outer_vac_chg'].ffill()
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.7) & (data['outer_vac_chg'] > -0.01), 0, data['v_flag_level'])
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.1) & (data['outer_vac_chg'] > -0.05), 0, data['v_flag_level'])
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.15) & ((data['vac'] >= 0.1) | ((data['curr_trend_vac'] < data['10_yr_vac']) & (data['vac'] >= data['curr_trend_vac']))), 0, data['v_flag_level'])
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] >= data['curr_trend_vac'] - 0.01) & (data['vac'] < data['10_yr_vac']) & (data['outer_vac_chg'] > -0.01), 0, data['v_flag_level'])
+        data = data.drop(['curr_trend_vac', 'outer_vac_chg'], axis=1)
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":

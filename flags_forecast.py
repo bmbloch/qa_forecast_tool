@@ -666,7 +666,7 @@ def vac_flags(data, curryr, currqtr, sector_val, use_rol_close):
     # Dont flag if the sector is industrial and t10 year vacancy level is high and the decrease in vac is reasonable.
     # Since Ind subs typically had inflated vac levels compared to what other market providers published, moving away from a high ten year vac level is understandable
     if sector_val == "ind":
-        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.1)& (data['vac_chg'] >= -0.01), 0, data['v_flag_level'])
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.1) & (data['vac_chg'] >= -0.01), 0, data['v_flag_level'])
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":

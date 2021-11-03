@@ -26,7 +26,7 @@ def get_login_layout():
     latest_year = 0
     latest_qtr = 0
     month_to_display = 0
-    for folder in dirlist:
+    for folder in [x for x in dirlist if x[0].isdigit()]:
         if (int(folder[0:4]) == latest_year and int(folder[-1:]) >= latest_qtr) or int(folder[0:4]) > latest_year:
             latest_year = int(folder[0:4])
             latest_qtr = int(folder[-1:])

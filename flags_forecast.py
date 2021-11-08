@@ -572,9 +572,9 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     # Dont flag if the submarket has a limited trend history to draw z score from and vac change is within reasonable bound
     if currqtr != 4:
         data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['forecast_tag'] == 1) & (data['lim_hist'] <= 5) & (abs(data['implied_vac_chg']) < (data['avg_vac_chg'] * ((4 - currqtr) / 4))), 0, data['v_flag_z'])
-        data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['forecast_tag'] == 2) & (data['lim_hist'] <= 5) & (abs(data['vac_chg']) < data['avg_vac_chg']), 0, data['v_flag_z'])
+        data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['forecast_tag'] == 2) & (data['lim_hist'] <= 5) & ((abs(data['vac_chg']) < data['avg_vac_chg']) | (abs(data['vac_chg']) < 0.01)), 0, data['v_flag_z'])
     elif currqtr == 4:
-        data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['lim_hist'] <= 5) & (abs(data['vac_chg']) < data['avg_vac_chg']), 0, data['v_flag_z'])
+        data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['lim_hist'] <= 5) & ((abs(data['vac_chg']) < data['avg_vac_chg']) | (abs(data['vac_chg']) < 0.01)), 0, data['v_flag_z'])
 
     # Dont flag if construction is the cause for a vac increase, as long as abs cons is reasonable
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['vac_chg'] > 0) & (data['cons'] > 0) & (data['abs_cons_r'] >= data['low_r_threshold']), 0, data['v_flag_z'])
@@ -608,7 +608,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
                                      1, 0)
 
     # Dont flag if the sub is within 1% of the min and the vac is above the US average, or vac chg is not severe and the vac is well above the US average
-    data['v_flag_min'] = np.where((data['v_flag_min'] == 1) & ((data['vac'] > data['min_vac'] - 0.01) | ((data['vac_chg'] > -0.02) & (data['vac'] > data['us_vac_level_avg'] * 2))) & (data['vac'] > data['us_vac_level_avg']), 0, data['v_flag_min'])
+    data['v_flag_min'] = np.where((data['v_flag_min'] == 1) & ((data['vac'] > data['min_vac'] - 0.01) | (data['vac_chg'] > -0.02)) & (data['vac'] > data['us_vac_level_avg']), 0, data['v_flag_min'])
     
     # Dont flag if the sub has a limited trend history and the vacancy level is above the US average
     data['v_flag_min'] = np.where((data['v_flag_min'] == 1) & (data['lim_hist'] <= 5) & (data['vac'] > data['us_vac_level_avg']), 0, data['v_flag_min'])

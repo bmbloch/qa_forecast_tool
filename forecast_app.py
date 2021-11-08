@@ -1543,7 +1543,6 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
 
 
 # This function produces the outputs needed for the update_data callback if the submit button is clicked
-#@Timer()
 def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent):
     
     data_save = False
@@ -2317,7 +2316,6 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     State('flag_flow', 'data'),
                     State('key_yr_radios', 'value'),
                     State('process_subsequent', 'value')])
-#@Timer()
 def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent):
 
     input_id = get_input_id()
@@ -2675,7 +2673,6 @@ def remove_options(submit_button, drop_val, sector_val, success_init):
                     State('comment_rent', 'value'),
                     State('flag_description_noprev', 'children'),
                     State('manual_message', 'message')])  
-#@Timer()
 def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips, message):  
 
     input_id = get_input_id()
@@ -2980,7 +2977,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
                     State('dropman', 'value'),
                     State('first_roll', 'data')])
 def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_cols, curryr, currqtr, fileyr, success_init, drop_val, first_load):
-
+    
     if sector_val is None or curryr is None or success_init == False or (tab_clicked != 'rollups' and first_load == False):
         raise PreventUpdate
     else:

@@ -4,7 +4,9 @@ from IPython.core.display import display, HTML
 from pathlib import Path
 
 # This function sorts by the applicable flag and assigns an ascending ranking based on how far from the benchmark the sub is.
-def calc_flag_ranking(dataframe, flag_name, direction):
+def calc_flag_ranking(dataframe_in, flag_name, direction):
+
+    dataframe = dataframe_in.copy()
 
     dataframe['calc'] = np.where((dataframe[flag_name] == 999999999) | (dataframe[flag_name] == 0) | (dataframe['forecast_tag'] == 0), np.nan, dataframe['calc'])
     dataframe.sort_values(by=['calc'], ascending=direction, inplace=True)
@@ -17,8 +19,10 @@ def calc_flag_ranking(dataframe, flag_name, direction):
     return dataframe
 
 # Function that "unflags" when value is close to rol value
-def rol_close(dataframe, flag_name, var, rol_var, var_2, rol_var_2, type_filt, cons_check, cons_check_rol, sector_val, curryr, currqtr):
+def rol_close(dataframe_in, flag_name, var, rol_var, var_2, rol_var_2, type_filt, cons_check, cons_check_rol, sector_val, curryr, currqtr):
     
+    dataframe = dataframe_in.copy()
+
     if currqtr == 4:
         period = 1
     else:
@@ -65,8 +69,10 @@ def rol_close(dataframe, flag_name, var, rol_var, var_2, rol_var_2, type_filt, c
     return dataframe
 
 # Function that determines construction related flags
-def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
+def cons_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     
+    data = data_in.copy()
+
     # When rounding a value that ends in 500 to the thousandths place, python will round down, which will cause flags to trigger that should not. So fix the rounding manually
     if sector_val != "apt":
         data['round_h_temp'] = round(data['h'],-3)
@@ -323,7 +329,9 @@ def cons_flags(data, curryr, currqtr, sector_val, use_rol_close):
     
     return data
 
-def vac_flags(data, curryr, currqtr, sector_val, use_rol_close):
+def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
+
+    data = data_in.copy()
 
     # Calculate the prev q5 trend occ for use in flags
     if currqtr != 4:
@@ -828,8 +836,10 @@ def vac_flags(data, curryr, currqtr, sector_val, use_rol_close):
     
     return data
 
-def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
+def rent_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     
+    data = data_in.copy()
+
     # Flag if market rent growth is less than 1% in a future forecast year or in the current forecast year if this is Q4 and the three year average doesnt support the low figure
     data['calc'] = data['G_mrent']
     data['g_flag_low'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) &
@@ -1649,5 +1659,8 @@ def rent_flags(data, curryr, currqtr, sector_val, use_rol_close):
     data = calc_flag_ranking(data, 'e_flag_lowv', True)
 
     data = data.drop(['cons_prem_mod'], axis=1)
+
+    #print("Take this out!!!!")
+    #data.to_csv('/home/central/square/data/zzz-bb-test2/python/forecast/ind/test_data.csv')
    
     return data

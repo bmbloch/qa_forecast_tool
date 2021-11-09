@@ -127,7 +127,7 @@ def cons_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
 
     data = data = calc_flag_ranking(data, 'c_flag_t', False)
 
-    # Flag if construction is higher than h stock and greater than either: the three year historical average for all non current forecast years in the first five forecast years, or greater than the three year rolling average for all years in the second five forecast years 
+    # Flag if construction is higher than h stock and greater than either: the three year historical average for all non current forecast years in the near term forecast years, or greater than the three year rolling average for all years in the long term forecast years 
     data['calc'] = (data['cons'] - data['three_yr_avg_cons']) / data['inv']
     data['three_yr_roll_cons'] = np.where((data['yr'] >= curryr + 3), ((data['h'].shift(1) + data['e'].shift(1) * 0.2) + (data['h'].shift(2) + data['e'].shift(2) * 0.2) + (data['h'].shift(3) +  + data['e'].shift(3) * 0.2)) / 3, np.nan)
     data['calc'] = np.where((data['yr'] >= curryr + 3), (data['cons'] - data['three_yr_roll_cons']) / data['inv'], data['calc'])

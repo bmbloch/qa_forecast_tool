@@ -427,27 +427,62 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data = calc_flag_ranking(data, 'v_flag_ratio', False)
 
 
-    # Flag if rolling three year abs cons ratio is too low
-    data['calc'] = data['missing_abs_after_coverage']
-    data['v_flag_roll'] = np.where((data['forecast_tag'] != 0) &
-                                                (data['missing_abs_after_coverage'] / data['inv'] >= 0.02),
-                                                1, 0)
+    # Flag if construction from prior years is not getting absorbed in subsequent years
+    data['vac_to_recover'] = 0
+    data['vac_recovered'] = 0
 
-    # Dont flag if the submarket is both below the sub's 10 year vac avg and the national vac avg, and the missing abs is not a very large percentage of inventory
-    data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['vac'] <= data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg']) & (data['missing_abs_after_coverage'] / data['inv'] < 0.05), 0, data['v_flag_roll'])
+    for x in range(0, 10):
+        if currqtr == 4: 
+            extra = 0
+        elif currqtr != 4:
+            extra = currqtr
+        if x == 0:
+            period = 16 + extra
+            period2 = 11 + extra
+        elif x == 1:
+            period = 12 + extra
+            period2 = 7 + extra
+        elif x == 2:
+            period = 8 + extra
+            period2 = 3 + extra
+        elif x == 3 and currqtr != 4:
+            period = 4 + currqtr
+            period2 = 3
+        else:
+            period = 4
+            period2 = 3
+
+        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) > data['abs'].shift(periods=period2)) & (data['abs'].shift(periods=period2) >= 0), data['cons'].shift(periods=period2) - data['abs'].shift(periods=period2), np.nan)
+        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) <= data['abs'].shift(periods=period2)), 0, data['cons_unabs'])
+        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['abs'].shift(periods=period2) < 0), data['cons'].shift(periods=period2), data['cons_unabs'])
+        data['vac_to_recover'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5), ((data['avail'].shift(periods=period) + data['cons_unabs']) / data['inv'].shift(periods=period2)) - data['vac'].shift(periods=period), data['vac_to_recover'])
+        data['vac_recovered'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5), data['vac'] - data['vac'].shift(periods=period2), data['vac_recovered'])
+        
+        data['vac_to_recover'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['vac_to_recover'] < 0), 0, data['vac_to_recover'])
+        data['vac_recovered'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['vac_to_recover'] <= 0), 0, data['vac_recovered'])
+        
+        data['vac_to_recover'] = np.where((data['identity'] != data['identity'].shift(periods=period)), 0, data['vac_to_recover'])
+        data['vac_recovered'] = np.where((data['identity'] != data['identity'].shift(periods=period)), 0, data['vac_recovered'])
+
+    data['calc'] = data['vac_to_recover'] - data['vac_recovered']
+    data['v_flag_roll'] = np.where((data['forecast_tag'] == 2) &
+                                                (data['vac_to_recover'] > (data['vac_recovered'] - 0.01) * -1),
+                                                1, 0)
+    
+    data['vac_recovered'] = np.where(data['vac_recovered'] > 0, 0, data['vac_recovered'])
+
+    # Dont flag if the submarket is both below the sub's 10 year vac avg and the national vac avg
+    data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['vac'] <= data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg']) & (data['vac_to_recover'] + data['vac_recovered']< 0.035), 0, data['v_flag_roll'])
 
     # Dont flag if employment change in the second year of the three year period indicates that the economic conditions were very poor, so we would not expect all the cons to be absorbed.
-    # But still flag if the third year of the three year period covers at least some of the missing cons from prior periods
-    data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['yr'] > curryr) & (data['emp_chg_z'].shift(1) <= -1.5) & (data['abs'] - data['cons'] > data['missing_abs_after_coverage'] / 2), 999999999, data['v_flag_roll'])
-    if currqtr == 4:
-        data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['yr'] == curryr) & (data['emp_chg_z'].shift(1) <= -1.5) & (data['abs'] - data['cons'] > data['missing_abs_after_coverage'] / 2), 999999999, data['v_flag_roll'])
-    else:
-        data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['yr'] == curryr) & (data['emp_chg_z'].shift(periods=(1+currqtr)) <= -1.5) & (data['abs'] - data['cons'] > data['missing_abs_after_coverage'] / 2), 999999999, data['v_flag_roll'])
+    data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['emp_chg_z'].shift(1) <= -1.5) & (data['vac_to_recover'] + data['vac_recovered'] < 0.035), 999999999, data['v_flag_roll'])
     
     # Dont flag if employment change indicates that the economic conditions are poor in the third year of the three year period
     data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['emp_chg_z'] <= -1.5), 999999999, data['v_flag_roll'])
     
     data = calc_flag_ranking(data, 'v_flag_roll', False)
+
+    data = data.drop(['vac_to_recover', 'vac_recovered', 'cons_unabs'], axis=1)
 
     # Flag if vac forecast in the curr year forecast row results in a change from ROL absorption and the change increases the implied level
     if currqtr != 4:

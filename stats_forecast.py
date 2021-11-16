@@ -93,7 +93,11 @@ def calc_missing_cons_abs(data_in, curryr, currqtr):
     data['missing_abs'] = np.where((data['missing_abs'] > 0) & (data['missing_abs'] > data['cons']), data['cons'], data['missing_abs'])
 
     # Then, identify if a year has extra abs that can be used to help absorb the prior years' construction if it was unabsorbed
-    data['extra_abs'] = np.where((data['cons'] < data['abs']) & (data['qtr'] == 5), data['abs'] - data['cons'], 0)
+    if currqtr != 4:
+        data['extra_abs'] = np.where((data['cons'] < data['abs']) & (data['qtr'] == 5) & (data['forecast_tag'] != 1), data['abs'] - data['cons'], 0)
+        data['extra_abs'] = np.where((data['curr_yr_trend_cons'] < data['total_trend_abs']) & (data['qtr'] == 5) & (data['forecast_tag'] == 1), data['total_trend_abs'] - data['curr_yr_trend_cons'], data['extra_abs'])
+    elif currqtr == 4:
+        data['extra_abs'] = np.where((data['cons'] < data['abs']) & (data['qtr'] == 5), data['abs'] - data['cons'], 0)
     
     # Iterate over the forecast year range, each time determining how much absorption can be attributed to the missing abs from prior periods. Remove that amount from the total missing abs if there is extra abs in the row being evaluated
     for x in range(0, 10):

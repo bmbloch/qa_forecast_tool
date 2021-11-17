@@ -665,7 +665,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     # Flag if a vac forecast is a new 10 year low for the submarket
     data['calc'] = data['vac'] - data['min_vac']
     data['v_flag_min'] = np.where((data['forecast_tag'] != 0) &
-                                     (round(data['vac'],3) < round(data['min_vac'],3)),
+                                     (round(data['vac'],3) < round(data['min_vac'],3) - 0.001),
                                      1, 0)
 
     # Dont flag if the sub is within 1% of the min and the vac is above the US average, or vac chg is not severe and the vac is well above the US average
@@ -686,7 +686,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     # Flag if a vac forecast is a new 10 year high for the submarket, and construction is within a reasonable bound
     data['calc'] = data['vac'] - data['max_vac']
     data['v_flag_max'] = np.where((data['forecast_tag'] != 0) & 
-                                      (data['vac'] > data['max_vac']),
+                                      (data['vac'] > data['max_vac'] + 0.001),
                                       1, 0)
 
     # Dont flag if employment indicates that an unprecented high vac level is reasonable

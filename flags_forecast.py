@@ -716,9 +716,9 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     # Only flag it in the most recent full forecast year, as that will be enough of an alert and will minimize sum of flags and need to skip etc
     data['calc'] = data['f_var_vac_chg'] - data['f_5_var_vac_chg']
     data['v_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
-                                         (data['f_var_vac_chg'] < data['f_5_var_vac_chg']) & (data['f_var_vac_chg'].shift(1).isnull() == True),
+                                         ((data['f_var_vac_chg'] < data['f_5_var_vac_chg']) | (data['f_var_vac_chg'] == 0)) & (data['f_var_vac_chg'].shift(1).isnull() == True),
                                          1, 0)
-                                    
+                               
     data = calc_flag_ranking(data, 'v_flag_lowv', True)
 
     # Flag if vacancy level is well off the 10 year vac trend level, and this is a five outer year row

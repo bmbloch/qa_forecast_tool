@@ -571,10 +571,18 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
         data['calc'] = abs(((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs']) / (data['hist_implied_abs']+1))
 
         data['v_flag_imp'] = np.where((data['forecast_tag'] == 1) & 
-            (abs(((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs']) / (data['hist_implied_abs']+1)) >= 0.75) &
+            (abs(((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs']) / (data['hist_implied_abs']+1)) >= 0.25) &
             (abs(((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs']) / data['inv'])>= 0.01),
             1, 0)
 
+        # Dont flag if this is Q3 and the implied abs is close to the avg quarterly trend abs for the year
+        if currqtr == 3:
+            data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & (abs((data['implied_abs'] - (data['total_trend_abs'] / 3)) / (data['total_trend_abs'] / 3)) < 0.25) & (data['implied_abs'] * data['total_trend_abs'] >= 0), 0, data['v_flag_imp'])
+            data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & (data['implied_abs'] < (data['total_trend_abs'] / 3)) & (data['hist_implied_abs'] < data['total_trend_abs'] / 3) & (data['implied_abs'] * data['total_trend_abs'] >= 0), 0, data['v_flag_imp'])
+        
+        # Dont flag if the abs is due to absorption of construction
+        data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & (data['implied_cons'] >= data['implied_abs']) & (data['implied_abs'] > 0) & (data['hist_implied_abs'] < data['implied_abs']), 0, data['v_flag_imp'])
+        
         # Dont flag if the extra abs is due to helping absorb prior year cons
         data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & ((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs'] > 0) & ((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs'] <= data['extra_used_act'] * 2), 0, data['v_flag_imp'])
 
@@ -582,6 +590,12 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
         data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & ((data['implied_abs'] - (data['implied_cons'] * 0.8)) > data['hist_implied_abs']) & (data['emp_chg_z'] >= 1.5), 999999999, data['v_flag_imp'])
         data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & ((data['implied_abs'] - (data['implied_cons'] * 0.8)) < data['hist_implied_abs']) & (data['emp_chg_z'] <= -1.5), 999999999, data['v_flag_imp'])
 
+        # Dont flag if the sub does not have a long trend history, and the implied abs is in same direction as historical implied abs and less in magnitude
+        data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & (data['lim_hist'] <= 5) & (abs(data['implied_abs']) < abs(data['hist_implied_abs'])) & (data['implied_abs'] * data['hist_implied_abs'] > 0), 0, data['v_flag_imp'])
+        
+        # Dont flag if the implied vac chg is negligible and there has been positive trend abs and the submarket vac level is well below the 10 year average for the sub
+        data['v_flag_imp'] = np.where((data['v_flag_imp'] == 1) & (data['total_trend_abs'] > 0) & (abs(data['implied_vac_chg']) < 0.002) & ((data['vac'] < data['10_yr_vac'] / 1.5) | (data['vac'] < 0.04)) & (data['hist_implied_abs'] > 0), 0, data['v_flag_imp'])
+        
         # Failsafe for cases where the employment forecast indicates history not in line with current economic conditions - widen the threshold for flagging
         data['v_flag_imp'] = np.where((data['v_flag_imp'] == 999999999) & (abs(((data['implied_abs'] - (data['implied_cons'] * 0.8)) - data['hist_implied_abs']) / data['inv']) >= 0.05), 1, data['v_flag_imp'])
 

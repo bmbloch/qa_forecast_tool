@@ -739,7 +739,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
         data['curr_trend_vac'] = data.groupby('identity')['curr_trend_vac'].ffill()
         data['outer_vac_chg'] = np.where((data['yr'] == curryr + 5), data['vac'] - data['vac'].shift(5), np.nan)
         data['outer_vac_chg'] = data.groupby('identity')['outer_vac_chg'].ffill()
-        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.07) & (data['outer_vac_chg'] > -0.01), 0, data['v_flag_level'])
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.07) & ((data['outer_vac_chg'] > -0.01) | ((data['outer_vac_chg'] > -0.025) & (data['vac'] > data['10_yr_vac'] - 0.025))), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.1) & (data['outer_vac_chg'] > -0.05), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= 0.15) & ((data['vac'] >= 0.1) | ((data['curr_trend_vac'] < data['10_yr_vac']) & (data['vac'] >= data['curr_trend_vac']))), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] >= data['curr_trend_vac'] - 0.01) & (data['vac'] < data['10_yr_vac']) & (data['outer_vac_chg'] > -0.01), 0, data['v_flag_level'])

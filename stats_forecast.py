@@ -292,8 +292,8 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     data = data.join(quarts, on=['subsector'])
 
     # Calculate the average US vac level by subsector    
-    data['us_vac_level_avg'] = data[(data['yr'] == curryr - 1) & (data['qtr'] == 5)].groupby(['subsector'])['vac'].transform('mean')
-    data['us_vac_level_avg'] = data['us_vac_level_avg'].fillna(method='ffill')
+    data['us_vac_level_avg'] = data[(data['yr'] == curryr) & (data['qtr'] == currqtr)].groupby(['subsector'])['vac'].transform('mean')
+    data['us_vac_level_avg'] = data.groupby('identity')['us_vac_level_avg'].ffill()
 
     # Calculate the historical average vacancy change
     data['absolute_vac_chg'] = abs(data['vac_chg'])

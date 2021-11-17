@@ -822,7 +822,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg']) & (data['lim_hist'] > 5), 0, data['v_flag_cons_neg'])
     
     # Dont flag if the submarket is close to the min vac and vac chg is negligible
-    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['min_vac'] + 0.01) & (data['min_vac'] < data['us_vac_level_avg'] / 1.5) & (data['vac_chg' <= 0.002]), 0, data['v_flag_cons_neg'])
+    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['min_vac'] + 0.01) & (data['min_vac'] < data['us_vac_level_avg'] / 1.5) & (data['vac_chg'] <= 0.002), 0, data['v_flag_cons_neg'])
 
     # Dont flag if this is the curryr forcast row and the implied abs is positive
     if currqtr != 4:

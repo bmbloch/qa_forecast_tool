@@ -630,23 +630,23 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
 
     # Dont flag if construction is the cause for a vac increase, as long as abs cons is reasonable
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['vac_chg'] > 0) & (data['cons'] > 0) & (data['abs_cons_r'] >= data['low_r_threshold']), 0, data['v_flag_z'])
-    
+
     # Dont flag if the vac chg is negligible and the submarket is close to its historical min
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['vac'] < data['min_vac'] + 0.01) & (((data['vac_chg'] <= 0.002) & (data['vac_chg'] >= 0)) | ((data['vac_chg'] >= -0.002) & (data['vac'] >= data['min_vac']))) & (data['min_vac'] < data['us_vac_level_avg']) & (data['lim_hist'] > 5), 0, data['v_flag_z'])
-    
+
     # Dont flag if abs of prior year cons is the cause for vac decrease
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['extra_used_act'] > 0) & (data['abs'] - data['rolsabs'] <= data['extra_used_act'] * 2), 0, data['v_flag_z'])
 
     # Dont flag if the submarket is trying to return to a long term vac level by declining in vac
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['vac_chg'] < 0) & (data['vac_chg'] > -0.07) & (abs(data['vac_chg']) > data['avg_vac_chg']) & (data['vac'] >= data['10_yr_vac']) & (data['lim_hist'] > 5), 0, data['v_flag_z'])
-    
+
     # Dont flag if the submarket vac chg is lower in mag than the avg chg, and the submarket is near the long term avg and the long term avg is below the us avg
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (abs(data['vac_chg']) < data['avg_vac_chg']) & (data['vac'] < data['10_yr_vac'] + 0.01) & (data['vac'] < data['us_vac_level_avg'] - 0.01), 0, data['v_flag_z'])
-    
+
     # Dont flag if change in employment is very different than the historical emp chg
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['vac_chg'] > 0) & (data['emp_chg_z'] <= -1.5), 999999999, data['v_flag_z'])
     data['v_flag_z'] = np.where((data['v_flag_z'] == 1) & (data['vac_chg'] < 0) & (data['emp_chg_z'] >= 1.5), 999999999, data['v_flag_z'])
-
+    
     # Failsafe for cases where the employment forecast indicates history not in line with current economic conditions - widen the threshold for flagging
     data['v_flag_z'] = np.where((data['v_flag_z'] == 999999999) & (data['forecast_tag'] != 0) & (abs(data['vac_z']) > 3),
                                     1, data['v_flag_z'])

@@ -718,7 +718,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data['v_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
                                          ((data['f_var_vac_chg'] < data['f_5_var_vac_chg']) | (round(data['f_var_vac_chg'],3) == 0)) & (data['f_var_vac_chg'].shift(1).isnull() == True),
                                          1, 0)
-                               
+    
     data = calc_flag_ranking(data, 'v_flag_lowv', True)
 
     # Flag if vacancy level is well off the 10 year vac trend level, and this is a five outer year row
@@ -819,8 +819,11 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data['v_flag_cons_neg'] = np.where((data['forecast_tag'] != 0) & (data['cons_neg_abs'] == 1), 1, 0)
 
     # Dont flag if the sub is still below the 10 year vac average
-    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['lim_hist'] > 5), 0, data['v_flag_cons_neg'])
+    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg']) & (data['lim_hist'] > 5), 0, data['v_flag_cons_neg'])
     
+    # Dont flag if the submarket is close to the min vac and vac chg is negligible
+    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['min_vac'] + 0.01) & (data['min_vac'] < data['us_vac_lvel_avg'] / 1.5) & (data['vac_chg' <= 0.002]), 0, data['v_flag_cons_neg'])
+
     # Dont flag if this is the curryr forcast row and the implied abs is positive
     if currqtr != 4:
         data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['implied_abs'] > 0) & (data['yr'] == curryr), 0, data['v_flag_cons_neg'])

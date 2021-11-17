@@ -430,6 +430,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     # Flag if construction from prior years is not getting absorbed in subsequent years
     data['vac_to_recover'] = 0
     data['vac_recovered'] = 0
+    data['cons_inv_perc'] = 0
 
     for x in range(0, 10):
         if currqtr == 4: 
@@ -452,11 +453,12 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
             period = 4
             period2 = 3
 
-        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) > data['abs'].shift(periods=period2)) & (data['abs'].shift(periods=period2) >= 0), data['cons'].shift(periods=period2) - data['abs'].shift(periods=period2), np.nan)
-        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) <= data['abs'].shift(periods=period2)), 0, data['cons_unabs'])
-        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['abs'].shift(periods=period2) < 0), data['cons'].shift(periods=period2), data['cons_unabs'])
+        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) > 0) & (data['cons'].shift(periods=period2) > data['abs'].shift(periods=period2)) & (data['abs'].shift(periods=period2) >= 0), data['cons'].shift(periods=period2) - data['abs'].shift(periods=period2), np.nan)
+        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) > 0) & (data['cons'].shift(periods=period2) <= data['abs'].shift(periods=period2)), 0, data['cons_unabs'])
+        data['cons_unabs'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['cons'].shift(periods=period2) > 0) & (data['abs'].shift(periods=period2) < 0), data['cons'].shift(periods=period2), data['cons_unabs'])
         data['vac_to_recover'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5), ((data['avail'].shift(periods=period) + data['cons_unabs']) / data['inv'].shift(periods=period2)) - data['vac'].shift(periods=period), data['vac_to_recover'])
         data['vac_recovered'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5), data['vac'] - data['vac'].shift(periods=period2), data['vac_recovered'])
+        data['cons_inv_perc'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5), data['cons'].shift(periods=period2) / data['inv'].shift(periods=period2), data['cons_inv_perc'])
         
         data['vac_to_recover'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['vac_to_recover'] < 0), 0, data['vac_to_recover'])
         data['vac_recovered'] = np.where((data['yr'] == curryr + x) & (data['qtr'] == 5) & (data['vac_to_recover'] <= 0), 0, data['vac_recovered'])
@@ -466,7 +468,9 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
 
     data['calc'] = data['vac_to_recover'] - data['vac_recovered']
     data['v_flag_roll'] = np.where((data['forecast_tag'] == 2) &
-                                                (data['vac_to_recover'] > (data['vac_recovered'] - 0.01) * -1),
+                                                (data['vac_to_recover'] > (data['vac_recovered'] - 0.01) * -1) &
+                                                (data['v_flag_ratio'] == 0) &
+                                                (data['cons_inv_perc'] >= 0.01),
                                                 1, 0)
     
     data['vac_recovered'] = np.where(data['vac_recovered'] > 0, 0, data['vac_recovered'])
@@ -482,7 +486,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     
     data = calc_flag_ranking(data, 'v_flag_roll', False)
 
-    data = data.drop(['vac_to_recover', 'vac_recovered', 'cons_unabs'], axis=1)
+    data = data.drop(['vac_to_recover', 'vac_recovered', 'cons_unabs', 'cons_inv_perc'], axis=1)
 
     # Flag if vac forecast in the curr year forecast row results in a change from ROL absorption and the change increases the implied level
     if currqtr != 4:

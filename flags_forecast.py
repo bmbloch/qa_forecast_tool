@@ -819,7 +819,7 @@ def vac_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data['v_flag_cons_neg'] = np.where((data['forecast_tag'] != 0) & (data['cons_neg_abs'] == 1), 1, 0)
 
     # Dont flag if the sub is still below the 10 year vac average
-    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg']) & (data['lim_hist'] > 5), 0, data['v_flag_cons_neg'])
+    data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['10_yr_vac'] + 0.005) & (data['vac'] < data['us_vac_level_avg']), 0, data['v_flag_cons_neg'])
     
     # Dont flag if the submarket is close to the min vac and vac chg is negligible
     data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 1) & (data['vac'] < data['min_vac'] + 0.01) & (data['min_vac'] < data['us_vac_level_avg'] / 1.5) & (data['vac_chg'] <= 0.002), 0, data['v_flag_cons_neg'])

@@ -29,7 +29,7 @@ from init_load_forecast import get_home, initial_load
 from authenticate_forecast import authenticate_user, validate_login_session
 from server_forecast import forecast, server
 from stats_forecast import calc_stats
-from flags_forecast import cons_flags, vac_flags, rent_flags
+from flags_forecast import calc_flags
 from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, metro_sorts, flag_examine
 from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips
 from login_layout_forecast import get_login_layout
@@ -1460,7 +1460,7 @@ def filter_flags(dataframe_in, drop_flag):
     flag_filt = dataframe_in.copy()
 
     flag_filt = flag_filt[[drop_flag, 'identity', 'flag_skip']]
-    flag_filt = flag_filt[(flag_filt[drop_flag] > 0) & (flag_filt[drop_flag] < 999999999)]
+    flag_filt = flag_filt[(flag_filt[drop_flag] > 0)]
 
     if len(flag_filt) > 0:
         has_skip = flag_filt['flag_skip'].str.contains(drop_flag, regex=False)
@@ -1507,9 +1507,7 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
     data_init = calc_stats(data_init, curryr, currqtr, True, sector_val)
     data_init = data_init[data_init['yr'] >= curryr - 6]
     data = data_init.copy()
-    data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
-    data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
-    data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
+    data = calc_flags(data, curryr, currqtr, sector_val, use_rol_close)
 
     r = re.compile("^._flag*")
     flag_cols = list(filter(r.match, data.columns))
@@ -1636,12 +1634,9 @@ def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig
     resolve_test = resolve_test[resolve_test['yr'] == flag_yr_val]
     
     test_flag_list = [x for x in orig_flag_list if x not in skip_list]
-    resolve_test = cons_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
-    resolve_test = vac_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
-    resolve_test = rent_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
+    resolve_test = calc_flags(resolve_test, curryr, currqtr, sector_val, use_rol_close)
 
     resolve_test = resolve_test[flag_cols]
-    resolve_test[flag_cols] = np.where((resolve_test[flag_cols] == 999999999), 0, resolve_test[flag_cols])
     resolve_test['sum_flags'] = resolve_test[flag_cols].sum(axis=1)
     resolve_test = resolve_test[resolve_test['sum_flags'] > 0]
     if len(resolve_test) > 0:
@@ -2376,9 +2371,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             # Re-calc stats and flags now that the data has been updated, or if this is the initial load
             if  message_display == False:
                 data = calc_stats(data, curryr, currqtr, False, sector_val)
-                data = cons_flags(data, curryr, currqtr, sector_val, use_rol_close)
-                data = vac_flags(data, curryr, currqtr, sector_val, use_rol_close)
-                data = rent_flags(data, curryr, currqtr, sector_val, use_rol_close)
+                data = calc_flags(data, curryr, currqtr, sector_val, use_rol_close)
 
                 # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered (example: emdir, where there was a shim to mrent that fixed the flag). We will want to remove that skip from the log
                 # if input_id == "submit-button":
@@ -3261,8 +3254,7 @@ def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_on
         
         # Tag subs as flagged or not flagged based on the xaxis var (or the yaxis var if the x is employment) for color purposes on scatter plot
         if aggreg_met == False:
-            graph_data[flag_cols] = np.where((graph_data[flag_cols] != 0) & (graph_data[flag_cols] != 999999999), 1, graph_data[flag_cols])
-            graph_data[flag_cols] = np.where((graph_data[flag_cols] == 999999999), 0, graph_data[flag_cols])
+            graph_data[flag_cols] = np.where((graph_data[flag_cols] != 0), 1, graph_data[flag_cols])
 
             def sum_flags(dataframe_in, flag_list, year_value):
                 dataframe = dataframe_in.copy()

@@ -518,8 +518,7 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
 
 def live_flag_count(dataframe_in, sector_val, flag_cols):
     dataframe = dataframe_in.copy()
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0) & (dataframe[flag_cols] != 999999999), 1, dataframe[flag_cols])
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
+    dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0), 1, dataframe[flag_cols])
 
     dataframe = dataframe[dataframe['forecast_tag'] != 0]
     
@@ -549,8 +548,7 @@ def summarize_flags_ranking(dataframe_in, type_filt, flag_cols):
     elif type_filt == "sub":
         filt_val = 'identity'
 
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0) & (dataframe[flag_cols] != 999999999), 1, dataframe[flag_cols])
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
+    dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0), 1, dataframe[flag_cols])
 
     dataframe = dataframe[dataframe['forecast_tag'] != 0]
     
@@ -586,8 +584,7 @@ def summarize_flags(dataframe_in, sum_val, flag_cols):
     
     dataframe = dataframe[dataframe[identity_filt] == sum_val]
 
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0) & (dataframe[flag_cols] != 999999999), 1, dataframe[flag_cols])
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
+    dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0), 1, dataframe[flag_cols])
 
     dataframe['c_flag_tot'] = dataframe.filter(regex="^c_flag*").sum(axis=1)
     dataframe['v_flag_tot'] = dataframe.filter(regex="^v_flag*").sum(axis=1)
@@ -1098,7 +1095,6 @@ def flag_examine(data, identity_val, filt, curryr, currqtr, flag_cols, flag_flow
     dataframe = data.copy()
     has_flag = 0
     skip_list = []
-    dataframe[flag_cols] = np.where((dataframe[flag_cols] == 999999999), 0, dataframe[flag_cols])
     dataframe[flag_cols] = np.where((dataframe[flag_cols] > 0), 1, dataframe[flag_cols])
     dataframe = dataframe[dataframe['forecast_tag'] != 0]
     

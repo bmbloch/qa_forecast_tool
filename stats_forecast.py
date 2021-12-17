@@ -633,7 +633,6 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     return data
 
 # This function will calculate the key metrics needed to assess viability of oob forecast
-@Timer("Calc stats")
 def calc_stats(data_in, curryr, currqtr, first, sector_val):
     print("start calc stats")
 

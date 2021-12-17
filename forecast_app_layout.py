@@ -139,7 +139,7 @@ def get_app_layout(curryr, currqtr, sector_val):
                                 style_header={'fontWeight': 'bold', 'textAlign': 'center'},
                                 merge_duplicate_headers=True,
                                                     ),
-                                ], style={'display': 'block', 'padding-top': '85px'}),
+                                ], style={'display': 'block', 'padding-top': '30px'}),
                         html.Div([
                             dcc.Dropdown(
                                 id='dropflag',
@@ -159,6 +159,14 @@ def get_app_layout(curryr, currqtr, sector_val):
                                                     ],
                                                 ),
                                 ], style={'display': 'none'}, id='flag_filt_container'),
+                        html.Div([
+                            dash_table.DataTable(
+                                id='nat_eco_table',
+                                merge_duplicate_headers=True,
+                                style_header={'fontWeight': 'bold', 'textAlign': 'center'},
+                                style_cell={'textAlign': 'center'},
+                                                ),
+                                ], style={'display': 'none'}, id='nat_eco_container'),
                             ], style={'width': '35%', 'display': 'inline-block', 'padding-left': '30px'}),
                     html.Div([
                         html.Div([

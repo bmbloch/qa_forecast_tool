@@ -232,12 +232,18 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
     elif sector_val == "ind":
         ecodemo['emp_chg_diff'] = ecodemo['ind_emp_chg'] - ecodemo['rol_ind_emp_chg']
     
+    if sector_val == "apt" or sector_val == "ret":
+        emp_to_use = "emp_chg"
+    elif sector_val == "off":
+        emp_to_use = "off_emp_chg"
+    elif sector_val == "ind":
+        emp_to_use = "ind_emp_chg"
 
     # Calculate the z-score for each forecast year's employment change to assess if the economic conditions do not warrant benchmarking against the recent trend history
     # Do this here so we can use the full ecodemo history for years we dont have trend data on
     ecodemo['forecast_tag'] = np.where((ecodemo['yr'] >= curryr) & (ecodemo['qtr'] == 5), 1, 0)
     ecodemo['identity_all'] = "US"
-    ecodemo['absolute_emp_chg'] = abs(ecodemo['emp_chg'])
+    ecodemo['absolute_emp_chg'] = abs(ecodemo[emp_to_use])
     avg_emp = pd.DataFrame(ecodemo[(ecodemo['qtr'] == 5) & ecodemo['forecast_tag'] == 0].groupby('metcode')['absolute_emp_chg'].mean())
     avg_emp.columns = ['avg_emp_chg']
     ecodemo = ecodemo.join(avg_emp, on="metcode")
@@ -248,16 +254,11 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
     ecodemo = ecodemo.join(std_dev_emp_chg, on="metcode")
     ecodemo['std_dev_emp_chg'] = round(ecodemo['std_dev_emp_chg'], 4)
     ecodemo['emp_chg_z'] = np.where((ecodemo['yr'] == curryr) | (ecodemo['yr'] == curryr + 1), (ecodemo['emp_chg'] - ecodemo['avg_emp_chg']) / ecodemo['std_dev_emp_chg'], np.nan)
+    ecodemo['emp_chg_z'] = np.where((ecodemo['yr'] > curryr + 1) & (ecodemo['metcode'] == "US"), (ecodemo['emp_chg'] - ecodemo['avg_emp_chg']) / ecodemo['std_dev_emp_chg'], ecodemo['emp_chg_z'])
     ecodemo['emp_chg_z'] = round(ecodemo['emp_chg_z'], 1)
 
     # Calculate the implied employment change for the current forecast year
     ecodemo['identity_fill'] = ecodemo['metcode'] + str(curryr) + str(currqtr)
-    if sector_val == "apt" or sector_val == "ret":
-        emp_to_use = "emp_chg"
-    elif sector_val == "off":
-        emp_to_use = "off_emp_chg"
-    elif sector_val == "ind":
-        emp_to_use = "ind_emp_chg"
     
     ecodemo['implied_' + emp_to_use] = np.where((ecodemo['yr'] == curryr) & (ecodemo['qtr'] == 5), (ecodemo[emp_to_use[:-4]] - ecodemo[emp_to_use[:-4]].shift(periods=5-currqtr)) / ecodemo[emp_to_use[:-4]].shift(periods=5-currqtr), np.nan)
     if currqtr == 4:
@@ -315,6 +316,10 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
         keep_list += ['off_emp', 'implied_off_emp_chg', 'off_emp_chg', 'rol_off_emp', 'rol_off_emp_chg', 'off_emp_quart']
     elif sector_val == "ind":
         keep_list += ['ind_emp', 'implied_ind_emp_chg', 'ind_emp_chg', 'rol_ind_emp', 'rol_ind_emp_chg', 'ind_emp_quart']
+    
+    nat_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/intermediatefiles/nat_eco_data_{}.pickle".format(get_home(), sector_val))
+    ecodemo[(ecodemo['metcode'] == 'US') & (ecodemo['yr'] >= curryr) & (ecodemo['qtr'] == 5)][keep_list + ['yr']].to_pickle(nat_path)
+    
     ecodemo = ecodemo[keep_list + ['emp_5', 'emp_95', 'hist_emp_10', 'hist_emp_90']]
     data = data.join(ecodemo, on=("identity_eco"))
     

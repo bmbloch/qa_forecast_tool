@@ -1496,7 +1496,7 @@ def filter_flags(dataframe_in, drop_flag):
     if len(flag_filt) >= 10:
         flag_filt_style_table = {'height': '350px', 'overflowY': 'auto'}
     else:
-        flag_filt_style_table = {'height': '350px', 'overflowY': 'visible'}
+        flag_filt_style_table = {'overflowY': 'visible'}
 
     return flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title
 
@@ -2579,7 +2579,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
 
         sum_style = {'display': 'block', 'padding-top': '18px'}
         rank_style = {'display': 'block'}
-        eco = {'display': 'block', 'padding-top': '18px'}
+        eco_style = {'display': 'block', 'padding-top': '30px'}
 
         if input_id == 'store_init_flags':
             rank_data_met = use_pickle("in", "rank_data_met_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -2591,13 +2591,24 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             if sector_val == "apt" or sector_val == "ret":
                 emp_to_use = "emp_chg"
                 rol_emp_to_use = "rol_emp_chg"
+                imp_emp_to_use = 'implied_emp_chg'
+                header_name = "US Employment Change"
             elif sector_val == "off":
                 emp_to_use = "off_emp_chg"
                 rol_emp_to_use = "rol_off_emp_chg"
+                imp_emp_to_use = 'implied_off_emp_chg'
+                header_name = "US Office Employment Change"
             elif sector_val == "ind":
                 emp_to_use = "ind_emp_chg"
                 rol_emp_to_use = "rol_ind_emp_chg"
-            eco_data = eco_data[['yr', emp_to_use, rol_emp_to_use, 'emp_chg_z', 'avg_inc_chg']]
+                imp_emp_to_use = 'implied_ind_emp_chg'
+                header_name = "US Industrial Employment Change"
+
+            if currqtr == 4:
+                eco_data = eco_data[['yr', emp_to_use, rol_emp_to_use, 'emp_chg_z', 'avg_inc_chg']]
+            elif currqtr != 4:
+                eco_data = eco_data[['yr', emp_to_use, imp_emp_to_use, rol_emp_to_use, 'emp_chg_z', 'avg_inc_chg']]
+                eco_data = eco_data.rename(columns={imp_emp_to_use: 'imp emp chg'})
             for col in eco_data:
                 eco_data.rename(columns={col: col.replace('_', ' ')}, inplace=True)
 
@@ -2616,7 +2627,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             return rank_data_met.to_dict('records'), [{'name':['Top Ten Flagged Metros', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
                                 for i in range(0, len(rank_data_met.columns))], highlighting_rank_met, rank_data_sub.to_dict('records'), [{'name':['Top Ten Flagged Submarkets', rank_data_sub.columns[i]], 'id': rank_data_sub.columns[i], 'type': type_dict_rank_sub[rank_data_sub.columns[i]], 'format': format_dict_rank_sub[rank_data_sub.columns[i]]} 
                                 for i in range(0, len(rank_data_sub.columns))], highlighting_rank_sub, rank_style, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
-                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, eco_data.to_dict('records'), [{'name': ['US Employment Change', eco_data.columns[i]], 'id': eco_data.columns[i], 'type': type_dict_eco[eco_data.columns[i]], 'format': format_dict_eco[eco_data.columns[i]]} 
+                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, eco_data.to_dict('records'), [{'name': [header_name, eco_data.columns[i]], 'id': eco_data.columns[i], 'type': type_dict_eco[eco_data.columns[i]], 'format': format_dict_eco[eco_data.columns[i]]} 
                                 for i in range(0, len(eco_data.columns))], highlighting_eco, eco_style
         else:
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)

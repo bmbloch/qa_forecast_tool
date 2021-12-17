@@ -1667,7 +1667,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
     message = ''
     message_display = False
 
-    if message_display == False:
+    if not message_display:
 
         data_orig = data.copy()
         data_orig = data_orig[(data_orig['identity'] == drop_val)].tail(10)

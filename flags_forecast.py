@@ -485,8 +485,8 @@ def v_roll(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     
     data['vac_recovered'] = np.where(data['vac_recovered'] > 0, 0, data['vac_recovered'])
 
-    # Dont flag if the submarket is both below the sub's 10 year vac avg and the national vac avg
-    data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['vac'] <= data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg']) & (data['vac_to_recover'] + data['vac_recovered']< 0.035), 0, data['v_flag_roll'])
+    # Dont flag if the submarket is both below the sub's 10 year vac avg and the below or close to the national vac avg
+    data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['vac'] <= data['10_yr_vac']) & (data['vac'] < data['us_vac_level_avg'] + 0.025) & (data['vac_to_recover'] + data['vac_recovered']< 0.035), 0, data['v_flag_roll'])
 
     # Dont flag if employment change in the second year of the three year period indicates that the economic conditions were very poor, so we would not expect all the cons to be absorbed.
     data['v_flag_roll'] = np.where((data['v_flag_roll'] == 1) & (data['emp_chg_z'].shift(1) <= -1.5) & (data['vac_to_recover'] + data['vac_recovered'] < 0.035), 0, data['v_flag_roll'])

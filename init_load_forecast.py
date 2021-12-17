@@ -197,6 +197,12 @@ def initial_load(sector_val, curryr, currqtr, fileyr):
     ecodemo_past = ecodemo_past.set_index('identity_eco')
     ecodemo = ecodemo_curr.join(ecodemo_past)
     ecodemo.sort_values(by=['metcode', 'yr', 'qtr'], inplace=True)
+
+    # Only keep metros that have a published forecast
+    data['has_f'] = 1
+    ecodemo = ecodemo.join(data.drop_duplicates('metcode').set_index('metcode')[['has_f']], on='metcode')
+    ecodemo = ecodemo[(ecodemo['has_f'].isnull() == False) | (ecodemo['metcode'] == "US")]
+    data = data.drop(['has_f'],axis=1)
     
     # Determine the relvant employment categories based on the sector being analyzed
     ecodemo = ecodemo.rename(columns={'totalemp_c': 'emp', 'totalemp_p': 'rol_emp'})

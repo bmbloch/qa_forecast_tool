@@ -654,7 +654,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "v_flag_cons_neg": "There are three consecutive years of negative absorption in the submarket forecast.",
         "v_flag_subv": "The vacancy change has high variability accross the submarkets for the metro for this forecast year.",
         "v_flag_emp": "The vacancy change quartile is at the opposite end of the sector specific employment change quartile.",
-        "v_flag_emp_chg": "There was a significant change in the employment forecast without a commensurate response in vac chg.",
+        "v_flag_emp_rol": "There was a significant change in the employment forecast without a commensurate response in vac chg.",
         "g_flag_low": "Market rent change is very low.",
         "g_flag_nc": "Market rent change is low given the forecasted construction level.",
         "g_flag_z": "The magnitude of the market rent change is high based on the historical rent change at the submarket.",
@@ -670,7 +670,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "g_flag_vac": "The market rent change is moving in the opposite direction of vacancy change sentiment.",
         "g_flag_subv": "The market rent change has high variability accross the submarkets for the metro for this forecast year.",
         "g_flag_emp": "The market rent change quartile is at the opposite end of the sector specific employment change quartile.",
-        "g_flag_emp_chg": "There was a significant change in the employment forecast without a commensurate response in market rent chg.",
+        "g_flag_emp_rol": "There was a significant change in the employment forecast without a commensurate response in market rent chg.",
         "e_flag_rol": "The gap is very different from ROL and is not in line with vacancy change compared to ROL.",
         "e_flag_rolvac": "The gap has not changed significantly from ROL despite a significant change in vacancy relative to ROL.",
         "e_flag_zero": "The gap for the submarket is at zero or is negative.",
@@ -683,7 +683,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "e_flag_vac": "The gap change is moving in the opposite direction of vacancy change sentiment.",
         "e_flag_market": "The market rent and effective rent are moving in opposite directions.",
         "e_flag_emp": "The gap change quartile is at the opposite end of the sector specific employment change quartile.",
-        "e_flag_emp_chg": "There was a significant change in the employment forecast without a commensurate response in gap chg.",
+        "e_flag_emp_rol": "There was a significant change in the employment forecast without a commensurate response in gap chg.",
         "e_flag_lowv": "The overall forecast gap change series exhibits low variability compared to the general national submarket average."
     }
 
@@ -714,7 +714,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "v_flag_cons_neg": [['abs'], [], []],
         "v_flag_subv": [['vac chg'], ['vac chg sub var'], []],
         "v_flag_emp": [['vac chg'], ['vac quart'], ['emp quart', 'off emp quart', 'ind emp quart', 'emp chg', 'off emp chg', 'ind emp chg']],
-        "v_flag_emp_chg": [['vac chg', 'rol vac chg'], [], ['emp chg', 'off emp chg', 'ind emp chg' 'rol emp chg', 'rol off emp chg', 'rol ind emp chg']],
+        "v_flag_emp_rol": [['vac chg', 'rol vac chg'], [], ['emp chg', 'off emp chg', 'ind emp chg' 'rol emp chg', 'rol off emp chg', 'rol ind emp chg']],
         "g_flag_low": [['Gmrent'], ['3yr avgGmrent nonc'], []],
         "g_flag_nc": [['cons', 'Gmrent'], ['3yr avgGmrent nonc', 'cons prem'], []],
         "g_flag_z": [['Gmrent'], ['Gmrent z'], []],
@@ -730,7 +730,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "g_flag_vac": [['vac chg', 'Gmrent'], ['avg vac chg', 'avg Gmrent nonc'], []],
         "g_flag_subv": [['Gmrent'], ['Gmrent sub var'], []],
         "g_flag_emp": [['Gmrent'], ['Gmrent quart'], ['emp quart', 'off emp quart', 'ind emp quart', 'emp chg', 'off emp chg', 'ind emp chg']],
-        "g_flag_emp_chg": [['Gmrent', 'rol Gmrent'], [], ['emp chg', 'off emp chg', 'ind emp chg' 'rol emp chg', 'rol off emp chg', 'rol ind emp chg']],
+        "g_flag_emp_rol": [['Gmrent', 'rol Gmrent'], [], ['emp chg', 'off emp chg', 'ind emp chg' 'rol emp chg', 'rol off emp chg', 'rol ind emp chg']],
         "e_flag_rol": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], [], []],
         "e_flag_rolvac": [['gap chg', 'rol gap chg', 'vac chg', 'rol vac chg'], [], []],
         "e_flag_zero": [['gap'], [], []],
@@ -743,7 +743,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
         "e_flag_vac": [['gap chg', 'vac chg'], [], []],
         "e_flag_market": [['Gmerent', 'Gmrent'], [], []],
         "e_flag_emp": [['gap chg'], ['gap quart'], ['emp quart', 'off emp quart', 'ind emp quart', 'emp chg', 'off emp chg', 'ind emp chg']],
-        "e_flag_emp_chg": [['gap chg', 'rol gap chg'], [], ['emp chg', 'off emp chg', 'ind emp chg' 'rol emp chg', 'rol off emp chg', 'rol ind emp chg']],
+        "e_flag_emp_rol": [['gap chg', 'rol gap chg'], [], ['emp chg', 'off emp chg', 'ind emp chg' 'rol emp chg', 'rol off emp chg', 'rol ind emp chg']],
         "e_flag_lowv": [['gap chg'], ['f var gap chg'], []]
     }
 

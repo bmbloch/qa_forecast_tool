@@ -979,7 +979,7 @@ def v_emp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     return data, calc_names
 
 # Flag if there is a large change in the employment forecast from ROL, but not a commensurate reponse in vacancy chg
-def v_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
+def v_emp_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     if sector_val == "apt" or sector_val == "ret":
         quart_use = 'emp_quart'
@@ -995,14 +995,14 @@ def v_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         rol_use = 'rol_ind_emp_chg'
 
     data['target_chg'] = (data[chg_use] - data[rol_use]) * -0.5
-    data['v_flag_emp_chg'] = np.where((((data['forecast_tag'] == 2) & (data['yr'] <= curryr + 4)) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
+    data['v_flag_emp_rol'] = np.where((((data['forecast_tag'] == 2) & (data['yr'] <= curryr + 4)) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
                                        (abs(data['target_chg']) > 0.005) & ((data['vac_chg'] - data['rolsvac_chg']) * data['target_chg'] < 0)
                                        , 1, 0)
-    data['v_flag_emp_chg'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
+    data['v_flag_emp_rol'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
                                        (abs(data['target_chg']) > 0.005) & ((data['vac_chg'] - data['rolsvac_chg']) - data['target_chg'] > 0.002) & (abs(data['vac_chg'] - data['rolsvac_chg']) < abs(data['target_chg']))
-                                       , 1, data['v_flag_emp_chg'])
+                                       , 1, data['v_flag_emp_rol'])
     
-    data['calc_vemp_chg'] = np.where((data['v_flag_emp_chg'] == 1), abs((data['vac_chg'] - data['rolsvac_chg']) - data['target_chg']), np.nan)
+    data['calc_vemp_rol'] = np.where((data['v_flag_emp_rol'] == 1), abs((data['vac_chg'] - data['rolsvac_chg']) - data['target_chg']), np.nan)
     calc_names.append(list(data.columns)[-1])
 
     data = data.drop(['target_chg'], axis=1)
@@ -1576,7 +1576,7 @@ def g_emp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     return data, calc_names
 
 # Flag if there is a large change in the employment forecast from ROL, but not a commensurate reponse in market rent change
-def g_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
+def g_emp_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     if sector_val == "apt" or sector_val == "ret":
         quart_use = 'emp_quart'
@@ -1592,14 +1592,14 @@ def g_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         rol_use = 'rol_ind_emp_chg'
 
     data['target_chg'] = (data[chg_use] - data[rol_use]) * 0.5
-    data['g_flag_emp_chg'] = np.where((((data['forecast_tag'] == 2) & (data['yr'] <= curryr + 4)) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
+    data['g_flag_emp_rol'] = np.where((((data['forecast_tag'] == 2) & (data['yr'] <= curryr + 4)) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
                                        (abs(data['target_chg']) > 0.005) & ((data['G_mrent'] - data['grolsmre']) * data['target_chg'] < 0)
                                        , 1, 0)
-    data['g_flag_emp_chg'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
+    data['g_flag_emp_rol'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
                                        (abs(data['target_chg']) > 0.005) & ((data['G_mrent'] - data['grolsmre']) - data['target_chg'] > 0.002) & (abs(data['G_mrent'] - data['grolsmre']) < abs(data['target_chg']))
-                                       , 1, data['g_flag_emp_chg'])
+                                       , 1, data['g_flag_emp_rol'])
     
-    data['calc_gemp_chg'] = np.where((data['g_flag_emp_chg'] == 1), abs((data['G_mrent'] - data['grolsmre']) - data['target_chg']), np.nan)
+    data['calc_gemp_rol'] = np.where((data['g_flag_emp_rol'] == 1), abs((data['G_mrent'] - data['grolsmre']) - data['target_chg']), np.nan)
     calc_names.append(list(data.columns)[-1])
 
     data = data.drop(['target_chg'], axis=1)
@@ -1973,7 +1973,7 @@ def e_emp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     return data, calc_names
 
 # Flag if there is a large change in the employment forecast from ROL, but not a commensurate reponse in gap chg
-def e_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
+def e_emp_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     if sector_val == "apt" or sector_val == "ret":
         quart_use = 'emp_quart'
@@ -1989,14 +1989,14 @@ def e_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         rol_use = 'rol_ind_emp_chg'
 
     data['target_chg'] = (data[chg_use] - data[rol_use]) * -0.5
-    data['e_flag_emp_chg'] = np.where((((data['forecast_tag'] == 2) & (data['yr'] <= curryr + 4)) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
+    data['e_flag_emp_rol'] = np.where((((data['forecast_tag'] == 2) & (data['yr'] <= curryr + 4)) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
                                        (abs(data['target_chg']) > 0.005) & ((data['gap_chg'] - data['rolsgap_chg']) * data['target_chg'] < 0)
                                        , 1, 0)
-    data['e_flag_emp_chg'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
+    data['e_flag_emp_rol'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) & 
                                        (abs(data['target_chg']) > 0.005) & ((data['gap_chg'] - data['rolsgap_chg']) - data['target_chg'] > 0.002) & (abs(data['gap_chg'] - data['rolsgap_chg']) < abs(data['target_chg']))
-                                       , 1, data['e_flag_emp_chg'])
+                                       , 1, data['e_flag_emp_rol'])
     
-    data['calc_eemp_chg'] = np.where((data['e_flag_emp_chg'] == 1), abs((data['gap_chg'] - data['rolsgap_chg']) - data['target_chg']), np.nan)
+    data['calc_eemp_rol'] = np.where((data['e_flag_emp_rol'] == 1), abs((data['gap_chg'] - data['rolsgap_chg']) - data['target_chg']), np.nan)
     calc_names.append(list(data.columns)[-1])
 
     data = data.drop(['target_chg'], axis=1)
@@ -2077,7 +2077,7 @@ def calc_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data, calc_names = v_cons_neg(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = v_subv(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = v_emp(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
-    data, calc_names = v_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
+    data, calc_names = v_emp_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
 
     data, calc_names = g_low(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = g_nc(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
@@ -2094,7 +2094,7 @@ def calc_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data, calc_names = g_vac(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = g_subv(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = g_emp(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
-    data, calc_names = g_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
+    data, calc_names = g_emp_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
 
     data, calc_names = e_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = e_rolvac(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
@@ -2108,7 +2108,7 @@ def calc_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data, calc_names = e_vac(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = e_market(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = e_emp(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
-    data, calc_names = e_emp_chg(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
+    data, calc_names = e_emp_rol(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
     data, calc_names = e_lowv(data, curryr, currqtr, sector_val, calc_names, use_rol_close)
 
     flag_names = get_issue("list", sector_val)

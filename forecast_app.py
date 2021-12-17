@@ -1551,24 +1551,25 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
     shim_data['mrent'] = np.where(shim_data['mrent'] == '', np.nan, shim_data['mrent'])
     shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
 
+    # Check to see if the analyst actually submitted a shim to one of the vars that is eligible to be adjusted
     if shim_data[['cons', 'avail', 'mrent', 'merent']].isnull().values.all() == True:
-        no_shim = True
+        shim = False
     else:
-        no_shim = False
+        shim = True
 
     # Check to see if a comment was entered, as we will want to allow that to be processed even if no shim was entered
     comment_check = False
     if (cons_c[-9:] != "Note Here" and len(cons_c) > 0) or (avail_c[-9:] != "Note Here" and len(avail_c) > 0) or (rent_c[-9:] != "Note Here" and len(rent_c) > 0):
         comment_check = True
 
-    if no_shim == True and len(skip_list) == 0 and comment_check == False:
+    if not shim and len(skip_list) == 0 and not comment_check:
         message = "You did not enter any changes."
         message_display = True
     else:
         message = ''
         message_display = False
 
-    if message_display == False:
+    if not message_display:
         
         # Implement shims if the user has entered values that differ from the current state of the dataset
         data_orig = data.copy()
@@ -1576,7 +1577,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         data_orig = data_orig[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         
-        if no_shim == False:
+        if shim:
             data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c, proc_subsequent)
         else:
             has_diff = 0
@@ -1585,14 +1586,14 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
             rebench_trigger = True
 
         # Update decision log with new values entered via shim, and save the updates
-        if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
+        if has_diff == 1 or (len(skip_list) > 0 and not rebench_trigger) or comment_check:
             decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
         if has_diff == 1:
             decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "submit", False, yr_val, cons_c, avail_c, rent_c)
         
         # Update dataframe to store user flag skips
-        if (flag_list[0] != "v_flag" and len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
-            if flag_list[0] != "v_flag" and len(skip_list) > 0 and rebench_trigger == False:
+        if (flag_list[0] != "v_flag" and len(skip_list) > 0 and not rebench_trigger) or comment_check:
+            if flag_list[0] != "v_flag" and len(skip_list) > 0 and not rebench_trigger:
                 test = data.loc[drop_val + str(curryr) + str(5)]['flag_skip']
                 test = test.split(",")
                 test = [x.strip(' ') for x in test]
@@ -1604,23 +1605,23 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
                             data.loc[drop_val + str(curryr) + str(5), 'flag_skip'] += ", " + flag + str(yr_val)
                         
                         decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "skip", flag, yr_val, cons_c, avail_c, rent_c)
-            elif comment_check == True:
+            elif comment_check:
                 decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, user, "comment", False, yr_val, cons_c, avail_c, rent_c)
         
         # Save decision log if there was an update, and also save the current state of the edits to ensure nothing gets lost if an error is encountered in later steps
-        if has_diff == 1 or (len(skip_list) > 0 and rebench_trigger == False) or comment_check == True:
+        if has_diff == 1 or (len(skip_list) > 0 and not rebench_trigger) or comment_check:
             use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
             data_save = True
 
-    if rebench_trigger == False:
+    if not rebench_trigger:
         shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
 
-    if rebench_trigger == True:
-        if avail_check == True:
+    if rebench_trigger:
+        if avail_check:
             var = "vacancy"
-        elif mrent_check == True:
+        elif mrent_check:
             var = "market rent"
-        elif merent_check == True:
+        elif merent_check:
             var = "effective rent"
         message = "You entered a {} shim in {} that resulted in a change from rol above the data governance threshold. To process the shim, enter a supporting comment to document why the shim was made.".format(var, first_yr)
         message_display = True

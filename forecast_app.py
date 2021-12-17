@@ -2554,7 +2554,11 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
                     Output('sum_table', 'data'),
                     Output('sum_table', 'columns'),
                     Output('sum_table', 'style_data_conditional'),
-                    Output('sum_container', 'style')],
+                    Output('sum_container', 'style'),
+                    Output('nat_eco_table', 'data'),
+                    Output('nat_eco_table', 'columns'),
+                    Output('nat_eco_table', 'style_data_conditional'),
+                    Output('nat_eco_container', 'style'),],
                     [Input('sector', 'data'),
                     Input('dropsum', 'value'),
                     Input('store_init_flags', 'data')],
@@ -2575,11 +2579,27 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
 
         sum_style = {'display': 'block', 'padding-top': '18px'}
         rank_style = {'display': 'block'}
+        eco = {'display': 'block', 'padding-top': '18px'}
 
         if input_id == 'store_init_flags':
             rank_data_met = use_pickle("in", "rank_data_met_" + sector_val, False, fileyr, currqtr, sector_val)
             rank_data_sub = use_pickle("in", "rank_data_sub_" + sector_val, False, fileyr, currqtr, sector_val)
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
+            eco_data = use_pickle("in", "nat_eco_data_" + sector_val, False, fileyr, currqtr, sector_val)
+            
+            eco_data = eco_data[eco_data['yr'] <= curryr + 4]
+            if sector_val == "apt" or sector_val == "ret":
+                emp_to_use = "emp_chg"
+                rol_emp_to_use = "rol_emp_chg"
+            elif sector_val == "off":
+                emp_to_use = "off_emp_chg"
+                rol_emp_to_use = "rol_off_emp_chg"
+            elif sector_val == "ind":
+                emp_to_use = "ind_emp_chg"
+                rol_emp_to_use = "rol_ind_emp_chg"
+            eco_data = eco_data[['yr', emp_to_use, rol_emp_to_use, 'emp_chg_z', 'avg_inc_chg']]
+            for col in eco_data:
+                eco_data.rename(columns={col: col.replace('_', ' ')}, inplace=True)
 
             sum_data = summarize_flags(sum_data, drop_val, flag_cols)
             type_dict_rank_met, format_dict_rank_met = get_types(sector_val)
@@ -2589,11 +2609,15 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
 
             type_dict_sum, format_dict_sum = get_types(sector_val)
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
+
+            type_dict_eco, format_dict_eco = get_types(sector_val)
+            highlighting_eco = get_style("partial", eco_data, dash_curryr, dash_second_five)
         
             return rank_data_met.to_dict('records'), [{'name':['Top Ten Flagged Metros', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
                                 for i in range(0, len(rank_data_met.columns))], highlighting_rank_met, rank_data_sub.to_dict('records'), [{'name':['Top Ten Flagged Submarkets', rank_data_sub.columns[i]], 'id': rank_data_sub.columns[i], 'type': type_dict_rank_sub[rank_data_sub.columns[i]], 'format': format_dict_rank_sub[rank_data_sub.columns[i]]} 
                                 for i in range(0, len(rank_data_sub.columns))], highlighting_rank_sub, rank_style, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
-                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
+                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, eco_data.to_dict('records'), [{'name': ['US Employment Change', eco_data.columns[i]], 'id': eco_data.columns[i], 'type': type_dict_eco[eco_data.columns[i]], 'format': format_dict_eco[eco_data.columns[i]]} 
+                                for i in range(0, len(eco_data.columns))], highlighting_eco, eco_style
         else:
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
             sum_data = summarize_flags(sum_data, drop_val, flag_cols)
@@ -2601,7 +2625,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
             
             return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
-                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style
+                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, no_update, no_update, no_update, no_update
 
 @forecast.callback([Output('show_skips', 'value'),
                    Output('process_subsequent', 'value')],

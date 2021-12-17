@@ -3192,7 +3192,17 @@ def set_scatter_drops(year_value, comp_value, sector_val, curryr, currqtr, filey
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
+
         input_id = get_input_id()
+
+        imp_switch = False
+        if year_value != curryr and "implied" in init_xaxis_var:
+            x_var = init_xaxis_var[8:]
+            imp_switch = True
+        if year_value != curryr and "implied" in init_yaxis_var:
+            y_var = init_yaxis_var[8:]
+            imp_switch = True
+
         if comp_value == 'c':
             lock = False
             placeholder = "Select:"
@@ -3202,7 +3212,7 @@ def set_scatter_drops(year_value, comp_value, sector_val, curryr, currqtr, filey
                     y_var = 'G_mrent'
                 else:
                     y_var = "vac_chg"
-            else:
+            elif not imp_switch:
                 y_var = init_yaxis_var
             if sector_val == "apt" or sector_val == "ret":
                 x_options_list = ['cons', 'vac_chg', 'G_mrent', 'gap_chg', 'emp_chg', 'avg_inc_chg']         
@@ -3249,6 +3259,10 @@ def set_scatter_drops(year_value, comp_value, sector_val, curryr, currqtr, filey
         x_options_list = sorted(x_options_list, key=lambda v: v.upper())
         y_options_list = sorted(y_options_list, key=lambda v: v.upper())
 
+        if input_id != 'scatter_comparison_radios' and not imp_switch:
+            x_var = no_update
+            y_var = no_update
+
         return [{'label': i, 'value': i} for i in x_options_list], [{'label': i, 'value': i} for i in y_options_list], lock, placeholder, x_var, y_var
 
 @forecast.callback([Output('scatter_graph', 'figure'),
@@ -3282,11 +3296,6 @@ def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_on
         if comp_value == "r":
             match_list = {'rolscon': 'cons', 'rolsvac_chg': 'vac_chg', 'grolsmre': 'G_mrent', 'rolsgap_chg': 'gap_chg', 'rol-emp_chg': 'emp_chg', 'rol_off_emp_chg': 'off_emp_chg', 'rol_ind_emp_chg': 'ind_emp_chg'}
             xaxis_var = match_list[yaxis_var]
-
-        if year_value != curryr and "implied" in xaxis_var:
-            xaxis_var = xaxis_var[8:]
-        if year_value != curryr and "implied" in yaxis_var:
-            yaxis_var = yaxis_var[8:]
         
         # Tag subs as flagged or not flagged based on the xaxis var (or the yaxis var if the x is employment) for color purposes on scatter plot
         if aggreg_met == False:

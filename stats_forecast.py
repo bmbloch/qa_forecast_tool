@@ -7,6 +7,7 @@ from scipy.stats import zscore
 from IPython.core.display import display, HTML
 from pathlib import Path
 import math
+from timer import Timer
 
 # Function that drops columns of the dataframe that will be recalculated each time a sub is examined for flags
 def drop_cols(data_in):
@@ -53,19 +54,10 @@ def min_max(data_in, variable, curryr):
         data[col_name_min] = data[(data['forecast_tag'] == 0) & (data['qtr'] == 5) & (data['yr'] >= curryr - 10)].groupby('identity')[variable].transform('min')
         data[col_name_max] = data[(data['forecast_tag'] == 0) & (data['qtr'] == 5) & (data['yr'] >= curryr - 10)].groupby('identity')[variable].transform('max')
     
-    data = fill_forward(data, col_name_min, 'identity_fill_1')
-    data = fill_forward(data, col_name_max, 'identity_fill_1')
-
-    return data
-
-# Function that will "drag down" the applicable stat into subsequent periods when neccesary
-def fill_forward(data_in, variable, get_row):
-
-    data = data_in.copy()
-
-    data[variable] = np.where((data['forecast_tag'] != 0), data.loc[data[get_row]][variable], data[variable])
-    if get_row == 'identity_fill_2':
-        data[variable] = np.where(data['forecast_tag'] == 1, data[variable], np.nan)
+    data[col_name_min] = data.groupby('identity')[col_name_min].ffill()
+    data[col_name_min] = np.where((data['forecast_tag'] != 0), data[col_name_min], np.nan)
+    data[col_name_max] = data.groupby('identity')[col_name_max].ffill()
+    data[col_name_max] = np.where((data['forecast_tag'] != 0), data[col_name_max], np.nan)
 
     return data
 
@@ -274,7 +266,8 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
 
     # Calculate the number of times a sub has seen new construction in the past 5 years
     data['five_yr_count_cons'] = data[(data['yr'] > curryr - 5) & (data['forecast_tag'] == 0) & (data['qtr'] == 5) & (data['cons'] > 0)].groupby('identity')['cons'].transform('count')
-    data = fill_forward(data, 'five_yr_count_cons', 'identity_fill_1')
+    data['five_yr_count_cons'] = data.groupby('identity')['five_yr_count_cons'].ffill()
+    data['five_yr_count_cons'] = np.where((data['forecast_tag'] != 0), data['five_yr_count_cons'], np.nan)
 
     # Calculate the 5th and 95th percentile for gap level on the national level by subsector
     gap_quarts = data.copy()
@@ -294,14 +287,17 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     # Calculate the average US vac level by subsector    
     data['us_vac_level_avg'] = data[(data['yr'] == curryr) & (data['qtr'] == currqtr)].groupby(['subsector'])['vac'].transform('mean')
     data['us_vac_level_avg'] = data.groupby('identity')['us_vac_level_avg'].ffill()
+    data['us_vac_level_avg'] = np.where((data['forecast_tag'] != 0), data['us_vac_level_avg'], np.nan)
 
     # Calculate the historical average vacancy change
     data['absolute_vac_chg'] = abs(data['vac_chg'])
     data['avg_vac_chg'] = data[(data['qtr'] == 5) & (data['yr'] < curryr)].groupby('identity')['absolute_vac_chg'].transform('mean')
-    data = fill_forward(data, 'avg_vac_chg', 'identity_fill_1')
+    data['avg_vac_chg'] = data.groupby('identity')['avg_vac_chg'].ffill()
+    data['avg_vac_chg'] = np.where((data['forecast_tag'] != 0), data['avg_vac_chg'], np.nan)
     data['std_dev_vac_chg'] = data[(data['qtr'] == 5) & (data['yr'] < curryr)].groupby('identity')['absolute_vac_chg'].transform('std', ddof=0)
     data['std_dev_vac_chg'] = np.where((data['std_dev_vac_chg'] < 0.000005) & (data['std_dev_vac_chg'] > 0), 0, data['std_dev_vac_chg'])
-    data = fill_forward(data, 'std_dev_vac_chg', 'identity_fill_1')
+    data['std_dev_vac_chg'] = data.groupby('identity')['std_dev_vac_chg'].ffill()
+    data['std_dev_vac_chg'] = np.where((data['forecast_tag'] != 0), data['std_dev_vac_chg'], np.nan)
     data['avg_vac_chg'] = round(data['avg_vac_chg'], 3)
     data['std_dev_vac_chg'] = round(data['std_dev_vac_chg'], 3)
     data = data.drop(['absolute_vac_chg'], axis=1)
@@ -309,22 +305,26 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     # Calculate the trend construction for the current year that has already been built and join it to the main dataframe, as well as the implied construction
     if currqtr != 4:
         data['curr_yr_trend_cons'] = data[(data['yr'] == curryr) & (data['qtr'] <= currqtr)].groupby('identity')['cons'].transform('sum')
-        data = fill_forward(data, 'curr_yr_trend_cons', 'identity_fill_2')
+        data['curr_yr_trend_cons'] = data.groupby('identity')['curr_yr_trend_cons'].ffill()
+        data['curr_yr_trend_cons'] = np.where((data['forecast_tag'] == 1), data['curr_yr_trend_cons'], np.nan)
         data['implied_cons'] = np.where(data['forecast_tag'] == 1, data['cons'] - data['curr_yr_trend_cons'], np.nan)
     
     # Calculate the trend absorption for the current year and join it to the main dataframe, as well as the implied absorption
     if currqtr != 4:
         data['total_trend_abs'] = data[(data['yr'] == curryr) & (data['forecast_tag'] != 1)].groupby('identity')['abs'].transform('sum')
-        data = fill_forward(data, 'total_trend_abs', 'identity_fill_2')
+        data['total_trend_abs'] = data.groupby('identity')['total_trend_abs'].ffill()
+        data['total_trend_abs'] = np.where((data['forecast_tag'] == 1), data['total_trend_abs'], np.nan)
         data['implied_abs'] = np.where(data['forecast_tag'] == 1, data['abs'] - data['total_trend_abs'], np.nan)
 
     # Calculate the historical average market rent change
     data['avg_G_mrent_chg'] = data[(data['qtr'] == 5) & (data['yr'] < curryr)].groupby('identity')['G_mrent'].transform('mean')
-    data = fill_forward(data, 'avg_G_mrent_chg', 'identity_fill_1')
+    data['avg_G_mrent_chg'] = data.groupby('identity')['avg_G_mrent_chg'].ffill()
+    data['avg_G_mrent_chg'] = np.where((data['forecast_tag'] != 0), data['avg_G_mrent_chg'], np.nan)
     data['avg_G_mrent_chg'] = round(data['avg_G_mrent_chg'], 3)
     data['std_dev_G_mrent_chg'] = data[(data['qtr'] == 5) & (data['yr'] < curryr)].groupby('identity')['G_mrent'].transform('std', ddof=0)
     data['std_dev_G_mrent_chg'] = np.where((data['std_dev_G_mrent_chg'] < 0.000005) & (data['std_dev_G_mrent_chg'] > 0), 0, data['std_dev_G_mrent_chg'])
-    data = fill_forward(data, 'std_dev_G_mrent_chg', 'identity_fill_1')
+    data['std_dev_G_mrent_chg'] = data.groupby('identity')['std_dev_G_mrent_chg'].ffill()
+    data['std_dev_G_mrent_chg'] = np.where((data['forecast_tag'] != 0), data['std_dev_G_mrent_chg'], np.nan)
     data['avg_G_mrent_chg'] = round(data['avg_G_mrent_chg'], 3)
     data['std_dev_G_mrent_chg'] = round(data['std_dev_G_mrent_chg'], 3)
 
@@ -456,7 +456,8 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
 
     # Calculate the average NC adjusted market rent change for each submarket
     data['avg_G_mrent_chg_nonc'] = data[(data['qtr'] == 5) & (data['yr'] < curryr)].groupby('identity')['G_mrent_nonc'].transform('mean')
-    data = fill_forward(data, 'avg_G_mrent_chg_nonc', 'identity_fill_1')
+    data['avg_G_mrent_chg_nonc'] = data.groupby('identity')['avg_G_mrent_chg_nonc'].ffill()
+    data['avg_G_mrent_chg_nonc'] = np.where((data['forecast_tag'] != 0), data['avg_G_mrent_chg_nonc'], np.nan)
     data['avg_G_mrent_chg_nonc'] = round(data['avg_G_mrent_chg_nonc'], 3)
 
     # For forecast years, fill in the G_mrent_nonc variable by subtracting a portion of the avg nc premium for the sub's trend based on the cons percentage of inventory, otherwise just fill in the G_mrent
@@ -497,22 +498,28 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
         data['cons_use'] = np.where(data['forecast_tag'] == 1, data['h'], data['cons'])
         data['three_yr_avg_cons'] = data[(data['yr'] > curryr - 3) & (data['yr'] <= curryr) & (data['qtr'] == 5)].groupby('identity')['cons_use'].transform('mean')
         data['five_yr_avg_cons'] = data[(data['yr'] > curryr - 5) & (data['yr'] <= curryr) & (data['qtr'] == 5)].groupby('identity')['cons_use'].transform('mean')
-        data = fill_forward(data, 'three_yr_avg_cons', 'identity_fill_1')
-        data = fill_forward(data, 'five_yr_avg_cons', 'identity_fill_1')
+        data['three_yr_avg_cons'] = data.groupby('identity')['three_yr_avg_cons'].ffill()
+        data['three_yr_avg_cons'] = np.where((data['forecast_tag'] != 0), data['three_yr_avg_cons'], np.nan)
+        data['five_yr_avg_cons'] = data.groupby('identity')['five_yr_avg_cons'].ffill()
+        data['five_yr_avg_cons'] = np.where((data['forecast_tag'] != 0), data['five_yr_avg_cons'], np.nan)
         data = data.drop(['cons_use'], axis=1)
     elif currqtr == 4:
         data['three_yr_avg_cons'] = data[(data['yr'] > curryr - 4) & (data['yr'] < curryr) & (data['qtr'] == 5)].groupby('identity')['cons'].transform('mean')
         data['five_yr_avg_cons'] = data[(data['yr'] > curryr - 6) & (data['yr'] < curryr) & (data['qtr'] == 5)].groupby('identity')['cons'].transform('mean')
-        data = fill_forward(data, 'three_yr_avg_cons', 'identity_fill_1')
-        data = fill_forward(data, 'five_yr_avg_cons', 'identity_fill_1')
+        data['three_yr_avg_cons'] = data.groupby('identity')['three_yr_avg_cons'].ffill()
+        data['three_yr_avg_cons'] = np.where((data['forecast_tag'] != 0), data['three_yr_avg_cons'], np.nan)
+        data['five_yr_avg_cons'] = data.groupby('identity')['five_yr_avg_cons'].ffill()
+        data['five_yr_avg_cons'] = np.where((data['forecast_tag'] != 0), data['five_yr_avg_cons'], np.nan)
 
     col_list = ['abs', 'abs_nonc', 'G_mrent', 'G_mrent_nonc', 'emp_chg']
     for var in col_list:
         data['three_yr_avg_' + var] = data[(data['yr'] > curryr - 4) & (data['yr'] < curryr) & (data['qtr'] == 5)].groupby('identity')[var].transform('mean')
-        data = fill_forward(data, 'three_yr_avg_' + var, 'identity_fill_1')
+        data['three_yr_avg_' + var] = data.groupby('identity')['three_yr_avg_' + var].ffill()
+        data['three_yr_avg_' + var] = np.where((data['forecast_tag'] != 0), data['three_yr_avg_' + var], np.nan)
     
     data['five_yr_avg_G_mrent'] = data[(data['yr'] > curryr - 6) & (data['yr'] < curryr) & (data['qtr'] == 5)].groupby('identity')['G_mrent'].transform('mean')
-    data = fill_forward(data, 'five_yr_avg_G_mrent', 'identity_fill_1')
+    data['five_yr_avg_G_mrent'] = data.groupby('identity')['five_yr_avg_G_mrent'].ffill()
+    data['five_yr_avg_G_mrent'] = np.where((data['forecast_tag'] != 0), data['five_yr_avg_G_mrent'], np.nan)
 
     if sector_val != "apt":
         data['three_yr_avg_cons'] = round(data['three_yr_avg_cons'], -3)
@@ -597,7 +604,8 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     # Calculate the 10 year average historical vacancy for the submarket, as well as the 35th percentile to represent a better than average level (since vac is a good when low, use the 35th percentile)
     data['10_yr_vac'] = data[(data['forecast_tag'] == 0) & (data['yr'] >= curryr - 10) & (data['qtr'] == 5)].groupby('identity')['vac'].transform('mean')
     data['10_yr_vac'] = round(data['10_yr_vac'], 4)
-    data = fill_forward(data, '10_yr_vac', 'identity_fill_1')
+    data['10_yr_vac'] = data.groupby('identity')['10_yr_vac'].ffill()
+    data['10_yr_vac'] = np.where((data['forecast_tag'] != 0), data['10_yr_vac'], np.nan)
     temp =  pd.DataFrame(data[(data['forecast_tag'] == 0) & (data['qtr'] == 5) & (data['yr'] >= curryr - 10)].groupby('identity')['vac'].quantile(0.35))
     temp.columns = ['10_yr_35p_vac']
     data = data.join(temp, on='identity')
@@ -625,6 +633,7 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     return data
 
 # This function will calculate the key metrics needed to assess viability of oob forecast
+@Timer("Calc stats")
 def calc_stats(data_in, curryr, currqtr, first, sector_val):
     print("start calc stats")
 
@@ -632,11 +641,6 @@ def calc_stats(data_in, curryr, currqtr, first, sector_val):
 
     if first == False:
         data = drop_cols(data)
-
-    # Use these identities to "drag down" the values into subsequent periods when necessary
-    data['identity_fill_1'] = data['identity'] + str(curryr - 1) + "5"
-    data['identity_fill_2'] = data['identity'] + str(curryr) + str(currqtr)
-    data['identity_fill_3'] = data['identity'] + str(curryr - 1) + str(currqtr + 1)
 
     # Create a column called Recalc Insert, so that we can drop everything created after it from the dataframe and the stats can be recalculated after a fix is entered
     data['Recalc Insert'] = np.nan
@@ -832,9 +836,7 @@ def calc_stats(data_in, curryr, currqtr, first, sector_val):
     data['prev_emp_chg'] = np.where((data['yr'] == curryr), data[emp_chg_use].shift(periods=period), data[emp_chg_use].shift(1))
     data['prev_G_mrent'] = np.where(data['forecast_tag'] == 0, np.nan, data['prev_G_mrent'])
     data['prev_cons'] = np.where(data['forecast_tag'] == 0, np.nan, data['prev_cons'])
-    data['prev_emp_chg'] = np.where(data['forecast_tag'] == 0, np.nan, data['prev_emp_chg']) 
-
-    data = data.drop(['identity_fill_1', 'identity_fill_2', 'identity_fill_3'], axis=1)
+    data['prev_emp_chg'] = np.where(data['forecast_tag'] == 0, np.nan, data['prev_emp_chg'])
 
     print("end calc stats")
 

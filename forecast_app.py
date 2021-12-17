@@ -2573,7 +2573,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
         
         input_id = get_input_id()
 
-        sum_style = {'display': 'block', 'padding-top': '20px'}
+        sum_style = {'display': 'block', 'padding-top': '18px'}
         rank_style = {'display': 'block'}
 
         if input_id == 'store_init_flags':

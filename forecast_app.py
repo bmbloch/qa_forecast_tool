@@ -2774,7 +2774,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             style_noprev = {'display': 'none'}
         else:
             if (has_flag == 0 or has_flag == 2) and (show_skips == False or len(p_skip_list) == 0):
-                style_noprev = {'padding-left': '10px', 'width': '60%', 'display': 'inline-block', 'font-size': '24px', 'vertical-align': 'top', 'text-align': 'center'}
+                style_noprev = {'padding-left': '10px', 'width': '100%', 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top', 'text-align': 'center'}
             else:
                 style_noprev = {'padding-left': '10px', 'width': '60%', 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top'}
         if len(issue_description_resolved) == 0:

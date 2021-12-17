@@ -2678,7 +2678,8 @@ def remove_options(submit_button, drop_val, sector_val, success_init):
                     Output('process_subsequent_container', 'style'),
                     Output('comment_cons', 'value'),
                     Output('comment_avail', 'value'),
-                    Output('comment_rent', 'value')],
+                    Output('comment_rent', 'value'),
+                    Output('show_skips_container', 'style')],
                     [Input('sector', 'data'),
                     Input('dropman', 'value'),
                     Input('store_all_buttons', 'data'),
@@ -2717,6 +2718,39 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
         shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
+        # Reset the shim view to all nulls, unless the user is previewing a change, or if a non button input was selected and there are shims entered
+        if len(shim_data) == 0:
+            shim_data = data.copy()
+            shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
+            shim_data = shim_data[(shim_data['identity'] == drop_val) ].tail(10)
+        shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
+        highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
+
+        # If the user changes the sub, reset the stored values for flag choices
+        if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
+            flags_resolved = []
+            flags_unresolved = []
+            flags_new = []
+            flags_skipped = []
+
+        # Set the color of the show skips text based on whether there are flags that have been skipped
+        if data.loc[drop_val + str(curryr) + str(5)]['flag_skip'] != '':
+            has_skip = False
+            for skip in data.loc[drop_val + str(curryr) + str(5)]['flag_skip'].split(','):
+                if skip[-4:] == str(yr_val):
+                    has_skip = True
+                    break
+            if has_skip:
+                color = 'green'
+                font_weight = 'bold'
+            elif not has_skip:
+                color = 'red'
+                font_weight = 'normal'
+        else:
+            color = 'red'
+            font_weight = 'normal'
+        show_skips_style = {'padding-left': '10px', 'width': '40%', 'display': 'inline-block', 'vertical-align': 'top', 'color': color, 'font-weight': font_weight}
+
         # Since the flag counter was moved to its own callback, we can simply drop all flag cols here because we no longer need them to reduce dimensionality
         data = data.drop(flag_cols, axis=1)
 
@@ -2728,14 +2762,6 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
                 edit_dict[x] = False
             else:
                 edit_dict[x] = True
-
-        # Reset the shim view to all nulls, unless the user is previewing a change, or if a non button input was selected and there are shims entered
-        if len(shim_data) == 0:
-            shim_data = data.copy()
-            shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
-            shim_data = shim_data[(shim_data['identity'] == drop_val) ].tail(10)
-        shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
-        highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
 
         # If the user changes the sub they want to edit, reset the shim section
         if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
@@ -2970,7 +2996,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
                             for i in range(3, len(shim_data.columns))], highlighting_shim, display_data.to_dict('records'), [{'name': [data_title, display_data.columns[i]], 'id': display_data.columns[i], 'type': type_dict_data[display_data.columns[i]], 'format': format_dict_data[display_data.columns[i]]} 
                             for i in range(0, len(display_data.columns))], highlighting_display, key_metrics.to_dict('records'), [{'name': [title_met, key_metrics.columns[i]], 'id': key_metrics.columns[i], 'type': type_dict_metrics[key_metrics.columns[i]], 'format': format_dict_metrics[key_metrics.columns[i]]} 
                             for i in range(0, len(key_metrics.columns))], highlighting_metrics, key_emp.to_dict('records'), [{'name': [title_emp, key_emp.columns[i]], 'id': key_emp.columns[i], 'type': type_dict_emp[key_emp.columns[i]], 'format': format_dict_emp[key_emp.columns[i]]} 
-                            for i in range(0, len(key_emp.columns))], highlighting_emp, issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, style_noprev, style_resolved, style_unresolved, style_new, style_skipped, go.Figure(data=data_vac), go.Figure(data=data_rent), spacing_style_shim, cons_comment, avail_comment, rent_comment
+                            for i in range(0, len(key_emp.columns))], highlighting_emp, issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, style_noprev, style_resolved, style_unresolved, style_new, style_skipped, go.Figure(data=data_vac), go.Figure(data=data_rent), spacing_style_shim, cons_comment, avail_comment, rent_comment, show_skips_style
 
 @forecast.callback([Output('vac_series_met', 'figure'),
                     Output('rent_series_met', 'figure'),

@@ -223,7 +223,7 @@ def get_app_layout(curryr, currqtr, sector_val):
                                                 {'label': ' Show Skips', 'value': 'Y'},
                                                 ],
                                     labelStyle={'display': 'block'}), 
-                                ],  style={'padding-left': '10px', 'width': '40%', 'display': 'inline-block', 'vertical-align': 'top'}),
+                                ], id='show_skips_container'),
                         ], style={'display': 'block'}),
                         html.Div([
                             dcc.Textarea(

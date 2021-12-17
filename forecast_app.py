@@ -3354,7 +3354,7 @@ def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_on
                     graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
                     graph_data = graph_data.drop(['tot_flags'], axis=1)
                 else:
-                    graph_data = sum_flags(graph_data, ['c_flag_rol', 'v_flag_rol', 'v_flag_improls', 'v_flag_switch', 'g_flag_rol', 'g_flag_improls', 'e_flag_rol', 'e_flag_improls', 'e_flag_rolvac'], year_value)
+                    graph_data = sum_flags(graph_data, ['v_flag_emp_rol', 'g_flag_emp_rol', 'e_flag_emp_rol'], year_value)
                     graph_data['flagged_status'] = np.where(graph_data['tot_flags'] > 0, 1, 0)
                     graph_data = graph_data.drop(['tot_flags'], axis=1)            
 
@@ -3387,7 +3387,7 @@ def produce_scatter_graph(xaxis_var, yaxis_var, year_value, comp_value, flags_on
         
         scatter_layout = create_scatter_plot(scatter_graph, xaxis_var, yaxis_var, comp_value, aggreg_met)
 
-        #Need to set this variable so that the succeeding callbacks will only fire once the intial load is done. 
+        # Need to set this variable so that the succeeding callbacks will only fire once the intial load is done. 
         # This works because it makes the callbacks that use elements produced in this callback have an input that is linked to an output of this callback, ensuring that they will only be fired once this one completes
         scatter_check = True
 

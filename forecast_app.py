@@ -2718,21 +2718,6 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
         shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
-        # Reset the shim view to all nulls, unless the user is previewing a change, or if a non button input was selected and there are shims entered
-        if len(shim_data) == 0:
-            shim_data = data.copy()
-            shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
-            shim_data = shim_data[(shim_data['identity'] == drop_val) ].tail(10)
-        shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
-        highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
-
-        # If the user changes the sub, reset the stored values for flag choices
-        if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
-            flags_resolved = []
-            flags_unresolved = []
-            flags_new = []
-            flags_skipped = []
-
         # Set the color of the show skips text based on whether there are flags that have been skipped
         if data.loc[drop_val + str(curryr) + str(5)]['flag_skip'] != '':
             has_skip = False
@@ -2762,6 +2747,14 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
                 edit_dict[x] = False
             else:
                 edit_dict[x] = True
+
+        # Reset the shim view to all nulls, unless the user is previewing a change, or if a non button input was selected and there are shims entered
+        if len(shim_data) == 0:
+            shim_data = data.copy()
+            shim_data[['cons', 'avail', 'mrent', 'merent']] = np.nan
+            shim_data = shim_data[(shim_data['identity'] == drop_val) ].tail(10)
+        shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
+        highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
 
         # If the user changes the sub they want to edit, reset the shim section
         if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:

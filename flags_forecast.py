@@ -405,6 +405,13 @@ def v_ratio(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     elif currqtr == 4:
         data['v_flag_ratio'] = np.where((data['v_flag_ratio'] == 1) & (data['vac'] < data['10_yr_vac'] - 0.01) & ((data['cons'] - data['abs']) / data['inv'] <= 0.02) & (data['abs_cons_r'] < 1), 0, data['v_flag_ratio'])
     
+    # Dont flag if the vac level is in line with the current trend vac and abs cons ratio is not causing a large decrease in vac
+    data['curr_trend_vac'] = np.where((data['yr'] == curryr) & (data['qtr'] == currqtr), data['vac'], np.nan)
+    data['curr_trend_vac'] = data.groupby('identity')['curr_trend_vac'].ffill()
+    data['v_flag_ratio'] = np.where((data['v_flag_ratio'] == 1) & (data['vac'] > data['curr_trend_vac'] - 0.01) & (data['vac_chg'] > -0.01) & (data['abs_cons_r'] > 1), 0, data['v_flag_ratio'])
+    if sector_val != "ind":
+        data = data.drop(['curr_trend_vac'],axis=1)
+
     # Dont flag if employment change indicates large departure from history
     data['v_flag_ratio'] = np.where((data['v_flag_ratio'] == 1) & (data['abs_cons_r'] < data['low_r_threshold']) & (data['emp_chg_z'] <= -1.5), 999999999, data['v_flag_ratio'])
                 
@@ -793,8 +800,6 @@ def v_level(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     # Dont flag if the sector is industrial and the 10 year vacancy level is high and the decrease in vac is reasonable.
     # Since Ind subs typically had inflated vac levels compared to what other market providers published, moving away from a high ten year vac level is understandable
     if sector_val == "ind":
-        data['curr_trend_vac'] = np.where((data['yr'] == curryr) & (data['qtr'] == currqtr), data['vac'], np.nan)
-        data['curr_trend_vac'] = data.groupby('identity')['curr_trend_vac'].ffill()
         data['outer_vac_chg'] = np.where((data['yr'] == curryr + 5), data['vac'] - data['vac'].shift(5), np.nan)
         data['outer_vac_chg'] = data.groupby('identity')['outer_vac_chg'].ffill()
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= data['us_vac_level_avg'] - 0.005) & ((data['outer_vac_chg'] > -0.01) | ((data['outer_vac_chg'] > -0.025) & (data['vac'] > data['10_yr_vac'] - 0.025))), 0, data['v_flag_level'])

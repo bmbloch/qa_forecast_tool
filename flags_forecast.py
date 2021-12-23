@@ -362,8 +362,9 @@ def v_high(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 def v_ratio(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     # Set the threshold for abs of construction being too low. Use the historical average for the sub if it is in a reasonable range, otherwise use a default of 0.6
-    data['low_r_threshold'] = np.where((data['avg_abs_cons'] >= 0.2) & (data['avg_abs_cons'].isnull() == False) & (data['avg_abs_cons'] < 0.6),
-                                          data['avg_abs_cons'], 0.5)
+    baseline = 0.5
+    data['low_r_threshold'] = np.where((data['avg_abs_cons'] >= 0.2) & (data['avg_abs_cons'].isnull() == False) & (data['avg_abs_cons'] < baseline),
+                                          data['avg_abs_cons'], baseline)
 
     data['high_r_threshold'] = np.where((data['vac'] > data['10_yr_vac']), 1.5, 1.2)
 

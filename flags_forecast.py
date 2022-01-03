@@ -1113,8 +1113,23 @@ def g_z(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['lim_hist'] <= 5) & (data['forecast_tag'] == 1) & (data['avg_G_mrent_chg'] > data['us_avg_G_mrent_chg']) & (data['implied_G_mrent'] < data['us_avg_G_mrent_chg'] + 0.02) & (data['G_mrent_quart'] == 1), 0, data['g_flag_z'])
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['lim_hist'] <= 5) & (data['forecast_tag'] == 2) & (data['avg_G_mrent_chg'] < data['us_avg_G_mrent_chg']) & (data['G_mrent'] > data['us_avg_G_mrent_chg'] - 0.02) & (data['G_mrent_quart'] == 4), 0, data['g_flag_z'])
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['lim_hist'] <= 5) & (data['forecast_tag'] == 2) & (data['avg_G_mrent_chg'] > data['us_avg_G_mrent_chg']) & (data['G_mrent'] < data['us_avg_G_mrent_chg'] + 0.02) & (data['G_mrent_quart'] == 1), 0, data['g_flag_z'])
-    
-    data = data.drop(['us_avg_G_mrent_chg'], axis=1)
+
+    # Dont flag if the rent change is in line with the current year trend rent chg (or last years trend rent if this is Q4)
+    if currqtr != 4:
+        data['curr_trend_G_mrent'] = np.where((data['yr'] == curryr) & (data['qtr'] == 5), data['G_mrent'], np.nan)
+    elif currqtr == 4:
+        data['curr_trend_G_mrent'] = np.where((data['yr'] == curryr - 1) & (data['qtr'] == 5), data['G_mrent'], np.nan)
+    data['curr_trend_G_mrent'] = data.groupby('identity')['curr_trend_G_mrent'].ffill()
+    if currqtr != 4:
+        data['implied_check'] = np.where(data['implied_G_mrent'] <= data['total_trend_G_mrent'] / (4 - currqtr), 1, 0)
+        data['implied_check'] = np.where((data['yr'] > curryr), np.nan, data['implied_check'])
+        data['implied_check'] = data.groupby('identity')['implied_check'].ffill()
+        data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['forecast_tag'] == 2) & (abs(data['G_mrent'] - data['curr_trend_G_mrent']) <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0) & (data['implied_check'] == 1), 0, data['g_flag_z'])
+        data = data.drop(['implied_check'], axis=1)
+    elif currqtr == 4:
+        data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (abs(data['G_mrent'] - data['curr_trend_G_mrent']) <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0), 0, data['g_flag_z'])
+
+    data = data.drop(['us_avg_G_mrent_chg', 'curr_trend_G_mrent'], axis=1)
 
     # Dont flag if employment change indicates large change from history, or if the prior year shows large negative change from history and the curr year forecast is an improvement
     data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['G_mrent'] > data['avg_G_mrent_chg']) & (data['emp_chg_z'] >= 1.5), 999999999, data['g_flag_z'])

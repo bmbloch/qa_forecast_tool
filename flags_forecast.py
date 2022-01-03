@@ -1199,6 +1199,9 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
                                       (round(data['G_mrent'], 3) > round(data['max_G_mrent'], 3)),
                                       1, 0)
 
+    # Dont flag if the value is close to the most recent trend rent chg
+    data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['G_mrent'] < data['curr_trend_G_mrent'] + 0.005) & ((data['implied_check'] == 1) | (data['forecast_tag'] == 2)), 0, data['g_flag_max'])
+
     # Dont flag if this is not Q4, and the implied chg is less than the typical historical implied growth and the quartile is not 1 (which is measured on implied growth in a non q4 quarter)
     if currqtr != 4:
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['forecast_tag'] == 1) & (data['implied_G_mrent'] < data['hist_implied_G_mrent']) & (data['G_mrent_quart'] > 1), 0, data['g_flag_max'])

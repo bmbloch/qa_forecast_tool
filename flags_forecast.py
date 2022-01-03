@@ -1216,7 +1216,6 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     if currqtr != 4:
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] < 3) & (data['forecast_tag'] == 1) & (data['implied_check'] == 1), 0, data['g_flag_max'])
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] < 3) & (data['forecast_tag'] == 2) & (data['G_mrent'] - data['curr_trend_G_mrent'] <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0) & (data['implied_check'] == 1), 0, data['g_flag_max'])
-        data = data.drop(['implied_check'], axis=1)
     elif currqtr == 4:
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] < 3) & (data['G_mrent'] - data['curr_trend_G_mrent'] <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0), 0, data['g_flag_max'])
 
@@ -1241,8 +1240,6 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['calc_gmax'] = np.where((data['g_flag_max'] == 1), data['G_mrent'] - data['max_G_mrent'], np.nan)
     calc_names.append(list(data.columns)[-1])
 
-    data = data.drop(['curr_trend_G_mrent'], axis=1)
-
     return data, calc_names
 
 # Flag if the market rent growth forecast is well off the three year trend
@@ -1262,9 +1259,6 @@ def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     # Dont flag if the sub has less than 3 years of history and the rent change is reasonable
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['lim_hist'] <= 3) & ((data['G_mrent_quart'] == 2) | (data['G_mrent_quart'] == 3)), 0, data['g_flag_3_trend'])
     
-    # Dont flag if this is curryr + 1 and the rent chg is in line with the curryr rent chg
-    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['yr'] == curryr + 1) & (abs((data['G_mrent'] - data['G_mrent'].shift(1)) / data['G_mrent'].shift(1)) < 0.25), 0, data['g_flag_3_trend'])
-    
     # Dont flag if either above 3 year avg but in bottom quartile, or below 3 year avg but in upper quartile
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] < data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent_quart'] == 1), 0, data['g_flag_3_trend'])
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent_quart'] == 4), 0, data['g_flag_3_trend'])
@@ -1279,6 +1273,10 @@ def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     # Dont flag if the forecast is above the three year trend and the difference can be attributed to new construction premium
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] <= (data['cons_prem'] * data['cons_prem_mod'])) & (data['cons'] / data['inv'] >= 0.015), 0, data['g_flag_3_trend'])
 
+    # Dont flag if this is Q3 and the rent growth is in line with what weve observed in the recent trend year
+    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] == 1) & (data['G_mrent'] < data['curr_trend_G_mrent'] + 0.005) & (data['implied_check'] == 1), 0, data['g_flag_3_trend'])
+    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] == 2) & (data['G_mrent'] > data['curr_trend_G_mrent'] - 0.005) & (data['implied_check'] == 1), 0, data['g_flag_3_trend'])
+    
     # Dont flag if employment change indicates big change from history, either in curryr or the prior year
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] < data['emp_chg_z'] / 150) & (data['emp_chg_z'] >= 1), 0, data['g_flag_3_trend'])
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] < data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] > data['emp_chg_z'] / 150) & (data['emp_chg_z'] <= -1), 0, data['g_flag_3_trend'])
@@ -1298,6 +1296,10 @@ def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     
     data['calc_g3trend'] = np.where((data['g_flag_3_trend'] == 1), abs((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)), np.nan)
     calc_names.append(list(data.columns)[-1])
+
+    if currqtr != 4:
+        data = data.drop(['implied_check'], axis=1)
+    data = data.drop(['curr_trend_G_mrent'], axis=1)
 
     return data, calc_names
 

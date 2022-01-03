@@ -1246,11 +1246,11 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     data['g_flag_3_trend'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) | (data['yr'] == curryr + 1)) & 
-                                         ((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001) > 0.25),
+                                         (abs((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)) > 0.25) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']),
                                          1, 0)
 
     data['g_flag_3_trend'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) | (data['yr'] == curryr + 1)) &  
-                                         ((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001) < -0.25),
+                                         (abs((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)) > 0.25) & (data['G_mrent'] < data['three_yr_avg_G_mrent_nonc']),
                                          2, data['g_flag_3_trend'])
 
     # Handle cases that are close to the three year avg, but due to low magnitudes, get flagged when using percentage to evaluate distance

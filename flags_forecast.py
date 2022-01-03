@@ -1125,7 +1125,6 @@ def g_z(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['implied_check'] = np.where((data['yr'] > curryr), np.nan, data['implied_check'])
         data['implied_check'] = data.groupby('identity')['implied_check'].ffill()
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['forecast_tag'] == 2) & (abs(data['G_mrent'] - data['curr_trend_G_mrent']) <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0) & (data['implied_check'] == 1), 0, data['g_flag_z'])
-        data = data.drop(['implied_check'], axis=1)
     elif currqtr == 4:
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (abs(data['G_mrent'] - data['curr_trend_G_mrent']) <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0), 0, data['g_flag_z'])
 
@@ -1205,8 +1204,12 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['forecast_tag'] == 1) & (data['implied_G_mrent'] < data['hist_implied_G_mrent']) & (data['G_mrent_quart'] > 1), 0, data['g_flag_max'])
     
     # Dont flag if the sub has a limited trend history and the market rent growth is not in the first quartile nationally
-    data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] <= 3) & (data['G_mrent_quart'] != 1) & (data['G_mrent'] < data['max_G_mrent'] + 0.02), 0, data['g_flag_max'])
+    if currqtr == 4:
+        data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] <= 5) & (data['G_mrent_quart'] != 1) & (data['G_mrent'] < data['max_G_mrent'] + 0.02), 0, data['g_flag_max'])
+    elif currqtr != 4:
+        data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] <= 5) & (data['G_mrent_quart'] != 1) & (data['implied_check'] == 1), 0, data['g_flag_max'])
     
+        data = data.drop(['implied_check'], axis=1)
     
     # Dont flag if employment change indicates significant change from history
     data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['emp_chg_z'] > 2), 999999999, data['g_flag_max'])

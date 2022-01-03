@@ -986,6 +986,9 @@ def manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sec
     rebench_to_check = rebench_to_check[((abs(rebench_to_check['diff_to_oob']) >= thresh) & (abs(rebench_to_check['diff_to_rol']) >= thresh) & (abs(rebench_to_check['diff_to_rol']) >= abs(rebench_to_check['orig_diff_to_rol']))) | 
                                         ((abs(rebench_to_check['diff_to_rol']) > abs(rebench_to_check['orig_diff_to_rol'])) & (abs(rebench_to_check['diff_to_rol']) >= thresh))]
     
+    rebench_to_check = rebench_to_check[((rebench_to_check[var] > rebench_to_check['rol' + var]) & (rebench_to_check['diff_to_rol'] > 0)) | ((rebench_to_check[var] < rebench_to_check['rol' + var]) & (rebench_to_check['diff_to_rol'] < 0))]
+    
+
     if len(rebench_to_check) > 0:
         check = True
         first_yr = rebench_to_check.reset_index().loc[0]['identity_row']

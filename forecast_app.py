@@ -2388,8 +2388,15 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             countdown = live_flag_count(countdown, sector_val, flag_cols)
             type_dict_countdown, format_dict_countdown = get_types(sector_val)
 
-            # Get the next sub flagged
+            # Get the next sub flagged, and if all flags were resolved and moving on to a new sub for review, clear out the stored flag decision variables
+            orig_drop_val = drop_val
             flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, False, curryr, currqtr, flag_cols, flag_flow, yr_val)
+            if orig_drop_val != drop_val and input_id == "submit-button":
+                flags_resolved = []
+                flags_unresolved = []
+                flags_new = []
+                skip_list = []
+            
             use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
         
         if rebench_trigger == False:
@@ -2756,9 +2763,13 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
 
-        # If the user changes the sub they want to edit, reset the shim section
+        # If the user changes the sub they want to edit, reset the shim section and the flag decision variables
         if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
             sub_change = True
+            flags_resolved = []
+            flags_unresolved = []
+            flags_new = []
+            flags_skipped = []
         else:
             sub_change = False
         if sub_change == True:
@@ -2786,7 +2797,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             preview_status = True
         else:
             preview_status = False
-        
+
         issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, preview_status, init_skips)
 
         if len(issue_description_noprev) == 0:

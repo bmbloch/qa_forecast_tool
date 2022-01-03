@@ -452,6 +452,10 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     data['G_mrent_nonc'] = np.where((data['forecast_tag'] == 0) & (data['G_mrent_nonc'] < 0) & (data['G_mrent'] < 0), data['G_mrent'], data['G_mrent_nonc'])
 
     data['G_mrent_nonc'] = round(data['G_mrent_nonc'], 3)
+
+    # If there is no cons, ensure that G_mrent_nonc equals G_mrent (could be some differences due to rounding)
+    data['G_mrent_nonc'] = np.where((data['cons'] == 0), data['G_mrent'], data['G_mrent_nonc'])
+    
     data = data.drop(['avg_G_mrent_qtr', 'std_dev_G_mrent_qtr', 'full_test', 'first', 'annual_only'], axis=1)
 
     # Calculate the average NC adjusted market rent change for each submarket

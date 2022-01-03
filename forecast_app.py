@@ -475,17 +475,17 @@ def create_scatter_plot(dataframe, xaxis_var, yaxis_var, comp_value, aggreg_met)
             x_data = dataframe[dataframe['variable'] == xaxis_var]['value'].astype(int)
             y_data = dataframe[dataframe['variable'] == yaxis_var]['value']
             x_tick_format = ','
-            y_tick_format = ',.02%'
+            y_tick_format = ',.01%'
         elif yaxis_var == "cons" or yaxis_var == "implied_cons":
             x_data = dataframe[dataframe['variable'] == xaxis_var]['value']
             y_data = dataframe[dataframe['variable'] == yaxis_var]['value'].astype(int)
-            x_tick_format = ',.02%'
+            x_tick_format = ',.01%'
             y_tick_format = ','
         else:
             x_data = dataframe[dataframe['variable'] == xaxis_var]['value']
             y_data = dataframe[dataframe['variable'] == yaxis_var]['value']
-            x_tick_format = ',.02%'
-            y_tick_format = ',.02%'
+            x_tick_format = ',.01%'
+            y_tick_format = ',.01%'
     
     elif comp_value == "r":
         vis_status = False
@@ -493,11 +493,11 @@ def create_scatter_plot(dataframe, xaxis_var, yaxis_var, comp_value, aggreg_met)
         if xaxis_var == "cons":
             x_tick_format = ','
         else:
-            x_tick_format = ',.02%'
+            x_tick_format = ',.01%'
         if yaxis_var == "rolscon":
             y_tick_format = ','
         else:
-            y_tick_format = ',.02%'
+            y_tick_format = ',.01%'
            
             
         dataframe['identity'] = dataframe['metcode'] + dataframe['subid'].astype(str) + dataframe['subsector']

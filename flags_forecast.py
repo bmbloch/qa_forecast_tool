@@ -1464,8 +1464,8 @@ def g_yrdiff(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     # Dont flag if the prior year's change was an outlier compared to the history at the sub, and this year's change is returning to a more normal submarket movement
     # Note: Calculate the G_mrent_z directly here, since the 2021 value stored as that var will be based on implied chg, and we want the full change for this check
     data['full_yr_z'] = np.where(data['forecast_tag'] == 1, (data['G_mrent'] - data['avg_G_mrent_chg']) / data['std_dev_G_mrent_chg'], data['G_mrent_z'])
-    data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] == 1) & (abs(data['G_mrent_z']) < 1) & (abs(data['full_yr_z'].shift(1)) > 1.5) & (data['G_mrent_z'] * data['full_yr_z'].shift(1) >= 0), 0, data['g_flag_yrdiff'])
-    data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] == 1) & (abs(data['G_mrent_z']) < 1) & (abs(data['full_yr_z'].shift(1)) > 1.5) & (abs(data['G_mrent'] - data['prev_G_mrent']) <= 0.02), 0, data['g_flag_yrdiff'])
+    data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] == 1) & (abs(data['G_mrent_z']) < 1) & (abs(data['full_yr_z'].shift(1)) > 1.5) & (data['G_mrent_z'] * data['full_yr_z'].shift(1) >= 0) & (data['lim_hist'] >= 5), 0, data['g_flag_yrdiff'])
+    data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] == 1) & (abs(data['G_mrent_z']) < 1) & (abs(data['full_yr_z'].shift(1)) > 1.5) & (abs(data['G_mrent'] - data['prev_G_mrent']) <= 0.02) & (data['lim_hist'] >= 5), 0, data['g_flag_yrdiff'])
 
     # Dont flag if the distance between the z-scores for the two years is reasonably close, and the raw difference is too
     data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] == 1) & (abs(data['G_mrent_z'] - data['full_yr_z'].shift(1)) <= 0.4) & (abs(data['G_mrent'] - data['prev_G_mrent']) <= 0.01), 0, data['g_flag_yrdiff'])

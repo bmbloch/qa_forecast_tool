@@ -31,7 +31,7 @@ from server_forecast import forecast, server
 from stats_forecast import calc_stats
 from flags_forecast import calc_flags
 from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, metro_sorts, flag_examine
-from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips
+from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips, check_skips
 from login_layout_forecast import get_login_layout
 from forecast_app_layout import get_app_layout
 from timer import Timer
@@ -2374,12 +2374,12 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
                 data = calc_stats(data, curryr, currqtr, False, sector_val)
                 data = calc_flags(data, curryr, currqtr, sector_val, use_rol_close)
 
-                # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered (example: emdir, where there was a shim to mrent that fixed the flag). We will want to remove that skip from the log
-                # if input_id == "submit-button":
-                #     if len(skip_list) > 0:
-                #         decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
-                #         data, decision_data = check_skips(data, decision_data, curryr, currqtr, sector_val, flag_cols, drop_val)
-                #         use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
+                # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered. We will want to remove that skip from the log
+                if input_id == "submit-button":
+                    if len(skip_list) > 0:
+                        decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
+                        data, decision_data = check_skips(data, decision_data, curryr, currqtr, sector_val, flag_cols, drop_val, yr_val)
+                        use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
 
             # Update countdown table
             countdown = data.copy()

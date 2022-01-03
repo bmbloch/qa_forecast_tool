@@ -1637,3 +1637,39 @@ def get_user_skips(skip_input_noprev, skip_input_resolved, skip_input_unresolved
                     skip_list += skip_list_temp
 
     return skip_list
+
+def check_skips(dataframe_in, decision_data, curryr, currqtr, sector_val, flag_cols, init_drop_val, yr_val):
+    dataframe = dataframe_in.copy()
+        
+    skips = list(dataframe[(dataframe['identity'] == init_drop_val) & (dataframe['yr'] == curryr) & (dataframe['qtr'] == 5)]['flag_skip'])
+    skips = skips[0].replace(' ', '').split(",")
+    skips = [x for x in skips if x[-4:] == str(yr_val)]
+    skips = [x[:-4] for x in skips]
+    dataframe = dataframe[(dataframe['identity'] == init_drop_val) & (dataframe['yr'] == yr_val) & (dataframe['qtr'] == 5)]
+    if len(dataframe) > 0:           
+        flags_only = dataframe.copy()
+        flags_only = flags_only[flag_cols]
+        flags = dataframe.apply(lambda row: row[row != 0].index, axis=1).values[0]
+        flags = [x for x in flags if x in flag_cols]
+        remove_skips = [x for x in skips if x not in flags]
+        if len(remove_skips) > 0:
+            new_skips = [x for x in skips if x in flags]
+            dataframe_in.loc[init_drop_val + str(curryr) + str(5), 'flag_skip'] = ''
+            for x in skips:
+                if x not in remove_skips:
+                    if dataframe_in.loc[init_drop_val + str(curryr) + str(5), 'flag_skip'] == '':
+                            dataframe_in.loc[init_drop_val + str(curryr) + str(5), 'flag_skip'] = x
+                    else:
+                        dataframe_in.loc[init_drop_val + str(curryr) + str(5), 'flag_skip'] += ", " + x
+            
+            decision_data.loc[init_drop_val + str(curryr) + str(5), 'skipped'] = ''
+            for x in skips:
+                if x not in remove_skips:
+                    if decision_data.loc[init_drop_val + str(curryr) + str(5), 'skipped'] == '':
+                            decision_data.loc[init_drop_val + str(curryr) + str(5), 'skipped'] = x
+                    else:
+                        decision_data.loc[init_drop_val + str(curryr) + str(5), 'skipped'] += ", " + x
+            if len(remove_skips) == len(skips):
+                decision_data.loc[init_drop_val + str(curryr) + str(5), 'skip_user'] = ''
+
+    return dataframe_in, decision_data

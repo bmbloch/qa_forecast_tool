@@ -14,9 +14,17 @@ from collections import OrderedDict
 def get_app_layout(curryr, currqtr, sector_val):
 
     if sector_val == "ind":
-        global_dropdown = {'Subsector': {'clearable': False, 'sortable': False, 'options': [{'label': i, 'value': i} for i in ['DW', 'F']]}, 'Year': {'clearable': False, 'sortable': False, 'options': [{'label': i, 'value': i} for i in range(curryr, curryr + 10)]}}
+        global_dropdown = {
+                            'Subsector':
+                                        {'clearable': False, 'options': [{'label': i, 'value': i} for i in ['DW', 'F']]},
+                             'Year': 
+                                        {'clearable': False, 'options': [{'label': i, 'value': i} for i in [str(x) for x in np.arange(curryr, curryr + 10)]]}
+                          }
     else:
-        global_dropdown = {'Year': {'clearable': False, 'sortable': False, 'options': [{'label': i, 'value': i} for i in range(curryr, curryr + 10)]}}
+        global_dropdown = {
+                            'Year': 
+                                    {'clearable': False, 'options': [{'label': i, 'value': i} for i in [str(x) for x in np.arange(curryr, curryr + 10)]]}
+                          }
 
     global_shim = pd.DataFrame(columns=['Subsector', 'Year', 'Cons', 'Vac Chg', 'Gmrent', 'Gap Chg'])
     if sector_val == "ind":

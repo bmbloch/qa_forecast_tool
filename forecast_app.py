@@ -2264,6 +2264,39 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
 
         return True, alert_display, alert_text
 
+
+@forecast.callback([Output('global_message', 'message'),
+                   Output('global_message', 'displayed')],
+                   [Input('global_submit_button', 'n_clicks'),
+                   Input('global_preview_button', 'n_clicks')],
+                   [State('curryr', 'data'),
+                   State('currqtr', 'data'),
+                   State('fileyr', 'data'), 
+                   State('sector', 'data'), 
+                   State('global_shim', 'data'),
+                   State('init_trigger', 'data')])
+
+def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init):
+
+    if sector_val is None or success_init == False:
+        raise PreventUpdate
+
+    else:
+        global_data = pd.DataFrame.from_dict(global_data)
+        global_data = global_data.fillna(value=np.nan)
+
+        if global_data[['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']].isnull().values.all() == True:
+            message = 'You did not enter any values'
+            message_display = True
+
+        else:
+            message = ''
+            message_display = False
+            data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
+
+        return message, message_display
+
+
 @forecast.callback([Output('manual_message', 'message'),
                     Output('manual_message', 'displayed'),
                     Output('store_all_buttons', 'data'),
@@ -2565,7 +2598,10 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
                     Output('nat_eco_table', 'data'),
                     Output('nat_eco_table', 'columns'),
                     Output('nat_eco_table', 'style_data_conditional'),
-                    Output('nat_eco_container', 'style'),],
+                    Output('nat_eco_container', 'style'),
+                    Output('global_shim_container', 'style'),
+                    Output('global_submit_container', 'style'),
+                    Output('global_preview_container', 'style')],
                     [Input('sector', 'data'),
                     Input('dropsum', 'value'),
                     Input('store_init_flags', 'data')],
@@ -2630,12 +2666,16 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
 
             type_dict_eco, format_dict_eco = get_types(sector_val)
             highlighting_eco = get_style("partial", eco_data, dash_curryr, dash_second_five)
+
+            style_global = {'display': 'block', 'width': '48%', 'padding-top': '30px'}
+            submit_global_style ={'display': 'inline-block', 'width': '22%', 'padding-top': '10px', 'padding-left': '150px'}
+            preview_global_style ={'display': 'inline-block', 'width': '18%', 'padding-top': '10px', 'padding-left': '20px'}
         
             return rank_data_met.to_dict('records'), [{'name':['Top Ten Flagged Metros OOB', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
                                 for i in range(0, len(rank_data_met.columns))], highlighting_rank_met, rank_data_sub.to_dict('records'), [{'name':['Top Ten Flagged Submarkets OOB', rank_data_sub.columns[i]], 'id': rank_data_sub.columns[i], 'type': type_dict_rank_sub[rank_data_sub.columns[i]], 'format': format_dict_rank_sub[rank_data_sub.columns[i]]} 
                                 for i in range(0, len(rank_data_sub.columns))], highlighting_rank_sub, rank_style, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, eco_data.to_dict('records'), [{'name': [header_name, eco_data.columns[i]], 'id': eco_data.columns[i], 'type': type_dict_eco[eco_data.columns[i]], 'format': format_dict_eco[eco_data.columns[i]]} 
-                                for i in range(0, len(eco_data.columns))], highlighting_eco, eco_style
+                                for i in range(0, len(eco_data.columns))], highlighting_eco, eco_style, style_global, submit_global_style, preview_global_style
         else:
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
             sum_data = summarize_flags(sum_data, drop_val, flag_cols)
@@ -2643,7 +2683,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
             
             return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
-                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, no_update, no_update, no_update, no_update
+                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, no_update, no_update, no_update, no_update, no_update, no_update, no_update
 
 @forecast.callback([Output('show_skips', 'value'),
                    Output('process_subsequent', 'value')],

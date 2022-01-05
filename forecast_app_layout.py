@@ -135,6 +135,7 @@ def get_app_layout(curryr, currqtr, sector_val):
         dcc.Store(id='store_flag_cols'),
         dcc.Store('has_flag'),
         dcc.Store(id='sector'),
+        dcc.Store(id='global_trigger')
         dcc.ConfirmDialog(id='manual_message'),
         dcc.ConfirmDialog(id='global_message'),
         html.Div([

@@ -176,6 +176,10 @@ def get_app_layout(curryr, currqtr, sector_val):
                                 id='sum_table',
                                 merge_duplicate_headers=True,
                                 style_header={'fontWeight': 'bold', 'textAlign': 'center'},
+                                style_cell_conditional=[
+                                                            {'if': {'column_id': 'Flag Type'},
+                                                                    'textAlign': 'left'}
+                                                        ],
                                                 ),
                             ], style={'display': 'none'}, id='sum_container'),
                         html.Div([

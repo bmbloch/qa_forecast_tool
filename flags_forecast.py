@@ -68,8 +68,7 @@ def c_comp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     elif currqtr == 4:
         data['c_flag_comp'] = 0
-
-        data['calc_ccomp'] = 0
+        data['calc_ccomp'] = np.nan
         calc_names.append(list(data.columns)[-1])
 
     return data, calc_names
@@ -531,7 +530,7 @@ def v_improls(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         calc_names.append(list(data.columns)[-1])
 
     elif currqtr == 4:
-        data['calc_vimprols'] = 0
+        data['calc_vimprols'] = np.nan
         calc_names.append(list(data.columns)[-1])
         data['v_flag_improls'] = 0
     
@@ -642,7 +641,7 @@ def v_imp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     elif currqtr == 4:
         data['v_flag_imp'] = 0
-        data['calc_vimp'] = 0
+        data['calc_vimp'] = np.nan
         calc_names.append(list(data.columns)[-1])
     
     return data, calc_names
@@ -1330,7 +1329,7 @@ def g_improls(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     elif currqtr == 4:
         data['g_flag_improls'] = 0
-        data['calc_gimprols'] = 0
+        data['calc_gimprols'] = np.nan
         calc_names.append(list(data.columns)[-1])    
 
     return data, calc_names
@@ -1376,7 +1375,7 @@ def g_imp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     elif currqtr == 4:
         data['g_flag_imp'] = 0
-        data['calc_gimp'] = 0
+        data['calc_gimp'] = np.nan
         calc_names.append(list(data.columns)[-1])
 
     return data, calc_names
@@ -1880,7 +1879,7 @@ def e_improls(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     elif currqtr == 4:
         data['e_flag_improls'] = 0
-        data['calc_eimprols'] = 0
+        data['calc_eimprols'] = np.nan
         calc_names.append(list(data.columns)[-1])
 
     return data, calc_names
@@ -1911,7 +1910,7 @@ def e_imp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     elif currqtr == 4:
         data['e_flag_imp'] = 0
-        data['calc_eimp'] = 0
+        data['calc_eimp'] = np.nan
         calc_names.append(list(data.columns)[-1])
 
     return data, calc_names

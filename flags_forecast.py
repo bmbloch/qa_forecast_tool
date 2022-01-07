@@ -641,8 +641,8 @@ def v_imp(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         calc_names.append(list(data.columns)[-1])
 
     elif currqtr == 4:
-        data['calc_vimp'] = 0
         data['v_flag_imp'] = 0
+        data['calc_vimp'] = 0
         calc_names.append(list(data.columns)[-1])
     
     return data, calc_names
@@ -911,8 +911,8 @@ def v_cons_neg(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data = rol_close(data, 'v_flag_cons_neg', 'abs', 'rolsabs', False, False, 1, 'h', 'rol_h', sector_val, curryr, currqtr)
         data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 7777) & (data['rolsabs'] < 0), 0, data['v_flag_cons_neg'])
         data['v_flag_cons_neg'] = np.where((data['v_flag_cons_neg'] == 7777), 1, data['v_flag_cons_neg'])
-        data['v_flag_cons_neg'] = np.where((data['yr'] == curryr) & (data['v_flag_cons_neg'] == 1) & (data['abs'] + data['abs'].shift(periods=period) + data['abs'].shift(periods=period + 5) > data['rolsabs'] + data['rolsabs'].shift(periods=period) + data['rolsabs'].shift(periods=period + 5)), 0, data['v_flag_cons_neg'])
-        data['v_flag_cons_neg'] = np.where((data['yr'] == curryr + 1) & (data['v_flag_cons_neg'] == 1) & (data['abs'] + data['abs'].shift(1) + data['abs'].shift(periods=period + 1) > data['rolsabs'] + data['rolsabs'].shift(1) + data['rolsabs'].shift(periods=period + 1)), 0, data['v_flag_cons_neg'])
+        data['v_flag_cons_neg'] = np.where((data['yr'] == curryr) & (data['v_flag_cons_neg'] == 1) & (data['abs'] + data['abs'].shift(periods=shift_period) + data['abs'].shift(periods=shift_period + 5) > data['rolsabs'] + data['rolsabs'].shift(periods=shift_period) + data['rolsabs'].shift(periods=shift_period + 5)), 0, data['v_flag_cons_neg'])
+        data['v_flag_cons_neg'] = np.where((data['yr'] == curryr + 1) & (data['v_flag_cons_neg'] == 1) & (data['abs'] + data['abs'].shift(1) + data['abs'].shift(periods=shift_period + 1) > data['rolsabs'] + data['rolsabs'].shift(1) + data['rolsabs'].shift(periods=shift_period + 1)), 0, data['v_flag_cons_neg'])
         data['v_flag_cons_neg'] = np.where((data['yr'] > curryr + 1) & (data['v_flag_cons_neg'] == 1) & (data['abs'] + data['abs'].shift(1) + data['abs'].shift(2) > data['rolsabs'] + data['rolsabs'].shift(1) + data['rolsabs'].shift(2)), 0, data['v_flag_cons_neg'])
 
     
@@ -1089,6 +1089,7 @@ def g_nc(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         calc_names.append(list(data.columns)[-1])
     elif currqtr == 4:
         data['calc_gnc'] = np.where((data['g_flag_nc'] == 1), data['G_mrent'] - (data['three_yr_avg_G_mrent_nonc'] + (data['cons_prem'] * data['cons_prem_mod'])), np.nan)
+        calc_names.append(list(data.columns)[-1])
 
     return data, calc_names
 
@@ -1126,6 +1127,7 @@ def g_z(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['implied_check'] = data.groupby('identity')['implied_check'].ffill()
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (data['forecast_tag'] == 2) & (abs(data['G_mrent'] - data['curr_trend_G_mrent']) <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0) & (data['implied_check'] == 1), 0, data['g_flag_z'])
     elif currqtr == 4:
+        data['implied_check'] = np.nan
         data['g_flag_z'] = np.where((data['g_flag_z'] == 1) & (abs(data['G_mrent'] - data['curr_trend_G_mrent']) <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0), 0, data['g_flag_z'])
 
     data = data.drop(['us_avg_G_mrent_chg'], axis=1)

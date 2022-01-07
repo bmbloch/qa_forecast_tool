@@ -266,7 +266,7 @@ def c_hist(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['first_yr_val'] = np.where((data['forecast_tag'] == 1) & (data['cons'] < data['three_yr_avg_cons']), data['cons'], 0)
     data['first_yr_val'] = np.where((data['forecast_tag'] != 1), np.nan, data['first_yr_val'])
     data.fillna({'first_yr_val' : data['first_yr_val'].ffill()}, inplace=True)
-    data['c_flag_hist'] = np.where((data['c_flag_hist'] == 1) & (data['first_yr_tag'] == 1) & ((data['cons'] - data['first_yr_val']) / data['first_yr_val'] > -0.10), 0, data['c_flag_hist'])
+    data['c_flag_hist'] = np.where((data['c_flag_hist'] == 1) & (data['first_yr_tag'] == 1) & (abs((data['cons'] - data['first_yr_val']) / data['inv']) < 0.005), 0, data['c_flag_hist'])
 
     data = data.drop(['three_yr_avg_inv', 'threshold', 'first_yr_tag', 'first_yr_val', 'count_cons', 'sum_cons', 'three_yr_trail_abs', 'three_yr_trail_cons'], axis=1)
 

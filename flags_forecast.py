@@ -727,6 +727,11 @@ def v_min(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['v_flag_min'] = np.where((data['v_flag_min'] == 7777), 1, data['v_flag_min'])
         data['v_flag_min'] = np.where((data['v_flag_min'] == 1) & (round(data['vac'],3) > round(data['rolsvac'],3)), 0, data['v_flag_min'])
 
+        # Extra check for new forecast row, which wont have an rol value in q4, to see if the chg is within reason
+        if currqtr == 4:
+            data['v_flag_min'] = np.where((data['v_flag_min'] == 1) & (data['yr'] == curryr + 9) & (data['vac'] >= data['us_vac_level_avg'] - 0.01) & (data['vac_chg'] > -0.007), 0, data['v_flag_min'])
+            data['v_flag_min'] = np.where((data['v_flag_min'] == 1) & (data['yr'] == curryr + 9) & (data['vac'] < data['us_vac_level_avg'] - 0.01) & (data['vac'] > 0.035) & (data['vac_chg'] > -0.004), 0, data['v_flag_min'])
+
     data['calc_vmin'] = np.where((data['v_flag_min'] == 1), (data['vac'] - data['min_vac']) * -1, np.nan)
     calc_names.append(list(data.columns)[-1])
 
@@ -1749,6 +1754,12 @@ def e_min(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['e_flag_min'] = np.where((data['e_flag_min'] == 7777) & (data['rolsgap'] <= data['min_gap']), 0, data['e_flag_min'])
         data['e_flag_min'] = np.where((data['e_flag_min'] == 7777), 1, data['e_flag_min'])
         data['e_flag_min'] = np.where((data['e_flag_min'] == 1) & (data['gap'] > data['rolsgap']), 0, data['e_flag_min'])
+
+        # Extra check for new forecast row, which wont have an rol value in q4, to see if the chg is within reason
+        if currqtr == 4:
+            data['e_flag_min'] = np.where((data['e_flag_min'] == 1) & (data['yr'] == curryr + 9) & (data['gap'] >= data['gap_5']) & (data['gap_chg'] > -0.007), 0, data['e_flag_min'])
+            data['e_flag_min'] = np.where((data['e_flag_min'] == 1) & (data['yr'] == curryr + 9) & (data['gap'] < data['gap_5']) & (data['gap'] > 0.02) & (data['gap_chg'] > -0.004), 0, data['e_flag_min'])
+
 
     data['calc_emin'] = np.where((data['e_flag_min'] == 1), (data['gap'] - data['min_gap']) * -1, np.nan)
     calc_names.append(list(data.columns)[-1])

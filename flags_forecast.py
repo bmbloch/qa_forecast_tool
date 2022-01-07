@@ -186,6 +186,11 @@ def c_sup(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 # Flag if construction is higher than h stock plus a reasonable amount of e stock in the current forecast year.
 def c_e(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
+    if sector_val == "apt":
+        round_val = 0
+    else:
+        round_val = -3
+
     if currqtr == 1:
         e_stock_thresh = 0.25
     elif currqtr == 2:
@@ -196,7 +201,7 @@ def c_e(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         e_stock_thresh = 0.30
 
     data['c_flag_e'] = np.where((data['forecast_tag'] == 1) & (data['qtr'] == 5) & 
-                                          (data['cons'] > (data['round_h_temp'] + (data['e'] * e_stock_thresh))) & (data['cons'] > data['three_yr_avg_cons']),
+                                          (data['cons'] > data['round_h_temp'] + round((data['e'] * e_stock_thresh),round_val)) & (data['cons'] > data['three_yr_avg_cons']),
                                           1, 0)
 
     # Dont flag if the value is close to rol

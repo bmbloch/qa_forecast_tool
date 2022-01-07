@@ -136,6 +136,7 @@ def get_app_layout(curryr, currqtr, sector_val):
         dcc.Store('has_flag'),
         dcc.Store(id='sector'),
         dcc.Store(id='global_trigger'),
+        dcc.Store(id='store_init_global_flags'),
         dcc.ConfirmDialog(id='manual_message'),
         dcc.ConfirmDialog(id='global_message'),
         html.Div([
@@ -255,48 +256,75 @@ def get_app_layout(curryr, currqtr, sector_val):
                                     ], style={'display': 'none'}, id='rank_table_container'),
                                 html.Div([
                                     html.Div([
-                                        dash_table.DataTable(
-                                            id='global_shim',
-                                            data = global_shim.to_dict('records'), 
-                                            columns = global_columns,
-                                            dropdown=global_dropdown,
-                                            editable=True,
-                                            merge_duplicate_headers=True,
-                                            style_header={'fontWeight': 'bold', 'textAlign': 'center'},
-                                            style_cell_conditional=[
-                                                    {'if': {'column_id': 'Subsector'},
-                                                            'width': '15%', 'textAlign': 'left'},
-                                                    {'if': {'column_id': 'Year'},
-                                                            'width': '15%', 'textAlign': 'left'},
-                                                    {'if': {'column_id': 'Cons'},
-                                                            'width': '15%', 'textAlign': 'left'},
-                                                    {'if': {'column_id': 'Vac Chg'},
-                                                            'width': '15%', 'textAlign': 'left'},
-                                                    {'if': {'column_id': 'Gmrent'},
-                                                            'width': '15%', 'textAlign': 'left'},
-                                                    {'if': {'column_id': 'Gap Chg'},
-                                                            'width': '15%', 'textAlign': 'left'},
-                                                            ],
-                                                            ),
-                                            ], style={'display': 'none'}, id='global_shim_container'),
-                                    html.Div([ 
-                                        dbc.Row(
-                                            dbc.Col(
-                                                dbc.Button('Submit Global',id='global_submit_button',color='success',block=True,size='sm'),
-                                                    width=20
-                                                    ),
-                                            justify='center'
-                                                    ),
-                                            ], style={'display': 'none'}, id='global_submit_container'),
-                                    html.Div([ 
-                                        dbc.Row(
-                                            dbc.Col(
-                                                dbc.Button('Preview Global',id='global_preview_button',color='warning',block=True,size='sm'),
-                                                    width=20
-                                                    ),
-                                            justify='center'
-                                                    ),
-                                            ], style={'display': 'none'}, id='global_preview_container'),
+                                        html.Div([
+                                            html.Div([
+                                                dash_table.DataTable(
+                                                    id='global_shim',
+                                                    data = global_shim.to_dict('records'), 
+                                                    columns = global_columns,
+                                                    dropdown=global_dropdown,
+                                                    editable=True,
+                                                    merge_duplicate_headers=True,
+                                                    style_header={'fontWeight': 'bold', 'textAlign': 'center'},
+                                                    style_cell_conditional=[
+                                                            {'if': {'column_id': 'Subsector'},
+                                                                    'width': '15%', 'textAlign': 'left'},
+                                                            {'if': {'column_id': 'Year'},
+                                                                    'width': '15%', 'textAlign': 'left'},
+                                                            {'if': {'column_id': 'Cons'},
+                                                                    'width': '15%', 'textAlign': 'left'},
+                                                            {'if': {'column_id': 'Vac Chg'},
+                                                                    'width': '15%', 'textAlign': 'left'},
+                                                            {'if': {'column_id': 'Gmrent'},
+                                                                    'width': '15%', 'textAlign': 'left'},
+                                                            {'if': {'column_id': 'Gap Chg'},
+                                                                    'width': '15%', 'textAlign': 'left'},
+                                                                    ],
+                                                                    ),
+                                                    ], style={'display': 'block'}),
+                                            html.Div([
+                                                html.Div([ 
+                                                    dbc.Row(
+                                                        dbc.Col(
+                                                            dbc.Button('Submit Global',id='global_submit_button',color='success',block=True,size='sm'),
+                                                                width=20
+                                                                ),
+                                                        justify='center'
+                                                                ),
+                                                            ], style={'display': 'inline-block', 'padding-left': '142px'}),
+                                                html.Div([ 
+                                                    dbc.Row(
+                                                        dbc.Col(
+                                                            dbc.Button('Preview Global',id='global_preview_button',color='warning',block=True,size='sm'),
+                                                                width=20
+                                                                ),
+                                                        justify='center'
+                                                                ),
+                                                            ], style={'display': 'inline-block', 'padding-left': '90px'}),
+                                                        ], style={'display': 'block', 'padding-top': '10px'}), 
+                                                    ], style={'display': 'inline-block', 'width': '48%', 'padding-top': '30px'}),
+                                        html.Div([
+                                            dbc.Alert(
+                                                [
+                                                    html.Div([
+                                                              html.H6(id='global_flag_text_header'),
+                                                             ], style={'textAlign': 'center'}),
+                                                    html.Hr(),
+                                                    dbc.Row(children=[
+                                                                        dcc.Loading(
+                                                                            id="multicolored",
+                                                                            children=html.Div(id='global_flag_text')
+                                                                        ),
+                                                                    ],
+                                                            style={'width': '100%', 'padding': '5px 5px', 'display': 'inline-block'})
+                                                ],
+                                                id = "global_flag_alert",
+                                                dismissable=True,
+                                                is_open=False,
+                                                fade=False,
+                                                    )
+                                                ], style={'display': 'none'}, id='global_flag_alert_container'),
+                                        ], style={'display': 'none'}, id='global_shim_container'),
                                     ], style={'display': 'block'}),
                                 ], style={'display': 'block'}),
                             ], style={'width': '65%', 'display': 'inline-block', 'vertical-align': 'top', 'padding-right': '30px', 'padding-left': '150px'}),

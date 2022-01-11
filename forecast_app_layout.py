@@ -256,7 +256,6 @@ def get_app_layout(curryr, currqtr, sector_val):
                                         ], style={'display': 'inline-block', 'width': '48%', 'padding-left': '50px'}),
                                     ], style={'display': 'none'}, id='rank_table_container'),
                                 html.Div([
-                                    html.Div([
                                         html.Div([
                                             html.Div([
                                                 dash_table.DataTable(
@@ -282,51 +281,36 @@ def get_app_layout(curryr, currqtr, sector_val):
                                                                     'width': '15%', 'textAlign': 'left'},
                                                                     ],
                                                                     ),
-                                                    ], style={'display': 'block'}),
+                                                    ], style={'display': 'inline-block', 'padding-top': '30px', 'width': '48%'}),
                                             html.Div([
-                                                html.Div([ 
-                                                    dbc.Row(
-                                                        dbc.Col(
-                                                            dbc.Button('Submit Global',id='global_submit_button',color='success',block=True,size='sm'),
-                                                                width=20
-                                                                ),
-                                                        justify='center'
-                                                                ),
-                                                            ], style={'display': 'inline-block', 'padding-left': '142px'}),
-                                                html.Div([ 
-                                                    dbc.Row(
-                                                        dbc.Col(
-                                                            dbc.Button('Preview Global',id='global_preview_button',color='warning',block=True,size='sm'),
-                                                                width=20
-                                                                ),
-                                                        justify='center'
-                                                                ),
-                                                            ], style={'display': 'inline-block', 'padding-left': '90px'}),
-                                                        ], style={'display': 'block', 'padding-top': '10px'}), 
-                                                    ], style={'display': 'inline-block', 'width': '48%', 'padding-top': '30px'}),
+                                                dash_table.DataTable(
+                                                                    id='global_flag_sum',
+                                                                    merge_duplicate_headers=True,
+                                                                    style_header={'fontWeight': 'bold', 'textAlign': 'center'},
+                                                                    ),
+                                                    ], style={'display': 'none'}, id='global_flag_sum_container'),
+                                            ], style={'display': 'block'}),  
                                         html.Div([
-                                            dbc.Alert(
-                                                [
-                                                    html.Div([
-                                                              html.H6(id='global_flag_text_header'),
-                                                             ], style={'textAlign': 'center'}),
-                                                    html.Hr(),
-                                                    dbc.Row(children=[
-                                                                        dcc.Loading(
-                                                                            id="multicolored",
-                                                                            children=html.Div(id='global_flag_text')
-                                                                        ),
-                                                                    ],
-                                                            style={'width': '100%', 'padding': '5px 5px', 'display': 'inline-block'})
-                                                ],
-                                                id = "global_flag_alert",
-                                                dismissable=True,
-                                                is_open=False,
-                                                fade=False,
-                                                    )
-                                                ], style={'display': 'none'}, id='global_flag_alert_container'),
+                                            html.Div([ 
+                                                dbc.Row(
+                                                    dbc.Col(
+                                                        dbc.Button('Submit Global',id='global_submit_button',color='success',block=True,size='sm'),
+                                                            width=20
+                                                            ),
+                                                    justify='center'
+                                                            ),
+                                                        ], style={'display': 'inline-block', 'padding-left': '142px'}),
+                                            html.Div([ 
+                                                dbc.Row(
+                                                    dbc.Col(
+                                                        dbc.Button('Preview Global',id='global_preview_button',color='warning',block=True,size='sm'),
+                                                            width=20
+                                                            ),
+                                                    justify='center'
+                                                            ),
+                                                        ], style={'display': 'inline-block', 'padding-left': '90px'}),
+                                                    ], style={'display': 'block', 'padding-top': '10px'}), 
                                         ], style={'display': 'none'}, id='global_shim_container'),
-                                    ], style={'display': 'block'}),
                                 ], style={'display': 'block'}),
                             ], style={'width': '65%', 'display': 'inline-block', 'vertical-align': 'top', 'padding-right': '30px', 'padding-left': '150px'}),
                         ]),
@@ -496,8 +480,9 @@ def get_app_layout(curryr, currqtr, sector_val):
                                         ], style={'display': 'block'}, id='man_data_container'),
                                 html.Div([
                                     dcc.RadioItems(
-                                        id='key_yr_radios',
-                                        labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px'}), 
+                                                    id='key_yr_radios',
+                                                    labelStyle = {'display': 'inline-block', 'margin': '0 10px 0 10px'}
+                                                  ), 
                                         ], style={'padding-top': '5px', 'display': 'inline-block', 'padding-left': '400px'}),
                             ], style={'display': 'inline-block', 'width': '80%', 'padding-left': '50px', 'vertical-align': 'top'}),
                         html.Div([

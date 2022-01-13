@@ -1207,7 +1207,7 @@ def g_highv(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     
     data['g_flag_max'] = np.where((data['forecast_tag'] != 0) & 
-                                      (round(data['G_mrent'], 3) > round(data['max_G_mrent'], 3)),
+                                      (round(data['G_mrent'], 3) > round(data['max_G_mrent'], 3) + 0.003),
                                       1, 0)
 
     # Dont flag if the value is close to the most recent trend rent chg
@@ -1229,6 +1229,19 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] < 3) & (data['forecast_tag'] == 2) & (data['G_mrent'] - data['curr_trend_G_mrent'] <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0) & (data['implied_check'] == 1), 0, data['g_flag_max'])
     elif currqtr == 4:
         data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['lim_hist'] < 3) & (data['G_mrent'] - data['curr_trend_G_mrent'] <= 0.005) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0), 0, data['g_flag_max'])
+
+    # Dont flag if construction warrants a rent growth premium
+    data['prem'] = np.where((data['cons'] / data['inv'] < 0.03) & ((data['forecast_tag'] == 2) | (currqtr == 4)), 0, np.nan)
+    data['prem'] = np.where((data['cons'] / data['inv'] >= 0.03) & ((data['forecast_tag'] == 2) | (currqtr == 4)), 0.02, data['prem'])
+    data['prem'] = np.where((data['cons'] / data['inv'] >= 0.05) & ((data['forecast_tag'] == 2) | (currqtr == 4)), 0.03, data['prem'])
+    data['prem'] = np.where((data['cons'] / data['inv'] >= 0.075) & ((data['forecast_tag'] == 2) | (currqtr == 4)), 0.05, data['prem'])
+    data['prem'] = np.where((data['implied_cons'] / data['inv'] < 0.03) & (data['forecast_tag'] == 1) & (currqtr != 4), 0, data['prem'])
+    data['prem'] = np.where((data['implied_cons'] / data['inv'] >= 0.03) & (data['forecast_tag'] == 1) & (currqtr != 4), 0.02, data['prem'])
+    data['prem'] = np.where((data['implied_cons'] / data['inv'] >= 0.05) & (data['forecast_tag'] == 1) & (currqtr != 4), 0.03, data['prem'])
+    data['prem'] = np.where((data['implied_cons'] / data['inv'] >= 0.075) & (data['forecast_tag'] == 1) & (currqtr != 4), 0.05, data['prem'])
+    data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['G_mrent'] <= data['three_yr_avg_G_mrent'] + data['prem']) & ((data['forecast_tag'] == 2) | (currqtr == 4)), 0, data['g_flag_max'])
+    data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['implied_G_mrent'] <= (data['three_yr_avg_G_mrent'] * ((4 - currqtr)/4)) + data['prem']) & (data['forecast_tag'] == 1) & (currqtr != 4), 0, data['g_flag_max'])
+    data = data.drop(['prem'], axis=1)
 
     # Dont flag if employment change indicates significant change from history
     data['g_flag_max'] = np.where((data['g_flag_max'] == 1) & (data['emp_chg_z'] > 2), 999999999, data['g_flag_max'])

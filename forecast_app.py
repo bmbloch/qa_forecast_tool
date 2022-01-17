@@ -31,7 +31,7 @@ from server_forecast import forecast, server
 from stats_forecast import calc_stats
 from flags_forecast import calc_flags
 from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, metro_sorts, flag_examine
-from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips, check_skips
+from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips, check_skips, global_shim, get_global_sum_flags
 from login_layout_forecast import get_login_layout
 from forecast_app_layout import get_app_layout
 from timer import Timer
@@ -39,12 +39,6 @@ from timer import Timer
 
 # Function that determines the data type - int, float, etc - so that the correct format can be set for the app display
 def get_types(sector_val):
-
-    # In order for the comma seperator format to work, fields need to be set to float type. Put the conversion in a try and except, since some frames that come in this function wont have those fields
-    try:
-        dataframe[['inv', 'rolscon', 'rolsabs', 'rol_e']] = dataframe[['inv', 'rolscon', 'rolsabs', 'rol_e']].astype(float)
-    except:
-        False
 
     type_dict = {}
     format_dict = {}
@@ -161,7 +155,8 @@ def get_types(sector_val):
     type_dict['t'] = 'numeric'
     type_dict['Cons Flags'] = 'numeric'
     type_dict['Vac Flags'] = 'numeric'
-    type_dict['Rent Flags'] = 'numeric'
+    type_dict['Mrent Flags'] = 'numeric'
+    type_dict['Erent Flags'] = 'numeric'
     type_dict['rol mrent'] = 'numeric'
     type_dict['rol merent'] = 'numeric'
 
@@ -263,7 +258,8 @@ def get_types(sector_val):
     format_dict['Total Flags'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['Cons Flags'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['Vac Flags'] = Format(precision=0, scheme=Scheme.fixed)
-    format_dict['Rent Flags'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Mrent Flags'] = Format(precision=0, scheme=Scheme.fixed)
+    format_dict['Erent Flags'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['subsector'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['Subsector'] = Format(precision=0, scheme=Scheme.fixed)
     format_dict['metcode'] = Format(precision=0, scheme=Scheme.fixed)
@@ -1523,7 +1519,7 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
         sum_data = data.copy()
         sum_data = sum_data[sum_data['forecast_tag'] != 0]
         filt_cols = flag_cols + ['identity', 'identity_us', 'identity_met', 'subid', 'yr', 'subsector', 'metcode']
-        sum_data = sum_data[filt_cols]
+        sum_data = sum_data[filt_cols]    
     else:
         rank_data_met = use_pickle("in", "rank_data_met_" + sector_val, False, fileyr, currqtr, sector_val)
         rank_data_sub = use_pickle("in", "rank_data_sub_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -1839,6 +1835,8 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
         else:
             curryr = fileyr
         oob_data, orig_cols, file_used = initial_load(sector_val, curryr, currqtr, fileyr)
+        
+        use_pickle("out", "preview_data_" + sector_val, pd.DataFrame(), fileyr, currqtr, sector_val)
 
         try:
             path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.csv".format(get_home(), sector_val))
@@ -2016,7 +2014,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
         finalized_sub = finalized_sub[output_cols_sub]
 
         # Append the deep history to the edits period
-        file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val))
+        file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
         deep_hist = pd.read_pickle(file_path)
         if sector_val != "ind":
             deep_hist = deep_hist.rename(columns={'rolmrent': 'rolsmre'})
@@ -2099,7 +2097,7 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                 file_path_out = "{}central/subcast/data/{}/forecast/current/{}subtest_{}q{}.out".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
                 finalized_sub.to_csv(file_path_out, index=False, na_rep='')
 
-            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val))
+            file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
             deep_hist = pd.read_pickle(file_path)
             keep_cols = ['identity_met', 'identity_us', 'subsector', 'metcode', 'subid', 'yr', 'qtr', 'inv', 'rolsinv', 'cons', 'rolscon', 'h', 'rol_h', 'e', 't', 'demo', 'conv', 'avail', 'occ', 'abs', 'rolsabs', 'vac',	'rolsvac', 
                         'mrent', 'rolmrent', 'G_mrent', 'grolsmre', 'merent', 'G_merent', 'rolmerent', 'grolsmer', 'gap', 'rolsgap', 'inv_oob', 'cons_oob', 'avail_oob', 'vac_oob', 'abs_oob', 
@@ -2266,7 +2264,10 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
 
 
 @forecast.callback([Output('global_message', 'message'),
-                   Output('global_message', 'displayed')],
+                   Output('global_message', 'displayed'),
+                   Output('global_trigger', 'data'),
+                   Output('store_init_global_flags', 'data'),
+                   Output('init_global_shim', 'data')],
                    [Input('global_submit_button', 'n_clicks'),
                    Input('global_preview_button', 'n_clicks')],
                    [State('curryr', 'data'),
@@ -2274,27 +2275,173 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                    State('fileyr', 'data'), 
                    State('sector', 'data'), 
                    State('global_shim', 'data'),
-                   State('init_trigger', 'data')])
+                   State('init_trigger', 'data'),
+                   State('global_message', 'message'),
+                   State('store_flag_cols', 'data'),
+                   State('init_global_shim', 'data')])
 
-def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init):
+def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init, init_message, flag_cols, init_global_shim):
 
-    if sector_val is None or success_init == False:
+    if sector_val is None or success_init == False or sector_val != 'ind':
         raise PreventUpdate
 
     else:
+        print("When go live, take out qual that the sector must be ind!!!!")
+        input_id = get_input_id()
+
+        init_flags = {}
+
         global_data = pd.DataFrame.from_dict(global_data)
         global_data = global_data.fillna(value=np.nan)
+        for x in ['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']:
+            global_data[x] = np.where(global_data[x] == '', np.nan, global_data[x])
 
-        if global_data[['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']].isnull().values.all() == True:
+        if init_message is None:
+            init_message = ''
+
+        if global_data[['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']].isnull().values.all() == True and input_id != 'global_preview_button':
             message = 'You did not enter any values'
             message_display = True
+            init_global_shim = {}
+
+        elif global_data[['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']].isnull().values.all() == True and input_id == 'global_preview_button':
+            global_triggered = 'clear'
+            message = ''
+            message_display = False
+            init_global_shim = {}
 
         else:
+
+            if input_id == "global_preview_button":
+                preview_status = True
+            elif input_id == "global_submit_button":
+                preview_status = False
+
             message = ''
             message_display = False
             data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
-        return message, message_display
+            subsector = global_data.loc[0]['Subsector']
+            year = global_data.loc[0]['Year']
+
+            roll = data.copy()
+            if sector_val == 'ind':
+                roll_val = 'US' + subsector + 'Leg'
+            else:
+                roll_val = 'US1'
+            rolled = rollup(roll, roll_val, curryr, currqtr, sector_val, "reg", False)
+            rolled = rolled[(rolled['identity_us'] == roll_val)]
+
+            has_change = False
+            
+            for i in range(0, 2):
+                init_flags_temp = []
+                for var in ['c', 'v', 'g', 'e']:
+                    temp = data.copy()
+                    temp = temp[(temp['subsector'] == subsector) & (temp['expansion'] == 'Leg')]
+                    if i == 0:
+                        temp = temp[temp['yr'] == year]
+                    temp[flag_cols] = np.where((temp[flag_cols] != 0), 1, temp[flag_cols])
+                    temp['{}_flag_tot'.format(var)] = temp.filter(regex="^{}_flag*".format(var)).sum(axis=1)
+                    temp['{}_flag_sum'.format(var)] = temp['{}_flag_tot'.format(var)].sum()
+                    init_sum_flags = temp.reset_index().loc[0]['{}_flag_sum'.format(var)]
+                    init_flags_temp.append(init_sum_flags)
+                if i == 0:
+                    init_flags[str(year)] = init_flags_temp
+                else:
+                    init_flags['All'] = init_flags_temp
+
+            for var in ['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']:
+
+                if math.isnan(global_data.loc[0][var]) == False:
+
+                    target = global_data.loc[0][var]
+
+                    if init_message == '' or init_message is None:
+                        override = False
+                    elif var.lower() + " target" in init_message and 'additional' not in init_message and init_global_shim[var] == target:
+                        override = True
+                    else:
+                        override = False
+
+                    if "vac chg target" in init_message and var == "Cons":
+                        continue
+                    elif "gmrent target" in init_message and (var == "Cons" or var == "Vac Chg"):
+                        continue
+                    elif "gap chg target" in init_message and (var == "Cons" or var == "Vac Chg" or var == "Gmrent"):
+                        continue
+
+                    if var == 'Cons':
+                        init_lev_val = False
+                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['cons']
+                        prev_lev_val = False
+                    elif var == 'Vac Chg':
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac']
+                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac_chg']
+                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac']
+                    elif var == "Gmrent":
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent']
+                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['G_mrent']
+                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent']
+                    elif var == 'Gap Chg':
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap']
+                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap_chg']
+                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap']
+
+                    data, message, message_display, change = global_shim(data, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status)
+                  
+                    if change and not has_change:
+                        has_change = True
+
+                    if not change:
+                        global_triggered = no_update
+                        if preview_status:
+                            button = 'Preview'
+                        else:
+                            button = 'Submit'
+                        if not override:
+                            message = 'No changes were made to reach your {} target, as there is limited support for global changes. If you want to continue, click the {} button'.format(var.lower(), button)
+                            message_display = True
+                        else:
+                            message = "There is not enough support for any global changes for {}. All additional changes should be submitted via submarket level shim".format(var.lower())
+                            message_display = True
+
+                    if not override and message_display:
+                        init_global_shim = {var: target}
+                    else:
+                        init_global_shim = {}
+
+                    if message_display:
+                        break
+
+            if has_change and input_id == 'global_submit_button':
+
+                global_triggered = no_update
+                # global_triggered = 'submit'
+                
+                # preview_data = pd.DataFrame()
+                # shim_data = pd.DataFrame()
+                # use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
+                # use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
+                # use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
+
+                # data_to_save = data.copy()
+                # file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_mostrecentsave.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
+                # data_to_save = data_to_save[orig_cols]
+                # data_to_save.to_pickle(file_path)
+
+            elif has_change and input_id == 'global_preview_button':
+
+                global_triggered = 'preview'
+                
+                preview_data = data.copy()
+                preview_data['sub_prev'] = 1
+                use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
+
+            elif not has_change:
+                global_triggered = 'no change'
+
+        return message, message_display, global_triggered, init_flags, init_global_shim
 
 
 @forecast.callback([Output('manual_message', 'message'),
@@ -2315,11 +2462,16 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     Output('countdown', 'data'),
                     Output('countdown', 'columns'),
                     Output('first_update', 'data'),
-                    Output('key_yr_radios', 'value')],
+                    Output('key_yr_radios', 'value'),
+                    Output('global_flag_sum_container', 'style'),
+                    Output('global_flag_sum', 'data'),
+                    Output('global_flag_sum', 'columns'),
+                    Output('global_flag_sum', 'style_cell_conditional')],
                     [Input('submit-button', 'n_clicks'),
                     Input('preview-button', 'n_clicks'),
                     Input('dropflag', 'value'),
-                    Input('init_trigger', 'data')],
+                    Input('init_trigger', 'data'),
+                    Input('global_trigger', 'data')],
                     [State('sector', 'data'),
                     State('store_orig_cols', 'data'),
                     State('curryr', 'data'),
@@ -2344,68 +2496,119 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     State('first_update', 'data'),
                     State('flag_flow', 'data'),
                     State('key_yr_radios', 'value'),
-                    State('process_subsequent', 'value')])
-def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent):
+                    State('process_subsequent', 'value'),
+                    State('global_shim', 'data'),
+                    State('store_init_global_flags', 'data')])
+def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags):
 
     input_id = get_input_id()
     
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
-        
+
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
-         # If there is a flag description, use this crazy dict/list slicer to get the actual values of the children prop so we can see what flags the user wants to skip
-        if skip_input_noprev == "No flags for this year at the submarket" or skip_input_noprev == "You have cleared all the flags":
-            skip_list = []
-        elif skip_input_noprev != None or skip_input_resolved != None or skip_input_unresolved != None or skip_input_new != None or skip_input_skipped != None:
-            skip_list = get_user_skips(skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped)
-        else:
-            skip_list = []
+        global_flag_sum = pd.DataFrame()
+        global_sum_title = ''
+        style_global_sum = {'display': 'none'}
+        global_flag_cond_style = [{}]
 
-        if input_id != 'submit-button':
-            rebench_trigger = False
-        
-        # Load preview data if previewing
-        if input_id == 'preview-button':
-            preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
-        
-        # Load shim data if previewing or submitting
-        if input_id == 'submit-button' or input_id == 'preview-button':
-            shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
-        
-        if input_id == 'submit-button':
-            data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent)
-            if rebench_trigger == False:
-                preview_data = pd.DataFrame()
-        elif input_id == 'preview-button':
-            data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols, proc_subsequent)
-        
-        else:
+        if input_id == 'global_trigger': 
             message = ''
             message_display = False
-            preview_data = pd.DataFrame()
+            skip_list = []
+            rebench_trigger = False
+            if global_trigger != 'preview':
+                preview_data = pd.DataFrame()
+                use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
+            else:
+                preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
             shim_data = pd.DataFrame()
-        
-        
-        if message_display == False and input_id == 'submit-button':
-            data = data.reset_index().set_index('identity')
-            if cons_c[-9:] != "Note Here":
-                data.loc[drop_val, 'cons_comment'] = cons_c
-            if avail_c[-9:] != "Note Here":
-                data.loc[drop_val, 'avail_comment'] = avail_c
-            if rent_c[-9:] != "Note Here":
-                data.loc[drop_val, 'rent_comment'] = rent_c
-            data = data.reset_index().set_index('identity_row')
 
-        if input_id != "preview-button":
-            flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
+            
+            if global_trigger == "submit":
+                decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
+                temp = data.copy()
+                temp = temp[temp['global_change'] == True]
+                subs_to_update = list(temp['identity'].unique())
+                for drop_val in subs_to_update:
+                    decision_data = update_decision_log(decision_data, data, drop_val, sector_val, curryr, currqtr, 'global shim', "submit", False, False, '', '', '')
+                use_pickle("out", "decision_log_" + sector_val, decision_data, fileyr, currqtr, sector_val)
+                data = data.drop(['global_change'], axis=1)
+        
+        elif input_id != 'preview-button' and input_id != 'dropflag':
+            preview_data = pd.DataFrame()
+            use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
+        
+        if input_id != 'global_trigger':
+            
+            # If there is a flag description, use this crazy dict/list slicer to get the actual values of the children prop so we can see what flags the user wants to skip
+            if skip_input_noprev == "No flags for this year at the submarket" or skip_input_noprev == "You have cleared all the flags":
+                skip_list = []
+            elif skip_input_noprev != None or skip_input_resolved != None or skip_input_unresolved != None or skip_input_new != None or skip_input_skipped != None:
+                skip_list = get_user_skips(skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped)
+            else:
+                skip_list = []
 
-        if input_id == "submit-button" or input_id == "init_trigger" or first_update == True:
+            if input_id != 'submit-button':
+                rebench_trigger = False
+            
+            # Load preview data if previewing
+            if input_id == 'preview-button':
+                preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
+            
+            # Load shim data if previewing or submitting
+            if input_id == 'submit-button' or input_id == 'preview-button':
+                shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
+            
+            if input_id == 'submit-button':
+                data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent)
+                if rebench_trigger == False:
+                    preview_data = pd.DataFrame()
+            elif input_id == 'preview-button':
+                data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols, proc_subsequent)
+            
+            else:
+                message = ''
+                message_display = False
+                preview_data = pd.DataFrame()
+                shim_data = pd.DataFrame()
+            
+            
+            if message_display == False and input_id == 'submit-button':
+                data = data.reset_index().set_index('identity')
+                if cons_c[-9:] != "Note Here":
+                    data.loc[drop_val, 'cons_comment'] = cons_c
+                if avail_c[-9:] != "Note Here":
+                    data.loc[drop_val, 'avail_comment'] = avail_c
+                if rent_c[-9:] != "Note Here":
+                    data.loc[drop_val, 'rent_comment'] = rent_c
+                data = data.reset_index().set_index('identity_row')
+
+            if input_id != "preview-button":
+                flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
+
+        if input_id == "submit-button" or input_id == "init_trigger" or first_update == True or input_id == 'global_trigger':
+
+            if input_id == 'global_trigger' and global_trigger == 'preview':
+                data = preview_data.copy()
+
             # Re-calc stats and flags now that the data has been updated, or if this is the initial load
             if  message_display == False:
                 data = calc_stats(data, curryr, currqtr, False, sector_val)
                 data = calc_flags(data, curryr, currqtr, sector_val, use_rol_close)
+
+                if input_id == 'global_trigger':
+                    flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
+                    print("TAKE THIS OUT!!!!")
+                    cols_to_keep = ['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols
+                    current_flags = data.copy()
+                    current_flags = current_flags[cols_to_keep]
+                    current_flags = current_flags[current_flags['yr'] >= curryr]
+                    current_flags = current_flags[current_flags['qtr'] == 5]
+                    file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_current_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
+                    current_flags.reset_index().set_index('identity').to_csv(file_path, na_rep='')
 
                 # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered. We will want to remove that skip from the log
                 if input_id == "submit-button":
@@ -2421,6 +2624,15 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             countdown = live_flag_count(countdown, sector_val, flag_cols)
             type_dict_countdown, format_dict_countdown = get_types(sector_val)
 
+            if input_id == "global_trigger" and global_trigger != 'clear':
+                style_global_sum = {'display': 'inline-block', 'padding-top': '30px', 'padding-left': '50px', 'width': '48%'}
+                global_flag_sum, global_flag_cond_style = get_global_sum_flags(global_data, global_trigger, data, init_global_flags, flag_cols)
+                if global_trigger == 'preview':
+                    global_sum_title = 'Potential Effect On Flag Counts'
+                elif global_trigger == 'submit':
+                    global_sum_title = 'Effect On Flag Counts'
+                
+
             # Get the next sub flagged, and if all flags were resolved and moving on to a new sub for review, clear out the stored flag decision variables
             orig_drop_val = drop_val
             flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, False, curryr, currqtr, flag_cols, flag_flow, yr_val)
@@ -2430,9 +2642,10 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
                 flags_new = []
                 skip_list = []
             
-            use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
+            if input_id != 'global_trigger' or global_trigger == 'submit':
+                use_pickle("out", "main_data_" + sector_val, data, fileyr, currqtr, sector_val)
         
-        if rebench_trigger == False:
+        if rebench_trigger == False and input_id != 'global_trigger':
             use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
         use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
 
@@ -2466,6 +2679,11 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
                 submit_button = no_update
                 preview_button = no_update
                 init_flags = no_update
+            elif input_id == 'global_trigger':
+                all_buttons = 1
+                submit_button = no_update
+                preview_button = no_update
+                init_flags = no_update
             else:
                 all_buttons = 1
                 submit_button = 1
@@ -2477,15 +2695,16 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, sector_val
             flags_unresolved = []
             flags_new = []
 
-        if input_id == "submit-button" or input_id == "init_trigger" or first_update == True:
+        if input_id == "submit-button" or input_id == "init_trigger" or first_update == True or input_id == 'global_trigger':
             return message, message_display, all_buttons, submit_button, preview_button, init_flags, flags_resolved, flags_unresolved, flags_new, skip_list, flag_filt.to_dict('records'), [{'name': [flag_filt_title, flag_filt.columns[i]], 'id': flag_filt.columns[i]} 
                         for i in range(0, len(flag_filt.columns))], flag_filt_style_table, flag_filt_display, drop_val, countdown.to_dict('records'), [{'name': ['Flags Remaining', countdown.columns[i]], 'id': countdown.columns[i], 'type': type_dict_countdown[countdown.columns[i]], 'format': format_dict_countdown[countdown.columns[i]]}
-                    for i in range(0, len(countdown.columns))], False, yr_val
+                    for i in range(0, len(countdown.columns))], False, yr_val, style_global_sum, global_flag_sum.to_dict('records'), [{'name': [global_sum_title, global_flag_sum.columns[i]], 'id': global_flag_sum.columns[i]} 
+                        for i in range(0, len(global_flag_sum.columns))], global_flag_cond_style
         elif input_id == "dropflag":
             return message, message_display, all_buttons, submit_button, preview_button, init_flags, no_update, no_update, no_update, no_update, flag_filt.to_dict('records'), [{'name': [flag_filt_title, flag_filt.columns[i]], 'id': flag_filt.columns[i]} 
-                        for i in range(0, len(flag_filt.columns))], flag_filt_style_table, flag_filt_display, no_update, no_update, no_update, False, no_update
+                        for i in range(0, len(flag_filt.columns))], flag_filt_style_table, flag_filt_display, no_update, no_update, no_update, False, no_update, no_update, no_update, no_update, no_update
         else:
-            return message, message_display, all_buttons, submit_button, preview_button, init_flags, flags_resolved, flags_unresolved, flags_new, skip_list, no_update, no_update, no_update, no_update, no_update, no_update, no_update, False, yr_val
+            return message, message_display, all_buttons, submit_button, preview_button, init_flags, flags_resolved, flags_unresolved, flags_new, skip_list, no_update, no_update, no_update, no_update, no_update, no_update, no_update, False, yr_val, no_update, no_update, no_update, no_update
 
 @forecast.callback([Output('has_flag', 'data'),
                 Output('flag_list', 'data'),
@@ -2550,7 +2769,7 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
         if sector_val == "ret" or sector_val == "off":
             orig_cols += ['rolmerent']
         sub_edits_output = sub_edits_output[orig_cols]
-        deep_file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val))
+        deep_file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
         deep_history = pd.read_pickle(deep_file_path)
         deep_history = deep_history[orig_cols]
         sub_edits_output = sub_edits_output.append(deep_history)
@@ -2599,9 +2818,7 @@ def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fi
                     Output('nat_eco_table', 'columns'),
                     Output('nat_eco_table', 'style_data_conditional'),
                     Output('nat_eco_container', 'style'),
-                    Output('global_shim_container', 'style'),
-                    Output('global_submit_container', 'style'),
-                    Output('global_preview_container', 'style')],
+                    Output('global_shim_container', 'style')],
                     [Input('sector', 'data'),
                     Input('dropsum', 'value'),
                     Input('store_init_flags', 'data')],
@@ -2623,6 +2840,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
         sum_style = {'display': 'block', 'padding-top': '18px'}
         rank_style = {'display': 'block'}
         eco_style = {'display': 'block', 'padding-top': '30px'}
+        style_global = {'display': 'block'}
 
         if input_id == 'store_init_flags':
             rank_data_met = use_pickle("in", "rank_data_met_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -2654,7 +2872,7 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
                 eco_data = eco_data.rename(columns={imp_emp_to_use: 'imp emp chg'})
             for col in eco_data:
                 eco_data.rename(columns={col: col.replace('_', ' ')}, inplace=True)
-
+            
             sum_data = summarize_flags(sum_data, drop_val, flag_cols)
             type_dict_rank_met, format_dict_rank_met = get_types(sector_val)
             highlighting_rank_met = get_style("partial", rank_data_met, dash_curryr, dash_second_five)
@@ -2666,16 +2884,12 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
 
             type_dict_eco, format_dict_eco = get_types(sector_val)
             highlighting_eco = get_style("partial", eco_data, dash_curryr, dash_second_five)
-
-            style_global = {'display': 'block', 'width': '48%', 'padding-top': '30px'}
-            submit_global_style ={'display': 'inline-block', 'width': '22%', 'padding-top': '10px', 'padding-left': '150px'}
-            preview_global_style ={'display': 'inline-block', 'width': '18%', 'padding-top': '10px', 'padding-left': '20px'}
         
             return rank_data_met.to_dict('records'), [{'name':['Top Ten Flagged Metros OOB', rank_data_met.columns[i]], 'id': rank_data_met.columns[i], 'type': type_dict_rank_met[rank_data_met.columns[i]], 'format': format_dict_rank_met[rank_data_met.columns[i]]} 
                                 for i in range(0, len(rank_data_met.columns))], highlighting_rank_met, rank_data_sub.to_dict('records'), [{'name':['Top Ten Flagged Submarkets OOB', rank_data_sub.columns[i]], 'id': rank_data_sub.columns[i], 'type': type_dict_rank_sub[rank_data_sub.columns[i]], 'format': format_dict_rank_sub[rank_data_sub.columns[i]]} 
                                 for i in range(0, len(rank_data_sub.columns))], highlighting_rank_sub, rank_style, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, eco_data.to_dict('records'), [{'name': [header_name, eco_data.columns[i]], 'id': eco_data.columns[i], 'type': type_dict_eco[eco_data.columns[i]], 'format': format_dict_eco[eco_data.columns[i]]} 
-                                for i in range(0, len(eco_data.columns))], highlighting_eco, eco_style, style_global, submit_global_style, preview_global_style
+                                for i in range(0, len(eco_data.columns))], highlighting_eco, eco_style, style_global
         else:
             sum_data = use_pickle("in", "sum_data_" + sector_val, False, fileyr, currqtr, sector_val)
             sum_data = summarize_flags(sum_data, drop_val, flag_cols)
@@ -2683,15 +2897,16 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
             highlighting_sum = get_style("partial", sum_data, dash_curryr, dash_second_five)
             
             return no_update, no_update, no_update, no_update, no_update, no_update, no_update, sum_data.to_dict('records'), [{'name': ['OOB Initial Flag Summary', sum_data.columns[i]], 'id': sum_data.columns[i], 'type': type_dict_sum[sum_data.columns[i]], 'format': format_dict_sum[sum_data.columns[i]]} 
-                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, no_update, no_update, no_update, no_update, no_update, no_update, no_update
+                                for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, no_update, no_update, no_update, no_update, no_update
 
 @forecast.callback([Output('show_skips', 'value'),
                    Output('process_subsequent', 'value')],
                    [Input('store_submit_button', 'data'),
                    Input('dropman', 'value'),
-                   Input('sector', 'data')],
+                   Input('sector', 'data'),
+                   Input('global_trigger', 'data')],
                    [State('init_trigger', 'data')])
-def remove_options(submit_button, drop_val, sector_val, success_init):
+def remove_options(submit_button, drop_val, sector_val, global_trigger, success_init):
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
@@ -2782,7 +2997,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             color = 'red'
             font_weight = 'normal'
         show_skips_style = {'padding-left': '10px', 'width': '40%', 'display': 'inline-block', 'vertical-align': 'top', 'color': color, 'font-weight': font_weight}
-
+        
         # Since the flag counter was moved to its own callback, we can simply drop all flag cols here because we no longer need them to reduce dimensionality
         data = data.drop(flag_cols, axis=1)
 
@@ -2804,7 +3019,16 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         highlighting_shim = get_style("full", shim_data, dash_curryr, dash_second_five)
 
         # If the user changes the sub they want to edit, reset the shim section and the flag decision variables
-        if (len(preview_data) > 0 and  drop_val != preview_data[preview_data['sub_prev'] == 1].reset_index().loc[0]['identity']) or (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
+        if len(preview_data) > 0:
+            if drop_val not in list(preview_data[preview_data['sub_prev'] == 1]['identity'].unique()) or ((shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True and len(preview_data[preview_data['sub_prev'] == 0]) > 0):
+                sub_change = True
+                flags_resolved = []
+                flags_unresolved = []
+                flags_new = []
+                flags_skipped = []
+            else:
+                sub_change = False
+        elif (shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True:
             sub_change = True
             flags_resolved = []
             flags_unresolved = []
@@ -2834,17 +3058,20 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             p_skip_list = []
 
         if len(preview_data) > 0 and "governance" not in message:
-            preview_status = True
+            if len(preview_data[preview_data['sub_prev'] == 0]) > 0:
+                preview_status = True
+            else:
+                preview_status = False
         else:
             preview_status = False
 
         issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, preview_status, init_skips)
-
+        
         if len(issue_description_noprev) == 0:
             style_noprev = {'display': 'none'}
         else:
             if (has_flag == 0 or has_flag == 2) and (show_skips == False or len(p_skip_list) == 0):
-                style_noprev = {'padding-left': '10px', 'width': '100%', 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top', 'text-align': 'center'}
+                style_noprev = {'padding-left': '10px', 'width': '100%', 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top', 'textAlign': 'center'}
             else:
                 style_noprev = {'padding-left': '10px', 'width': '60%', 'display': 'inline-block', 'font-size': '16px', 'vertical-align': 'top'}
         if len(issue_description_resolved) == 0:
@@ -2879,7 +3106,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         
         # Call the function to set up the sub time series graphs
         if len(preview_data) > 0:
-            data_vac, data_rent = sub_met_graphs(preview_data, "sub", curryr, currqtr, fileyr, sector_val)
+            data_vac, data_rent = sub_met_graphs(preview_data[(preview_data['identity'] == drop_val)], "sub", curryr, currqtr, fileyr, sector_val)
         else:
             data_vac, data_rent = sub_met_graphs(data[(data['identity'] == drop_val)], "sub", curryr, currqtr, fileyr, sector_val)
         
@@ -2973,7 +3200,10 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             else:
                 padding = '35px'
         elif len_display == 19 + qtr_add:
-            padding = padding = str(max((63 + (currqtr * 30)),0)) + 'px'
+            if currqtr == 4:
+                padding = str(max((63 + (0 * 30)),0)) + 'px'
+            else:
+                padding = str(max((63 + (currqtr * 30)),0)) + 'px'
         spacing_style_shim = {'padding-left': '100px', 'display': 'block', 'padding-top': padding}
 
         # Set the key metrics and employment metrics display
@@ -3035,7 +3265,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
 
         # Output the main data set to a pickle file, to be read in and used by the scatter plot callback
         use_pickle("out", "scatter_data_" + sector_val, data, fileyr, currqtr, sector_val)
-
+        
     return shim_data.to_dict('records'), [{'name': ['Insert Manual Fix', shim_data.columns[i]], 'id': shim_data.columns[i], 'type': type_dict_data[shim_data.columns[i]], 'format': format_dict_data[shim_data.columns[i]], 'editable': edit_dict[shim_data.columns[i]]} 
                             for i in range(3, len(shim_data.columns))], highlighting_shim, display_data.to_dict('records'), [{'name': [data_title, display_data.columns[i]], 'id': display_data.columns[i], 'type': type_dict_data[display_data.columns[i]], 'format': format_dict_data[display_data.columns[i]]} 
                             for i in range(0, len(display_data.columns))], highlighting_display, key_metrics.to_dict('records'), [{'name': [title_met, key_metrics.columns[i]], 'id': key_metrics.columns[i], 'type': type_dict_metrics[key_metrics.columns[i]], 'format': format_dict_metrics[key_metrics.columns[i]]} 
@@ -3087,13 +3317,14 @@ def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_
         dash_second_five = curryr + 5
         dash_second_five = str(dash_second_five)
 
-        # If the user is previewing a fix, set the rollup data set used in the rollup function to reflect the previewed edits so the user can see their effect on the met and nat levels
+        # If the user is previewing a fix and it is not a global shim preview, set the rollup data set used in the rollup function to reflect the previewed edits so the user can see their effect on the met and nat levels
+        # If it is a global shim preview, the rollup data can just be a copy of the entire preview dataset
         # Otherwise, the rollup data set can just be a copy of the current edited dataset
-        if len(preview_data) > 0:
+        filt_cols = orig_cols + ['identity', 'forecast_tag', 'identity_met', 'identity_us', 'rolsinv']
+        if sector_val == "ret" or sector_val == "off":
+            filt_cols += ['rolmerent']
+        if len(preview_data) > 0 and len(preview_data[preview_data['sub_prev'] == 0]) > 0:
             data_temp = data.copy()
-            filt_cols = orig_cols + ['identity', 'forecast_tag', 'identity_met', 'identity_us', 'rolsinv']
-            if sector_val == "ret" or sector_val == "off":
-                filt_cols += ['rolmerent']
             data_temp = data_temp[filt_cols]
             preview_data_temp = preview_data.copy()
             preview_data_temp = preview_data_temp[filt_cols]
@@ -3102,6 +3333,10 @@ def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_
             data_temp = data_temp.append(preview_data_temp)
             data_temp.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
             roll = data_temp.copy()
+        elif len(preview_data) > 0 and len(preview_data[preview_data['sub_prev'] == 0]) == 0:
+            roll = preview_data.copy()
+            roll = roll[filt_cols]
+            roll.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
         else:
             roll = data.copy()
 

@@ -524,18 +524,17 @@ def live_flag_count(dataframe_in, sector_val, flag_cols):
     
     dataframe['c_flag_tot_sub'] = dataframe.filter(regex="^c_flag*").sum(axis=1)
     dataframe['v_flag_tot_sub'] = dataframe.filter(regex="^v_flag*").sum(axis=1)
-    dataframe['g_flag_tot_temp1'] = dataframe.filter(regex="^g_flag*").sum(axis=1)
-    dataframe['g_flag_tot_temp2'] = dataframe.filter(regex="^e_flag*").sum(axis=1)
-    dataframe['g_flag_tot_sub'] = dataframe['g_flag_tot_temp1'] + dataframe['g_flag_tot_temp2']
-    dataframe = dataframe.drop(['g_flag_tot_temp1', 'g_flag_tot_temp2'], axis=1)
+    dataframe['g_flag_tot_sub'] = dataframe.filter(regex="^g_flag*").sum(axis=1)
+    dataframe['e_flag_tot_sub'] = dataframe.filter(regex="^e_flag*").sum(axis=1)
     
     c_left = dataframe['c_flag_tot_sub'].sum() -  dataframe['flag_skip'].str.count('c_flag').sum()
     v_left = dataframe['v_flag_tot_sub'].sum() - dataframe['flag_skip'].str.count('v_flag').sum()
-    g_left = dataframe['g_flag_tot_sub'].sum() - dataframe['flag_skip'].str.count('g_flag').sum() - dataframe['flag_skip'].str.count('e_flag').sum()
+    g_left = dataframe['g_flag_tot_sub'].sum() - dataframe['flag_skip'].str.count('g_flag').sum()
+    e_left = dataframe['e_flag_tot_sub'].sum() - dataframe['flag_skip'].str.count('e_flag').sum()
 
 
-    countdown_dict = {'Totals': [c_left, v_left, g_left]}
-    countdown = pd.DataFrame.from_dict(countdown_dict, orient='index', columns=["Cons Flags", "Vac Flags", "Rent Flags"])
+    countdown_dict = {'Totals': [c_left, v_left, g_left, e_left]}
+    countdown = pd.DataFrame.from_dict(countdown_dict, orient='index', columns=["Cons Flags", "Vac Flags", "Mrent Flags", "Erent Flags"])
     
     return countdown
 
@@ -581,21 +580,20 @@ def summarize_flags(dataframe_in, sum_val, flag_cols):
         identity_filt = 'identity_us'
     else:
         identity_filt = 'identity_met'
-    
+
     dataframe = dataframe[dataframe[identity_filt] == sum_val]
 
     dataframe[flag_cols] = np.where((dataframe[flag_cols] != 0), 1, dataframe[flag_cols])
 
     dataframe['c_flag_tot'] = dataframe.filter(regex="^c_flag*").sum(axis=1)
     dataframe['v_flag_tot'] = dataframe.filter(regex="^v_flag*").sum(axis=1)
-    dataframe['g_flag_tot_temp1'] = dataframe.filter(regex="^g_flag*").sum(axis=1)
-    dataframe['g_flag_tot_temp2'] = dataframe.filter(regex="^e_flag*").sum(axis=1)
-    dataframe['g_flag_tot'] = dataframe['g_flag_tot_temp1'] + dataframe['g_flag_tot_temp2']
+    dataframe['g_flag_tot'] = dataframe.filter(regex="^g_flag*").sum(axis=1)
+    dataframe['e_flag_tot'] = dataframe.filter(regex="^e_flag*").sum(axis=1)
 
     dataframe['total_fcast_rows'] = dataframe.groupby(identity_filt)['identity_row'].transform('nunique')
     dataframe['total_subs'] = dataframe.groupby(identity_filt)['identity'].transform('nunique')
 
-    for x  in ["c", "v", "g"]:
+    for x  in ["c", "v", "g", "e"]:
         dataframe[x + '_flag_sum'] = dataframe.groupby(identity_filt)[x + '_flag_tot'].transform('sum')
         
         dataframe['has_flag'] = np.where((dataframe[x + '_flag_tot'] != 0), 1, 0)    
@@ -612,10 +610,10 @@ def summarize_flags(dataframe_in, sum_val, flag_cols):
     dataframe = dataframe.reset_index()
 
     input_dict = {
-                    'Flag Type': ['Cons Flags', 'Vac Flags', 'Rent Flags'], 
-                    'Total Flags': [dataframe['c_flag_sum'].loc[0], dataframe['v_flag_sum'].loc[0], dataframe['g_flag_sum'].loc[0]],
-                    '% Fcast Rows W Flag': [dataframe['c_% Fcast Rows W Flag'].loc[0], dataframe['v_% Fcast Rows W Flag'].loc[0], dataframe['g_% Fcast Rows W Flag'].loc[0]],
-                    '% Subs W Flag': [dataframe['c_% Subs W Flag'].loc[0], dataframe['v_% Subs W Flag'].loc[0], dataframe['g_% Subs W Flag'].loc[0]]
+                    'Flag Type': ['Cons Flags', 'Vac Flags', 'Mrent Flags', 'Erent Flags'], 
+                    'Total Flags': [dataframe['c_flag_sum'].loc[0], dataframe['v_flag_sum'].loc[0], dataframe['g_flag_sum'].loc[0], dataframe['e_flag_sum'].loc[0]],
+                    '% Fcast Rows W Flag': [dataframe['c_% Fcast Rows W Flag'].loc[0], dataframe['v_% Fcast Rows W Flag'].loc[0], dataframe['g_% Fcast Rows W Flag'].loc[0], dataframe['e_% Fcast Rows W Flag'].loc[0]],
+                    '% Subs W Flag': [dataframe['c_% Subs W Flag'].loc[0], dataframe['v_% Subs W Flag'].loc[0], dataframe['g_% Subs W Flag'].loc[0], dataframe['e_% Subs W Flag'].loc[0]]
                   }
     
     dataframe_out = pd.DataFrame(input_dict)
@@ -1030,10 +1028,12 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
 
         data_temp = data.copy()
         try:
+            print("If really want to use coeffs, need to adjust the path here to the true location of the coeffs file. Get analyst buy in first though")
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
             coeff_data = pd.read_pickle(file_path)
-            coeff_data = coeff_data.set_index("identity")
-            data = data.join(coeff_data, on='identity')
+            if 'inv_chg_to_vac' not in list(data_temp.columns):
+                coeff_data = coeff_data.set_index("identity")
+                data_temp = data_temp.join(coeff_data, on='identity')
             using_coeff = 1
         except:
             using_coeff = 0
@@ -1231,7 +1231,7 @@ def insert_fix(dataframe, row_to_fix, identity_val, fix, variable_fix, yr_change
                 orig_cons = dataframe.loc[row_to_fix]['cons']
                 cons_diff = fix - orig_cons
                 dataframe.loc[row_to_fix, 'cons'] = fix
-            
+
             dataframe['inv'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), dataframe['inv'] + cons_diff, dataframe['inv'])
             dataframe['inv'] = dataframe['inv'].astype(int)
         
@@ -1398,7 +1398,7 @@ def insert_fix_coeffs(dataframe, row_to_fix, identity_val, fix, variable_fix, yr
 
             # Recalculate G_merent now that we have the new effective rent level
             dataframe['G_merent'] = np.where((dataframe['yr'] == yr_change + x) & (dataframe['qtr'] == 5) & (dataframe['identity'] == identity_val), round((dataframe['merent'] - dataframe['merent'].shift(periods=period)) / dataframe['merent'].shift(periods=period), 4), dataframe['G_merent']) 
-        
+
         elif variable_fix == "v":
             
             # Insert the user edit for avail
@@ -1673,3 +1673,322 @@ def check_skips(dataframe_in, decision_data, curryr, currqtr, sector_val, flag_c
                 decision_data.loc[init_drop_val + str(curryr) + str(5), 'skip_user'] = ''
 
     return dataframe_in, decision_data
+
+def execute_global_cons(total_add, diff_to_target, temp, data_in, year, round_val, sector_val, thresh, change, using_coeff, curryr, currqtr):
+    
+    data = data_in.copy()
+
+    if sector_val == "apt":
+        min_val = 1
+    else:
+        min_val = 1000
+
+    print("Total add:", total_add)
+    print("Diff to Target", diff_to_target)
+    if total_add <= diff_to_target:
+        change = True
+        
+        for index, row in temp.iterrows():
+            
+            if row['diff'] >= thresh or row['cons'] != 0:
+
+                to_add = max(round(row['diff'], round_val), min_val)
+
+                print("To add:", to_add)
+                display(data.loc[row['identity'] + str(year) + '5']['identity'])
+                display(data.loc[row['identity'] + str(year) + '5']['cons'])
+
+                if using_coeff == 1:
+                    data = insert_fix_coeffs(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
+                else:
+                    data = insert_fix(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
+    
+                data['global_change'] = np.where(data['identity'] == row['identity'], True, data['global_change'])
+                
+                display(data.loc[row['identity'] + str(year) + '5']['cons'])
+                
+                diff_to_target = diff_to_target - to_add
+        
+        achieved_target = False
+    
+    else:
+        subs_left = len(temp)
+        for index, row in temp.iterrows():
+            
+            per_sub_add = max(round(diff_to_target / subs_left, round_val), min_val)
+            to_add = max(min(per_sub_add, round(row['diff'], round_val)), min_val)
+            
+            subs_left = subs_left - 1
+            
+            if row['diff'] >= thresh or row['cons'] != 0:
+                display(data.loc[row['identity'] + str(year) + '5']['identity'])
+                print("To add:", to_add)
+                display(data.loc[row['identity'] + str(year) + '5']['cons'])
+                
+                if using_coeff == 1:
+                    data = insert_fix_coeffs(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
+                else:
+                    data = insert_fix(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
+    
+                data['global_change'] = np.where(data['identity'] == row['identity'], True, data['global_change'])
+                
+                diff_to_target = diff_to_target - to_add
+                
+                display(data.loc[row['identity'] + str(year) + '5']['cons'])
+                print("Diff to target:", diff_to_target)
+                
+                if not change:
+                    change = True
+            
+            if diff_to_target <= 0:
+                break
+            
+        achieved_target = True
+
+        print("New total:", data[(data['expansion'] == 'Leg') & (data['subsector'] == 'DW') & (data['yr'] == 2021) & (data['qtr'] == 5)]['cons'].sum())
+
+    return data, achieved_target, diff_to_target, change
+
+
+def global_shim(data_in, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status):
+
+    data = data_in.copy()
+
+    data['global_change'] = False
+
+    orig_cols = list(data.columns)
+
+    try:
+        print("If really want to use coeffs, need to adjust the path here to the true location of the coeffs file. Get analyst buy in first though")
+        file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
+        coeff_data = pd.read_pickle(file_path)
+        if 'inv_chg_to_vac' not in list(data.columns):
+            coeff_data = coeff_data.set_index("identity")
+            data = data.join(coeff_data, on='identity')
+        using_coeff = 1
+    except:
+        using_coeff = 0
+
+    diff_to_target = target - init_chg_val
+
+    achieved_target = False
+    while not achieved_target:
+        if var == "Cons":
+            
+            change = False
+
+            if subsector == "DW":
+                thresh = 50000
+            elif subsector == "F":
+                thresh = 20000
+            elif sector_val == "apt":
+                thresh = 20
+            elif sector_val == "off":
+                thresh = 20000
+            elif sector_val == "ret":
+                thresh = 10000
+
+            if sector_val != "apt":
+                round_val = -3
+                data['round_h_temp'] = round(data['h'],-3)
+                data['round_h_temp'] = np.where((abs(data['h'] - data['cons']) == 500) & (data['round_h_temp'] < data['h']) & (data['round_h_temp'] < data['cons']), data['round_h_temp'] + 1000, data['round_h_temp'])
+                data['round_rol_h_temp'] = round(data['rol_h'],-3)
+                data['round_rol_h_temp'] = np.where((abs(data['rol_h'] - data['rolscon']) == 500) & (data['round_rol_h_temp'] < data['rol_h']) & (data['round_rol_h_temp'] < data['rolscon']), data['round_rol_h_temp'] + 1000, data['round_rol_h_temp'])
+                data['round_t_temp'] = round(data['t'],-3)
+                data['round_t_temp'] = np.where((abs(data['t'] - data['cons']) == 500) & (data['round_t_temp'] < data['t']) & (data['round_t_temp'] < data['cons']), data['round_t_temp'] + 1000, data['round_t_temp']) 
+            else:
+                round_val = 0
+                data['round_h_temp'] = data['h']
+                data['round_rol_h_temp'] = data['rol_h']
+                data['round_t_temp'] = data['t']
+
+            data['e_thresh'] = np.where(data['forecast_tag'] == 1, np.nan, 0.5)
+            data['e_thresh'] = np.where((currqtr == 1) & (data['forecast_tag'] == 1), 0.25, data['e_thresh'])
+            data['e_thresh'] = np.where((currqtr == 2) & (data['forecast_tag'] == 1), 0.2, data['e_thresh'])
+            data['e_thresh'] = np.where((currqtr == 3) & (data['forecast_tag'] == 1), 0.1, data['e_thresh'])
+            data['e_thresh'] = np.where((currqtr == 4) & (data['forecast_tag'] == 1), 0.3, data['e_thresh'])
+        
+            if diff_to_target > 0:
+
+                # Check if there are submarkets where we can increase the construction to match h stock
+                temp = data.copy()
+                temp = temp[(temp['yr'] == year) & (temp['qtr'] == 5) & (temp['subsector'] == subsector) & (temp['identity_us'] == roll_val)]
+                if not override:
+                    temp = temp[(temp['cons'] < temp['round_h_temp'])]
+                    if len(temp) > 0:
+                        temp['diff'] = temp['round_h_temp'] - temp['cons']
+                        temp.sort_values(by=['diff'], ascending=[True], inplace=True)
+                        total_add = temp['diff'].sum()
+                        print("\n")
+                        print("h check")
+                        if len(temp) > 0:
+                            data, achieved_target, diff_to_target, change = execute_global_cons(total_add, diff_to_target, temp, data, year, round_val, sector_val, thresh, change, using_coeff, curryr, currqtr)
+
+                # Check if there are submarkets where we can increase the construction back to rol levels
+                temp = data.copy()
+                temp = temp[(temp['yr'] == year) & (temp['qtr'] == 5) & (temp['subsector'] == subsector) & (temp['identity_us'] == roll_val)]
+                if not override and not achieved_target: 
+                    temp = temp[(temp['cons'] < temp['rolscon']) & (temp['cons'] < round(temp['t'], round_val)) & ((temp['rolscon'] - temp['cons']) > (temp['rol_h'] - temp['h'])) & ((data['rolscon'] - data['cons']) > (data['rol_e'] - data['e']))]
+                    if len(temp) > 0:
+                        if year == curryr and not override:
+                            temp['ratio_test_target'] = round((temp['e'] * temp['e_thresh']) - (temp['cons'] - temp['round_h_temp']), round_val)
+                            temp['diff'] = np.where(((((temp['rolscon'] - temp['cons']) - (temp['rol_h'] - temp['h'])) + (temp['cons'] - temp['round_h_temp'])) / temp['e'] > temp['e_thresh']), temp['ratio_test_target'], (temp['rolscon'] - temp['cons']) - (temp['rol_h'] - temp['h']))
+                            temp = temp[temp['diff'] > 0]
+                        else:
+                            temp['diff'] = (temp['rolscon'] - temp['cons']) - (temp['rol_h'] - temp['h'])
+                        if len(temp) > 0:
+                            temp['diff'] = np.where((round(temp['cons'] + temp['diff'], round_val) > round(temp['t'], round_val)) & (temp['yr'] == curryr), temp['t'], temp['diff'])
+                            temp.sort_values(by=['diff'], ascending=[True], inplace=True)
+                            total_add = temp['diff'].sum()
+                            print("\n")
+                            print("rol check")
+                            data, achieved_target, diff_to_target, change = execute_global_cons(total_add, diff_to_target, temp, data, year, round_val, sector_val, thresh, change, using_coeff, curryr, currqtr)
+            
+                # Check if there is historical support to increase the construction level, as well as pipeline support
+                if override:
+                    iters = 2
+                else:
+                    iters = 1
+
+                for iter in range(0, iters):
+                    if iters == 1:
+                        data['e_thresh'] = np.where(data['forecast_tag'] == 1, np.nan, 0.75)
+                        data['e_thresh'] = np.where((currqtr == 1) & (data['forecast_tag'] == 1), 0.45, data['e_thresh'])
+                        data['e_thresh'] = np.where((currqtr == 2) & (data['forecast_tag'] == 1), 0.4, data['e_thresh'])
+                        data['e_thresh'] = np.where((currqtr == 3) & (data['forecast_tag'] == 1), 0.3, data['e_thresh'])
+                        data['e_thresh'] = np.where((currqtr == 4) & (data['forecast_tag'] == 1), 0.5, data['e_thresh'])
+                    
+                    temp = data.copy()
+                    temp = temp[(temp['yr'] == year) & (temp['qtr'] == 5) & (temp['subsector'] == subsector) & (temp['identity_us'] == roll_val)]
+                    if not achieved_target:
+                        temp = temp[(temp['cons'] < temp['three_yr_avg_cons']) & (temp['cons'] < temp['round_t_temp']) & ((temp['cons'] - temp['round_h_temp']) / temp['e'] < temp['e_thresh'])]
+                        if len(temp) > 0:
+                            temp['diff'] = np.where((temp['three_yr_avg_cons'] / temp['e'] <= temp['e_thresh']), temp['three_yr_avg_cons'] - temp['cons'], (round(temp['e'] * temp['e_thresh'], round_val)) - (temp['cons'] - temp['round_h_temp']))
+                            temp['diff'] = round(temp['diff'], round_val)
+                            if not override:
+                                temp['diff'] = np.where((temp['diff'] + temp['cons'] > temp['rolscon']), temp['rolscon'] - temp['cons'], temp['diff'])
+                            temp = temp[temp['diff'] > 0]
+                            if len(temp) > 0:
+                                temp.sort_values(by=['diff'], ascending=[True], inplace=True)
+                                total_add = temp['diff'].sum()
+                                print("\n")
+                                print("hist check")
+                                data, achieved_target, diff_to_target, change = execute_global_cons(total_add, diff_to_target, temp, data, year, round_val, sector_val, thresh, change, using_coeff, curryr, currqtr)
+  
+                if preview_status:
+                    button = 'Preview'
+                elif not preview_status:
+                    button = 'Submit'
+                
+                if not achieved_target and not override:
+                    achieved_target = True
+                    message_display = True
+                    if change:
+                        message = "Some changes were implemented to reach your {} target, but there is limited support left to continue making changes. Do you want to proceed with more changes? If yes, click {} again.".format(var.lower(), button)
+                    else:
+                        message = "There is limited support for making any changes to reach your {} target. Do you want to make changes regardless? If yes, click {} again.".format(var.lower(), button)
+                else:
+                    message = ''
+                    message_display = False
+
+                if not achieved_target and override:
+                    achieved_target = True
+                    message_display = True
+                    if change:
+                        message = "Additional changes were implemented to reach your {} target, but there is limited support left to continue making changes. All additional changes should be submitted via submarket level shim".format(var.lower())
+                    else:
+                        message = "No additional changes were implemented to reach your {} target. All additional changes should be submitted via submarket level shim".format(var.lower())
+
+            elif diff_to_target < 0:
+                False
+
+            
+            elif diff_to_target == 0:
+                achieved_target = True
+                message = ''
+                message_display = False
+                change = False
+
+        elif var == "Vac Chg":
+            False
+        elif var == "Gmrent":
+            False
+        elif var == "Gap Chg":
+            False
+
+        data = data[orig_cols]
+
+        return data, message, message_display, change
+
+
+def get_global_sum_flags(global_data, global_trigger, data, init_global_flags, flag_cols):
+
+    global_data = pd.DataFrame.from_dict(global_data)
+    subsector = global_data.loc[0]['Subsector']
+    year = global_data.loc[0]['Year']
+
+    new_global_flags = {}
+    for i in range(0, 2):
+        new_flags_temp = []
+        for var in ['c', 'v', 'g', 'e']:
+            
+            temp = data.copy()
+            temp = temp[(temp['subsector'] == subsector) & (temp['expansion'] == 'Leg')]
+            if i == 0:
+                temp = temp[temp['yr'] == year]
+            temp[flag_cols] = np.where((temp[flag_cols] != 0), 1, temp[flag_cols])
+            temp['{}_flag_tot'.format(var)] = temp.filter(regex="^{}_flag*".format(var)).sum(axis=1)
+            temp['{}_flag_sum'.format(var)] = temp['{}_flag_tot'.format(var)].sum()
+            new_sum_flags = temp.reset_index().loc[0]['{}_flag_sum'.format(var)]
+            new_flags_temp.append(new_sum_flags)
+        if i == 0:
+            new_global_flags[str(year)] = new_flags_temp
+        else:
+            new_global_flags['All'] = new_flags_temp
+
+    flag_sum_table = pd.DataFrame()
+    cond_style = []
+    for i in range(0, 2):
+        if i == 0:
+            key_var = str(year)
+        else:
+            key_var = 'All'
+        row_data = [key_var]
+        c_flag_diff = new_global_flags[str(key_var)][0]  - init_global_flags[str(key_var)][0]
+        v_flag_diff = new_global_flags[str(key_var)][1]  - init_global_flags[str(key_var)][1]
+        g_flag_diff = new_global_flags[str(key_var)][2]  - init_global_flags[str(key_var)][2]
+        e_flag_diff = new_global_flags[str(key_var)][3]  - init_global_flags[str(key_var)][3]
+
+        for var, amt in zip(['Cons', 'Vac', 'Gmrent', 'Gap'], [c_flag_diff, v_flag_diff, g_flag_diff, e_flag_diff]):
+
+            if amt > 0:
+                indicator = '+' + str(int(abs(amt)))
+                color = 'red'
+            elif amt < 0:
+                indicator = '-' + str(int(abs(amt)))
+                color = 'darkgreen'
+            elif amt == 0:
+                indicator = '+' + str(int(abs(amt)))
+                color = 'black'
+            row_data.append(indicator) 
+            style_temp = {'if': {'column_id': str(var), 'row_index':i}, 'color': color, 'width': '20%'}
+            cond_style.append(style_temp)     
+
+        flag_sum_table = flag_sum_table.append([row_data])
+    flag_sum_table.columns=['Year', 'Cons', 'Vac', 'Gmrent', 'Gap']
+
+    # flag_sum_message = html.P([
+    #                             html.Span("Cons flags: ", style={"color": 'black'}),
+    #                             html.Span(flag_sum_message_dict['cons'][0], style={"color": flag_sum_message_dict['cons'][1]}),
+    #                             html.Br(),
+    #                             html.Span("Vac flags: ", style={"color": 'black'}),
+    #                             html.Span(flag_sum_message_dict['vac'][0], style={"color": flag_sum_message_dict['vac'][1]}),
+    #                             html.Br(),
+    #                             html.Span("Mrent flags: ", style={"color": 'black'}),
+    #                             html.Span(flag_sum_message_dict['mrent'][0], style={"color": flag_sum_message_dict['mrent'][1]}),
+    #                             html.Br(),
+    #                             html.Span("Erent flags: ", style={"color": 'black'}),
+    #                             html.Span(flag_sum_message_dict['erent'][0], style={"color": flag_sum_message_dict['erent'][1]}),
+    #                           ])
+
+    return flag_sum_table, cond_style

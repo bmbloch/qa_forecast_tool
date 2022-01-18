@@ -2085,16 +2085,16 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     finalized_copy = finalized_sub.copy()
                     finalized_copy = finalized_copy[finalized_copy['subsector'] == subsector]
                     finalized_copy = finalized_copy.drop(['subsector'], axis=1)
-                    file_path_dta = "{}central/subcast/data/{}/forecast/current/{}subtest_{}_{}q{}.dta".format(get_home(), sector_val, sector_val, subsector, str(curryr), str(currqtr))
+                    file_path_dta = "{}central/subcast/data/{}/forecast/current/{}subtest_{}_{}q{}.dta".format(get_home(), sector_val, sector_val, subsector, str(fileyr), str(currqtr))
                     finalized_copy.to_stata(file_path_dta, write_index=False)
-                    file_path_out = "{}central/subcast/data/{}/forecast/current/{}subtest_{}_{}q{}.out".format(get_home(), sector_val, sector_val, subsector, str(curryr), str(currqtr))
+                    file_path_out = "{}central/subcast/data/{}/forecast/current/{}subtest_{}_{}q{}.out".format(get_home(), sector_val, sector_val, subsector, str(fileyr), str(currqtr))
                     finalized_copy.to_csv(file_path_out, index=False, na_rep='')
                     
             
             elif sector_val == "apt" or sector_val == "off" or sector_val == "ret":
-                file_path_dta = "{}central/subcast/data/{}/forecast/current/{}subtest_{}q{}.dta".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
+                file_path_dta = "{}central/subcast/data/{}/forecast/current/{}subtest_{}q{}.dta".format(get_home(), sector_val, sector_val, str(fileyr), str(currqtr))
                 finalized_sub.to_stata(file_path_dta, write_index=False)
-                file_path_out = "{}central/subcast/data/{}/forecast/current/{}subtest_{}q{}.out".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
+                file_path_out = "{}central/subcast/data/{}/forecast/current/{}subtest_{}q{}.out".format(get_home(), sector_val, sector_val, str(fileyr), str(currqtr))
                 finalized_sub.to_csv(file_path_out, index=False, na_rep='')
 
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_deep_hist.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
@@ -2151,9 +2151,9 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     finalized_copy = finalized_met.copy()
                     finalized_copy = finalized_copy[finalized_copy['subsector'] == subsector]
                     finalized_copy = finalized_copy.drop(['subsector'], axis=1)
-                    file_path_dta = "{}central/metcast/data/{}/forecast/current/{}mettest_{}_{}q{}.dta".format(get_home(), sector_val, sector_val, subsector, str(curryr), str(currqtr))
+                    file_path_dta = "{}central/metcast/data/{}/forecast/current/{}mettest_{}_{}q{}.dta".format(get_home(), sector_val, sector_val, subsector, str(fileyr), str(currqtr))
                     finalized_copy.to_stata(file_path_dta, write_index=False)
-                    file_path_out = "{}central/metcast/data/{}/forecast/current/{}mettest_{}_{}q{}.out".format(get_home(), sector_val, sector_val, subsector, str(curryr), str(currqtr))
+                    file_path_out = "{}central/metcast/data/{}/forecast/current/{}mettest_{}_{}q{}.out".format(get_home(), sector_val, sector_val, subsector, str(fileyr), str(currqtr))
                     finalized_copy.to_csv(file_path_out, index=False, na_rep='')
             
             elif sector_val == "apt" or sector_val == "off" or sector_val == "ret":
@@ -2174,9 +2174,9 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                 finalized_met = finalized_met.append(met_deep, ignore_index=True)
                 finalized_met.sort_values(by=['metcode', 'yr', 'qtr'], ascending=[True, True, True], inplace=True)
                 
-                file_path_dta = "{}central/metcast/data/{}/forecast/current/{}mettest_{}q{}.dta".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
+                file_path_dta = "{}central/metcast/data/{}/forecast/current/{}mettest_{}q{}.dta".format(get_home(), sector_val, sector_val, str(fileyr), str(currqtr))
                 finalized_met.to_stata(file_path_dta, write_index=False)
-                file_path_out = "{}central/metcast/data/{}/forecast/current/{}mettest_{}q{}.out".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
+                file_path_out = "{}central/metcast/data/{}/forecast/current/{}mettest_{}q{}.out".format(get_home(), sector_val, sector_val, str(fileyr), str(currqtr))
                 finalized_met.to_csv(file_path_out, index=False, na_rep='')
 
             finalized_us = rollup(finalized_us, 'US_finalizer', curryr, currqtr, sector_val, "reg", True)
@@ -2205,21 +2205,21 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                     finalized_copy = finalized_us.copy()
                     finalized_copy = finalized_copy[finalized_copy['subsector'] == subsector]
                     finalized_copy = finalized_copy.drop(['subsector'], axis=1)
-                    file_path_dta = "{}central/metcast/data/{}/forecast/current/US_{}test_{}_{}q{}.dta".format(get_home(), sector_val, sector_val, subsector, str(curryr), str(currqtr))
+                    file_path_dta = "{}central/metcast/data/{}/forecast/current/US_{}test_{}_{}q{}.dta".format(get_home(), sector_val, sector_val, subsector, str(fileyr), str(currqtr))
                     finalized_copy.to_stata(file_path_dta, write_index=False)
-                    file_path_out = "{}central/metcast/data/{}/forecast/current/US_{}test_{}_{}q{}.out".format(get_home(), sector_val, sector_val, subsector, str(curryr), str(currqtr))
+                    file_path_out = "{}central/metcast/data/{}/forecast/current/US_{}test_{}_{}q{}.out".format(get_home(), sector_val, sector_val, subsector, str(fileyr), str(currqtr))
                     finalized_copy.to_csv(file_path_out, index=False, na_rep='')
             
             elif sector_val == "apt" or sector_val == "off" or sector_val == "ret":
-                file_path_dta = "{}central/metcast/data/{}/forecast/current/US_{}test_{}q{}.dta".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
+                file_path_dta = "{}central/metcast/data/{}/forecast/current/US_{}test_{}q{}.dta".format(get_home(), sector_val, sector_val, str(fileyr), str(currqtr))
                 finalized_us.to_stata(file_path_dta, write_index=False)
-                file_path_out = "{}central/metcast/data/{}/forecast/current/US_{}test_{}q{}.out".format(get_home(), sector_val, sector_val, str(curryr), str(currqtr))
+                file_path_out = "{}central/metcast/data/{}/forecast/current/US_{}test_{}q{}.out".format(get_home(), sector_val, sector_val, str(fileyr), str(currqtr))
                 finalized_us.to_csv(file_path_out, index=False, na_rep='')
 
             # Convert decision log to csv file and save in OutputFiles folder
-            decision_log_in_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val, 'pickle'))
+            decision_log_in_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val, 'pickle'))
             decision_log = pd.read_pickle(decision_log_in_path)
-            decision_log_out_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(curryr), str(currqtr), sector_val, 'csv'))
+            decision_log_out_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/decision_log_{}.{}".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val, 'csv'))
             decision_log.to_csv(decision_log_out_path, na_rep='')
 
             # Save a csv file with all the historical rebenches that crossed the data governance threshold

@@ -3020,7 +3020,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
 
         # If the user changes the sub they want to edit, reset the shim section and the flag decision variables
         if len(preview_data) > 0:
-            if drop_val not in list(preview_data[preview_data['sub_prev'] == 1]['identity'].unique()) or ((shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True and len(preview_data[preview_data['sub_prev'] == 0]) > 0):
+            if drop_val not in list(preview_data[preview_data['sub_prev'] == 1]['identity'].unique()) or ((shim_data.reset_index()['identity_row'].str.contains(drop_val).loc[0] == False) == True and len(preview_data['identity'].unique()) == 1):
                 sub_change = True
                 flags_resolved = []
                 flags_unresolved = []
@@ -3058,7 +3058,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
             p_skip_list = []
 
         if len(preview_data) > 0 and "governance" not in message:
-            if len(preview_data[preview_data['sub_prev'] == 0]) > 0:
+            if len(preview_data['identity'].unique()) == 1:
                 preview_status = True
             else:
                 preview_status = False
@@ -3323,7 +3323,7 @@ def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_
         filt_cols = orig_cols + ['identity', 'forecast_tag', 'identity_met', 'identity_us', 'rolsinv']
         if sector_val == "ret" or sector_val == "off":
             filt_cols += ['rolmerent']
-        if len(preview_data) > 0 and len(preview_data[preview_data['sub_prev'] == 0]) > 0:
+        if len(preview_data) > 0 and len(preview_data['identity'].unique()) == 1:
             data_temp = data.copy()
             data_temp = data_temp[filt_cols]
             preview_data_temp = preview_data.copy()
@@ -3333,7 +3333,7 @@ def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_
             data_temp = data_temp.append(preview_data_temp)
             data_temp.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
             roll = data_temp.copy()
-        elif len(preview_data) > 0 and len(preview_data[preview_data['sub_prev'] == 0]) == 0:
+        elif len(preview_data) > 0 and len(preview_data['identity'].unique()) > 1:
             roll = preview_data.copy()
             roll = roll[filt_cols]
             roll.sort_values(by=['subsector', 'metcode', 'subid', 'yr', 'qtr'], inplace=True)
@@ -3347,7 +3347,6 @@ def output_rollup(roll_val, multi_view, year_val, sector_val, tab_clicked, orig_
                 rolled = rolled[(rolled['identity_us'] == roll_val)]
             else:
                 rolled = rolled[(rolled['metcode'] == roll_val[:2]) & (rolled['subsector'] == roll_val[2:])] 
-
         elif multi_view == True:
             roll_combined = pd.DataFrame()
             all_subs = roll.copy()

@@ -3748,6 +3748,34 @@ def produce_timeseries(hoverData, xaxis_var, yaxis_var, sector_val, scatter_chec
         
         graph = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
 
+        if aggreg_met:
+            temp = graph.copy()
+            met_level_eco_cols = ['avg_inc', 'avg_inc_chg']
+            if sector_val == "apt" or sector_val == "ret":
+                met_level_eco_cols += ['emp', 'emp_chg', 'rol_emp', 'rol_emp_chg']
+            elif sector_val == "off":
+                met_level_eco_cols += ['off_emp', 'off_emp_chg', 'rol_off_emp', 'rol_off_emp_chg']
+            elif sector_val == "ind":
+                met_level_eco_cols += ['ind_emp', 'ind_emp_chg', 'rol_ind_emp', 'rol_ind_emp_chg']
+            
+            if currqtr != 4:
+                met_level_eco_cols += ['implied_avg_inc_chg']
+                if sector_val == "apt" or sector_val == "ret":
+                    met_level_eco_cols += ['implied_emp_chg']
+                elif sector_val == "off":
+                    met_level_eco_cols += ['implied_off_emp_chg']
+                elif sector_val == "ind":
+                    met_level_eco_cols += ['implied_ind_emp_chg']
+            
+            temp = temp[['metcode', 'yr', 'qtr'] + met_level_eco_cols]
+            temp['identity_join'] = temp['metcode'] + temp['yr'].astype(str) + temp['qtr'].astype(str)
+            temp = temp.drop(['metcode', 'yr', 'qtr'], axis=1)
+            temp = temp.drop_duplicates('identity_join')
+            
+            graph = rollup(graph, "temp", curryr, currqtr, sector_val, "graph", False)
+            graph['identity_join'] = graph['metcode'] + graph['yr'].astype(str) + graph['qtr'].astype(str)
+            graph = graph.join(temp.set_index('identity_join'), on='identity_join')
+
         graph, temp = filter_graph(graph, curryr, currqtr, False, xaxis_var, yaxis_var, sector_val, comp_value, False, aggreg_met, True) 
 
         if comp_value == "r":

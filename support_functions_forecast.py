@@ -493,6 +493,12 @@ def rollup(dataframe, drop_val, curryr, currqtr, sector_val, filt_type, finalize
             cols_to_display.remove('metcode')
             cols_to_display += ['identity_us']
 
+        if currqtr == 4 and filt_type == 'graph':
+            cols_to_display.remove('implied_cons')
+            cols_to_display.remove('implied_vac_chg')
+            cols_to_display.remove('implied_G_mrent')
+            cols_to_display.remove('implied_gap_chg')
+
         roll = roll[cols_to_display]
         roll = roll[(roll['yr'] >= curryr - 5)]
 
@@ -622,7 +628,7 @@ def summarize_flags(dataframe_in, sum_val, flag_cols):
 
 
 # Return a more verbose description of the flag to the user
-def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_list=False, p_skip_list=False, show_skips=False, flags_resolved=False, flags_unresolved=False, flags_new=False, flags_skipped=False, curryr=False, currqtr=False, preview_status=False, init_skips=False):
+def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_list=False, p_skip_list=False, show_skips=False, flags_resolved=False, flags_unresolved=False, flags_new=False, flags_skipped=False, curryr=False, currqtr=False, preview_status=False, init_skips=False, write_permit=False):
 
     # This dict holds a more verbose explanation of the flags, so that it can be printed to the user for clarity
     issue_descriptions = {
@@ -789,13 +795,16 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                         ]), 
                                     ])
         elif has_flag == 1:
-            if preview_status == False:
+            if not preview_status:
                 if show_skips == True:
                     flags_use = flag_list + p_skip_list
                     disabled_list = [False] * len(flag_list) + [True] * len(p_skip_list)
                 else:
                     flags_use = flag_list
                     disabled_list = [False] * len(flag_list)
+
+                if not write_permit:
+                    disabled_list = [True] * len(flag_list)
 
                 issue_description_noprev = html.Div([
                                         html.Div([
@@ -804,7 +813,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                 dbc.Checklist(
                                                     id="flag_descriptions_noprev",
                                                     options=[
-                                                            {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", "disabled": j}
+                                                            {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", 'disabled': j}
                                                             for i, j in zip(flags_use, disabled_list)
                                                             ],
                                                     inline=True,
@@ -850,6 +859,10 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                     issue_description_resolved = []
                 
                 if len(flags_unresolved) > 0:
+                    if not write_permit:
+                        disabled_list = [True] * len(flags_unresolved)
+                    else:
+                        disabled_list = [False] * len(flags_unresolved)
                     issue_description_unresolved = html.Div([
                                             html.Div([
                                                 dbc.Container(
@@ -857,8 +870,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     dbc.Checklist(
                                                         id="flag_descriptions_unresolved",
                                                         options=[
-                                                                {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}"}
-                                                                for i in flags_unresolved
+                                                                {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", 'disabled': j}
+                                                                for i, j in zip(flags_unresolved, disabled_list)
                                                                 ],
                                                         inline=True,
                                                         labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px', 'color': 'red'},
@@ -877,6 +890,10 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                     issue_description_unresolved = []
 
                 if len(flags_new) > 0:
+                    if not write_permit:
+                        disabled_list = [True] * len(flags_new)
+                    else:
+                        disabled_list = [False] * len(flags_new)
                     issue_description_new = html.Div([
                                             html.Div([
                                                 dbc.Container(
@@ -884,8 +901,8 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                     dbc.Checklist(
                                                         id="flag_descriptions_new",
                                                         options=[
-                                                                {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}"}
-                                                                for i in flags_new
+                                                                {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", 'disabled': j}
+                                                                for i, j in zip(flags_new, disabled_list)
                                                                 ],
                                                         inline=True,
                                                         labelStyle={'display': 'inline-block', 'margin': '0 10px 0 10px', 'color': 'GoldenRod'},
@@ -903,6 +920,13 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                 else:
                     issue_description_new = []
                 if len(flags_skipped) > 0 or len(p_skip_list) > 0:
+
+                    if write_permit:
+                        disabled_list = [False] * len(flags_skipped) + [True] * len(p_skip_list)
+                    else:
+                        disabled_list = [True] * len(flags_skipped) + [True] * len(p_skip_list)
+
+
                     issue_description_skipped = html.Div([
                                             html.Div([
                                                 dbc.Container(
@@ -911,7 +935,7 @@ def get_issue(type_return, sector_val, dataframe=False, has_flag=False, flag_lis
                                                         id="flag_descriptions_skipped",
                                                         options=[
                                                                 {"label": f" {i[0]} {i[6:]}", "value": f"skip-{i}", "label_id": f"label-{i}", "disabled": j}
-                                                                for i, j in zip(flags_skipped + p_skip_list, [False] * len(flags_skipped) + [True] * len(p_skip_list))
+                                                                for i, j in zip(flags_skipped + p_skip_list, disabled_list)
                                                                 ],
                                                         value=[f"skip-{i}" for i in flags_skipped + p_skip_list],
                                                         inline=True,

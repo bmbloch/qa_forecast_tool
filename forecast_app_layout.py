@@ -132,6 +132,7 @@ def get_app_layout(curryr, currqtr, sector_val):
         dcc.Store(id='first_scatter', data=True),
         dcc.Store(id='first_ts', data=True),
         dcc.Store(id='flag_flow'),
+        dcc.Store(id='write_permit'),
         dcc.Store(id='store_flag_cols'),
         dcc.Store('has_flag'),
         dcc.Store(id='sector'),
@@ -326,9 +327,6 @@ def get_app_layout(curryr, currqtr, sector_val):
                                 dcc.Checklist(
                                     id='show_skips',
                                     value=["N"],
-                                    options=[
-                                                {'label': ' Show Skips', 'value': 'Y'},
-                                                ],
                                     labelStyle={'display': 'block'}), 
                                 ], id='show_skips_container'),
                         ], style={'display': 'block'}),

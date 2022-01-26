@@ -6,12 +6,12 @@ from flask import session
 import pandas as pd
 
 users = {
-            'bbloch': {'password': "test1", 'sectors': ["apt", "ind", "off", "ret"]},
-            'emingione': {'password': "test2", 'sectors': ["apt"]},
-            'rrosas': {'password': "test3", 'sectors': ["off"]},
-            'dcaputo': {'password': "test4", 'sectors': ["ret"]},
-            'dquan': {'password': "test5", 'sectors': ["apt", "ind", "off", "ret"]},
-            'nmorton': {'password': "test6", 'sectors': ["apt", "ind", "off", "ret"]},
+            'bbloch': {'password': "test1", 'sectors': ["apt", "ind", "off", "ret"], 'write': 'yes'},
+            'emingione': {'password': "test2", 'sectors': ["apt"], 'write': 'yes'},
+            'rrosas': {'password': "test3", 'sectors': ["off"], 'write': 'yes'},
+            'dcaputo': {'password': "test4", 'sectors': ["ret"], 'write': 'yes'},
+            'dquan': {'password': "test5", 'sectors': ["apt", "ind", "off", "ret"], 'write': 'no'},
+            'nmorton': {'password': "test6", 'sectors': ["apt", "ind", "off", "ret"], 'write': 'no'},
         }
 
 # Function that returns True if the user and password input is a correct match, otherwise False
@@ -19,7 +19,12 @@ def authenticate_user(credentials):
 
     authed = (credentials['user'] in list(users.keys())) and (credentials['password'] == users[credentials['user']]['password']) and (credentials['sector'] in users[credentials['user']]['sectors'])
     
-    return authed
+    if authed:
+        write = users[credentials['user']]['write']
+    else:
+        write = False
+
+    return authed, write
 
 # Function that returns layout objects and checks if the user is logged in or not throughout the session. If not, returns an error with link to the login page.
 def validate_login_session(f):

@@ -386,9 +386,13 @@ def filter_graph(input_dataframe, curryr, currqtr, year_value, xaxis_var, yaxis_
     if sector_val == "apt" or sector_val == "ret":
         scatter_graph_cols += ['emp', 'emp_chg', 'implied_emp_chg']      
     elif sector_val == "off":
-        scatter_graph_cols += ['off_emp', 'off_emp_chg', 'implied_off_emp_chg']
+        scatter_graph_cols += ['off_emp', 'off_emp_chg']
+        if currqtr != 4:
+            scatter_graph_cols += ['implied_off_emp_chg']
     elif sector_val == "ind":
-        scatter_graph_cols += ['ind_emp', 'ind_emp_chg', 'implied_ind_emp_chg']
+        scatter_graph_cols += ['ind_emp', 'ind_emp_chg']
+        if currqtr != 4:
+            scatter_graph_cols += ['implied_ind_emp_chg']
 
     if comp_value == "r":
         scatter_graph_cols += ['rolscon', 'rolsvac', 'rolsvac_chg', 'rolmrent', 'grolsmre', 'rolsgap', 'rolsgap_chg']
@@ -1767,19 +1771,20 @@ def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close,
         return '/login', no_update, ''
     else:
         credentials = {'user': username, "password": pw, "sector": sector_input}
-        if authenticate_user(credentials) == True and input_file_alert == False:
+        authed, write = authenticate_user(credentials)
+        if authed == True and input_file_alert == False:
             session['authed'] = True
             pathname = '/home' + '?'
             if len(rol_close) == 0:
                 rol_close = "N"
             else:
                 rol_close = rol_close[0]
-            return pathname, '', username + "/" + sector_input.title() + "/" + str(curryr) + "q" + str(currqtr) + "/" + rol_close + "/" + flag_flow
+            return pathname, '', username + "/" + sector_input.title() + "/" + str(curryr) + "q" + str(currqtr) + "/" + rol_close + "/" + flag_flow + "/" + write
         else:
             session['authed'] = False
             if sector_input is None:
                 message = "Select a Sector."
-            elif authenticate_user(credentials) == False:
+            elif not authed:
                 message = 'Incorrect credentials.'
             elif input_file_alert == True:
                 message = 'Input files not set up correctly.'
@@ -1792,17 +1797,22 @@ def login_auth(n_clicks, username, pw, sector_input, curryr, currqtr, rol_close,
                     Output('fileyr', 'data'),
                     Output('currqtr', 'data'),
                     Output('store_rol_close', 'data'),
-                    Output('flag_flow', 'data')],
+                    Output('flag_flow', 'data'),
+                    Output('write_permit', 'data')],
                     [Input('url', 'search')])
 def store_input_vals(url_input):
     if url_input is None:
         raise PreventUpdate
     else:
-        user, sector_val, global_vals, use_rol_close, flag_flow = url_input.split("/")
+        user, sector_val, global_vals, use_rol_close, flag_flow, write_permit = url_input.split("/")
         fileyr, currqtr = global_vals.split("q")
         fileyr = int(fileyr)
         currqtr = int(currqtr)
-        return user, sector_val.lower(), fileyr, currqtr, use_rol_close, flag_flow
+        if write_permit == 'yes':
+            write_permit = True
+        else:
+            write_permit = False
+        return user, sector_val.lower(), fileyr, currqtr, use_rol_close, flag_flow, write_permit
 
 @forecast.callback([Output('file_load_alert', 'is_open'),
                     Output('dropman', 'options'),
@@ -1929,11 +1939,12 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
                   State('currqtr', 'data'),
                   State('fileyr', 'data'),
                   State('init_trigger', 'data'),
-                  State('store_flag_cols', 'data')])
+                  State('store_flag_cols', 'data'),
+                  State('write_permit', 'data')])
 
-def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr, fileyr, success_init, flag_cols):
+def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr, fileyr, success_init, flag_cols, write_permit):
     
-    if sector_val is None or success_init == False:
+    if sector_val is None or success_init == False or not write_permit:
         raise PreventUpdate
     else:
         input_id = get_input_id()
@@ -1958,10 +1969,11 @@ def output_flags(sector_val, flag_button, init_flags_triggered, curryr, currqtr,
                 Input('finalize-button', 'n_clicks')],
                 [State('curryr', 'data'),
                 State('currqtr', 'data'),
-                State('init_trigger', 'data')])
-def confirm_finalizer(sector_val, submit_button, download_button, curryr, currqtr, success_init):
+                State('init_trigger', 'data'),
+                State('write_permit', 'data')])
+def confirm_finalizer(sector_val, submit_button, download_button, curryr, currqtr, success_init, write_permit):
     input_id = get_input_id()
-    if sector_val is None or success_init == False:
+    if sector_val is None or success_init == False or not write_permit:
         raise PreventUpdate
     # Need this callback to tie to update_data callback so the callback is not executed before the data is actually updated, but only want to actually save the data when the finalize button is clicked, so only do that when the input id is for the finalize button
     elif input_id != "finalize-button":
@@ -1978,11 +1990,12 @@ def confirm_finalizer(sector_val, submit_button, download_button, curryr, currqt
                     State('curryr', 'data'),
                     State('currqtr', 'data'),
                     State('fileyr', 'data'),
-                    State('init_trigger', 'data')])
+                    State('init_trigger', 'data'),
+                    State('write_permit', 'data')])
 
-def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_init):
+def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_init, write_permit):
     
-    if sector_val is None or success_init == False or confirm_click is None:
+    if sector_val is None or success_init == False or confirm_click is None or not write_permit:
         raise PreventUpdate
     else:
         data = use_pickle("in", "main_data_" + sector_val, False, fileyr, currqtr, sector_val)
@@ -2278,11 +2291,12 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                    State('init_trigger', 'data'),
                    State('global_message', 'message'),
                    State('store_flag_cols', 'data'),
-                   State('init_global_shim', 'data')])
+                   State('init_global_shim', 'data'),
+                   State('write_permit', 'data')])
 
-def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init, init_message, flag_cols, init_global_shim):
+def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init, init_message, flag_cols, init_global_shim, write_permit):
 
-    if sector_val is None or success_init == False or sector_val != 'ind':
+    if sector_val is None or success_init == False or sector_val != 'ind' or not write_permit:
         raise PreventUpdate
 
     else:
@@ -2498,8 +2512,9 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     State('key_yr_radios', 'value'),
                     State('process_subsequent', 'value'),
                     State('global_shim', 'data'),
-                    State('store_init_global_flags', 'data')])
-def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags):
+                    State('store_init_global_flags', 'data'),
+                    State('write_permit', 'data')])
+def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags, write_permit):
 
     input_id = get_input_id()
     
@@ -2514,7 +2529,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
         style_global_sum = {'display': 'none'}
         global_flag_cond_style = [{}]
 
-        if input_id == 'global_trigger': 
+        if input_id == 'global_trigger' and (write_permit or global_trigger == 'preview'): 
             message = ''
             message_display = False
             skip_list = []
@@ -2527,7 +2542,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
             shim_data = pd.DataFrame()
 
             
-            if global_trigger == "submit":
+            if global_trigger == "submit" and write_permit:
                 decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
                 temp = data.copy()
                 temp = temp[temp['global_change'] == True]
@@ -2551,7 +2566,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
             else:
                 skip_list = []
 
-            if input_id != 'submit-button':
+            if input_id != 'submit-button' or not write_permit:
                 rebench_trigger = False
             
             # Load preview data if previewing
@@ -2559,10 +2574,10 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
                 preview_data = use_pickle("in", "preview_data_" + sector_val, False, fileyr, currqtr, sector_val)
             
             # Load shim data if previewing or submitting
-            if input_id == 'submit-button' or input_id == 'preview-button':
+            if (input_id == 'submit-button' or input_id == 'preview-button'):
                 shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
             
-            if input_id == 'submit-button':
+            if input_id == 'submit-button' and write_permit:
                 data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent)
                 if rebench_trigger == False:
                     preview_data = pd.DataFrame()
@@ -2576,7 +2591,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
                 shim_data = pd.DataFrame()
             
             
-            if message_display == False and input_id == 'submit-button':
+            if message_display == False and input_id == 'submit-button' and write_permit:
                 data = data.reset_index().set_index('identity')
                 if cons_c[-9:] != "Note Here":
                     data.loc[drop_val, 'cons_comment'] = cons_c
@@ -2595,23 +2610,15 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
                 data = preview_data.copy()
 
             # Re-calc stats and flags now that the data has been updated, or if this is the initial load
-            if  message_display == False:
+            if  message_display == False and (input_id != 'submit-button' or write_permit):
                 data = calc_stats(data, curryr, currqtr, False, sector_val)
                 data = calc_flags(data, curryr, currqtr, sector_val, use_rol_close)
 
                 if input_id == 'global_trigger':
                     flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
-                    print("TAKE THIS OUT!!!!")
-                    cols_to_keep = ['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols
-                    current_flags = data.copy()
-                    current_flags = current_flags[cols_to_keep]
-                    current_flags = current_flags[current_flags['yr'] >= curryr]
-                    current_flags = current_flags[current_flags['qtr'] == 5]
-                    file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_current_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
-                    current_flags.reset_index().set_index('identity').to_csv(file_path, na_rep='')
 
                 # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered. We will want to remove that skip from the log
-                if input_id == "submit-button":
+                if input_id == "submit-button" and write_permit:
                     if len(skip_list) > 0:
                         decision_data = use_pickle("in", "decision_log_" + sector_val, False, fileyr, currqtr, sector_val)
                         data, decision_data = check_skips(data, decision_data, curryr, currqtr, sector_val, flag_cols, drop_val, yr_val)
@@ -2632,7 +2639,6 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
                 elif global_trigger == 'submit':
                     global_sum_title = 'Effect On Flag Counts'
                 
-
             # Get the next sub flagged, and if all flags were resolved and moving on to a new sub for review, clear out the stored flag decision variables
             orig_drop_val = drop_val
             flag_list, p_skip_list, drop_val, has_flag, yr_val = flag_examine(data, drop_val, False, curryr, currqtr, flag_cols, flag_flow, yr_val)
@@ -2649,7 +2655,7 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
             use_pickle("out", "preview_data_" + sector_val, preview_data, fileyr, currqtr, sector_val)
         use_pickle("out", "shim_data_" + sector_val, shim_data, fileyr, currqtr, sector_val)
 
-        if input_id == "submit-button":
+        if input_id == "submit-button" and write_permit:
             if data_save == True:
                 data_to_save = data.copy()
                 file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_mostrecentsave.pickle".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
@@ -2752,11 +2758,12 @@ def process_man_drop(drop_val, sector_val, init_fired, preview_status, yr_val, c
                    State('currqtr', 'data'),
                    State('fileyr', 'data'),
                    State('store_orig_cols', 'data'),
-                   State('init_trigger', 'data')])
+                   State('init_trigger', 'data'),
+                   State('write_permit', 'data')])
 
-def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fileyr, orig_cols, success_init):
+def output_edits(sector_val, submit_button, download_button, curryr, currqtr, fileyr, orig_cols, success_init, write_permit):
     input_id = get_input_id()
-    if sector_val is None or success_init == False:
+    if sector_val is None or success_init == False or not write_permit:
         raise PreventUpdate
     
     # Need this to tie to update_data callback so the csv is not set before the data is actually updated, but dont want to call the set csv function each time submit is clicked, so only do that when the input id is for the download button
@@ -2900,17 +2907,25 @@ def display_summary(sector_val, drop_val, init_flags, curryr, currqtr, fileyr, s
                                 for i in range(0, len(sum_data.columns))], highlighting_sum, sum_style, no_update, no_update, no_update, no_update, no_update
 
 @forecast.callback([Output('show_skips', 'value'),
-                   Output('process_subsequent', 'value')],
+                   Output('process_subsequent', 'value'),
+                   Output('show_skips', 'options')],
                    [Input('store_submit_button', 'data'),
                    Input('dropman', 'value'),
                    Input('sector', 'data'),
-                   Input('global_trigger', 'data')],
-                   [State('init_trigger', 'data')])
-def remove_options(submit_button, drop_val, sector_val, global_trigger, success_init):
+                   Input('global_trigger', 'data'),
+                   Input('init_trigger', 'data')],
+                   [State('write_permit', 'data')])
+def reset_options(submit_button, drop_val, sector_val, global_trigger, success_init, write_permit):
     if sector_val is None or success_init == False:
         raise PreventUpdate
     else:
-        return ['N'], 'c'
+
+        if write_permit:
+            skip_options = [{'label': ' Show Skips', 'value': "Y"}]
+        elif not write_permit:
+            skip_options = [{'label': ' Show Skips', 'value': "Y", 'disabled': True}]
+
+        return ['N'], 'c', skip_options
 
 
 @forecast.callback([Output('man_edits', 'data'),
@@ -2950,6 +2965,7 @@ def remove_options(submit_button, drop_val, sector_val, global_trigger, success_
                     Input('show_skips', 'value')],
                     [State('has_flag', 'data'),
                     State('flag_list', 'data'),
+                    State('p_skip_list', 'data'),
                     State('store_orig_cols', 'data'),
                     State('curryr', 'data'),
                     State('currqtr', 'data'),
@@ -2964,8 +2980,9 @@ def remove_options(submit_button, drop_val, sector_val, global_trigger, success_
                     State('comment_avail', 'value'),
                     State('comment_rent', 'value'),
                     State('flag_description_noprev', 'children'),
-                    State('manual_message', 'message')])  
-def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips, message):  
+                    State('manual_message', 'message'),
+                    State('write_permit', 'data')])  
+def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_skips, has_flag, flag_list, p_skip_list, orig_cols, curryr, currqtr, fileyr, flags_resolved, flags_unresolved, flags_new, flags_skipped, success_init, flag_cols, init_comment_cons, init_comment_avail, init_comment_rent, init_skips, message, write_permit):  
 
     input_id = get_input_id()
 
@@ -3065,7 +3082,7 @@ def output_display(sector_val, drop_val, all_buttons, key_met_val, yr_val, show_
         else:
             preview_status = False
 
-        issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, preview_status, init_skips)
+        issue_description_noprev, issue_description_resolved, issue_description_unresolved, issue_description_new, issue_description_skipped, display_highlight_list, key_metrics_highlight_list, key_emp_highlight_list = get_issue("specific", sector_val, data, has_flag, flag_list, p_skip_list, show_skips, flags_resolved, flags_unresolved, flags_new, flags_skipped, curryr, currqtr, preview_status, init_skips, write_permit)
         
         if len(issue_description_noprev) == 0:
             style_noprev = {'display': 'none'}

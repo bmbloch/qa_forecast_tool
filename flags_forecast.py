@@ -332,7 +332,7 @@ def c_lowv(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
                     (data['f_var_cons'] <= data['f_5_var_cons']) & (data['f_var_cons'].shift(1).isnull() == True),
                     1, 0)
 
-    data = data.drop(['round_h_temp', 'round_rol_h_temp', 'round_t_temp', 'threshold'], axis=1)
+    data = data.drop(['threshold'], axis=1)
 
     data['calc_clowv'] = np.where((data['c_flag_lowv'] == 1), (data['f_var_cons'] - data['f_5_var_cons']) * -1, np.nan)
     calc_names.append(list(data.columns)[-1])

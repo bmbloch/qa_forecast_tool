@@ -31,10 +31,11 @@ from server_forecast import forecast, server
 from stats_forecast import calc_stats
 from flags_forecast import calc_flags
 from support_functions_forecast import set_display_cols, display_frame, gen_metrics, rollup, live_flag_count, summarize_flags_ranking, summarize_flags, get_issue, get_diffs, metro_sorts, flag_examine
-from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips, check_skips, global_shim, get_global_sum_flags
+from support_functions_forecast import set_bar_scale, set_y2_scale, get_user_skips, check_skips, get_global_sum_flags
 from login_layout_forecast import get_login_layout
 from forecast_app_layout import get_app_layout
 from timer import Timer
+from support_functions_forecast import GlobalShim
 
 
 # Function that determines the data type - int, float, etc - so that the correct format can be set for the app display
@@ -2402,8 +2403,59 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                         init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap_chg']
                         prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap']
 
-                    data, message, message_display, change = global_shim(data, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status)
-                  
+                    data['global_change'] = False
+                    orig_cols = list(data.columns)
+                    
+                    try:
+                        print("If really want to use coeffs, need to adjust the path here to the true location of the coeffs file. Get analyst buy in first though")
+                        file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
+                        coeff_data = pd.read_pickle(file_path)
+                        if 'inv_chg_to_vac' not in list(data.columns):
+                            coeff_data = coeff_data.set_index("identity")
+                            data = data.join(coeff_data, on='identity')
+                        using_coeff = True
+                    except:
+                        using_coeff = False
+
+
+                    globalShim = GlobalShim(sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, using_coeff)
+                    
+                    achieved_target = False
+                    while not achieved_target:
+                        if var == "Cons":
+                            
+                            if target - init_chg_val > 0:
+                                
+                                data, achieved_target, change = globalShim.cons_inc_h(data)
+                                
+                                if not override and not achieved_target:
+                                    data, achieved_target, change = globalShim.cons_inc_rol(data)
+
+                                if not achieved_target:
+                                    data, achieved_target, change = globalShim.cons_inc_hist(data)
+
+                                achieved_target, message_display, message = globalShim.gen_message(achieved_target)
+
+                            elif diff_to_target < 0:
+                                False
+
+                            elif diff_to_target == 0:
+                                achieved_target = True
+                                message = ''
+                                message_display = False
+                                change = False
+
+                        elif var == "Vac Chg":
+                            False
+                        elif var == "Gmrent":
+                            False
+                        elif var == "Gap Chg":
+                            False
+
+                    
+                    data = data[orig_cols]
+                    
+
                     if change and not has_change:
                         has_change = True
 

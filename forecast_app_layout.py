@@ -139,6 +139,7 @@ def get_app_layout(curryr, currqtr, sector_val):
         dcc.Store(id='global_trigger'),
         dcc.Store(id='store_init_global_flags'),
         dcc.Store(id='init_global_shim'),
+        dcc.Store(id='coeffs'),
         dcc.ConfirmDialog(id='manual_message'),
         dcc.ConfirmDialog(id='global_message'),
         html.Div([

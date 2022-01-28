@@ -1022,7 +1022,7 @@ def manual_rebench_check(data, data_temp, rebench_to_check, curryr, currqtr, sec
     return check, first_yr
 
 # Function that analyzes where edits are made in the display dataframe if manual edit option is selected
-def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c, proc_subsequent):
+def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, button, avail_c, rent_c, proc_subsequent, coeff_status):
     
     # First see if there is a true diff, and that the shims entered do not all match what is already in the published dataset
     has_true_diff = True
@@ -1051,16 +1051,14 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
         diffs = diffs.dropna(axis='rows', how='all')
 
         data_temp = data.copy()
-        try:
+        if coeff_status:
             print("If really want to use coeffs, need to adjust the path here to the true location of the coeffs file. Get analyst buy in first though")
             file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
             coeff_data = pd.read_pickle(file_path)
             if 'inv_chg_to_vac' not in list(data_temp.columns):
                 coeff_data = coeff_data.set_index("identity")
                 data_temp = data_temp.join(coeff_data, on='identity')
-            using_coeff = True
-        except:
-            using_coeff = False
+        
         for index, row in diffs.iterrows():
             for col_name in list(diffs.columns):
                 row_to_fix_diffs = index
@@ -1078,7 +1076,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                         col_issue_diffs = "e_flag"
                     yr_change_diffs = data_temp.loc[row_to_fix_diffs]['yr']
                     
-                    if using_coeff:
+                    if coeff_status:
                         data_temp = insert_fix_coeffs(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val, proc_subsequent)
                     else:
                         data_temp = insert_fix(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val, proc_subsequent)
@@ -1700,7 +1698,7 @@ def check_skips(dataframe_in, decision_data, curryr, currqtr, sector_val, flag_c
 
 class GlobalShim:
     
-    def __init__(self, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, using_coeff):
+    def __init__(self, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, coeff_status):
 
         self.sector_val = sector_val
         self.curryr = curryr
@@ -1716,7 +1714,7 @@ class GlobalShim:
         self.override = override
         self.preview_status = preview_status
         self.change = False
-        self.using_coeff = using_coeff
+        self.coeff_status = coeff_status
         self.diff_to_target = target - init_chg_val
         if sector_val == "apt":
             self.round_val = 0
@@ -1855,7 +1853,7 @@ class GlobalShim:
                     display(data.loc[row['identity'] + str(self.year) + '5']['identity'])
                     display(data.loc[row['identity'] + str(self.year) + '5']['cons'])
 
-                    if self.using_coeff:
+                    if self.coeff_status:
                         data = insert_fix_coeffs(data, row['identity'] + str(self.year) + '5', row['identity'], row['cons'] + to_add, 'c', self.year, self.curryr, self.currqtr, self.sector_val, 'c')
                     else:
                         data = insert_fix(data, row['identity'] + str(self.year) + '5', row['identity'], row['cons'] + to_add, 'c', self.year, self.curryr, self.currqtr, self.sector_val, 'c')
@@ -1882,7 +1880,7 @@ class GlobalShim:
                     print("To add:", to_add)
                     display(data.loc[row['identity'] + str(self.year) + '5']['cons'])
                     
-                    if self.using_coeff:
+                    if self.coeff_status:
                         data = insert_fix_coeffs(data, row['identity'] + str(self.year) + '5', row['identity'], row['cons'] + to_add, 'c', self.year, self.curryr, self.currqtr, self.sector_val, 'c')
                     else:
                         data = insert_fix(data, row['identity'] + str(self.year) + '5', row['identity'], row['cons'] + to_add, 'c', self.year, self.curryr, self.currqtr, self.sector_val, 'c')

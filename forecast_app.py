@@ -1542,7 +1542,7 @@ def first_update(data_init, file_used, sector_val, orig_cols, curryr, currqtr, f
 
 
 # This function produces the outputs needed for the update_data callback if the submit button is clicked
-def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent):
+def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent, coeff_status):
     
     data_save = False
     rebench_trigger = False
@@ -1579,7 +1579,7 @@ def submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_l
         shim_data = shim_data[['qtr', 'identity', 'yr', 'cons', 'avail', 'mrent', 'merent']]
         
         if shim:
-            data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c, proc_subsequent)
+            data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val, 'submit', avail_c, rent_c, proc_subsequent, coeff_status)
         else:
             has_diff = 0
 
@@ -1657,7 +1657,7 @@ def test_resolve_flags(preview_data, drop_val, curryr, currqtr, sector_val, orig
     return flags_resolved, flags_unresolved, new_flags
 
 # This function produces the outputs needed for the update_data callback if the preview button is clicked
-def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, orig_flag_list, skip_list, p_skip_list, use_rol_close, flag_yr_val, flag_cols, proc_subsequent): 
+def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, orig_flag_list, skip_list, p_skip_list, use_rol_close, flag_yr_val, flag_cols, proc_subsequent, coeff_status): 
     
     shim_data['cons'] = np.where(shim_data['cons'] == '', np.nan, shim_data['cons'])
     shim_data['avail'] = np.where(shim_data['avail'] == '', np.nan, shim_data['avail'])
@@ -1680,7 +1680,7 @@ def preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, 
         shim_data['merent'] = np.where(shim_data['merent'] == '', np.nan, shim_data['merent'])
         
         preview_data = data.copy()
-        preview_data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False, proc_subsequent)
+        preview_data, has_diff, avail_check, mrent_check, merent_check, first_yr = get_diffs(shim_data, data_orig, preview_data, drop_val, curryr, currqtr, sector_val, 'preview', False, False, proc_subsequent, coeff_status)
             
         if has_diff == 1:    
             
@@ -1831,7 +1831,8 @@ def store_input_vals(url_input):
                     Output('rank_view', 'options'),
                     Output('store_flag_cols', 'data'),
                     Output('droproll', 'value'),
-                    Output('init_trigger', 'data')],
+                    Output('init_trigger', 'data'),
+                    Output('coeffs', 'data')],
                     [Input('sector', 'data'),
                     Input('fileyr', 'data'),
                     Input('currqtr', 'data'),
@@ -1853,6 +1854,7 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
             path_in = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.csv".format(get_home(), sector_val))
             path_out = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/coeffs.pickle".format(get_home(), sector_val))
             coeffs = pd.read_csv(path_in)
+            coeff_status = True
             if sector_val != "ind":
                 coeffs['identity'] = coeffs['identity'] + sector_val.title()
             else:
@@ -1860,6 +1862,7 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
             coeffs.to_pickle(path_out)
         except:
             print("No coeffs file to load")
+            coeff_status = False
 
             # Export the pickled oob values to begin setting up the decision log if this is the first time the user is running the program
             if file_used == "oob":
@@ -1928,9 +1931,9 @@ def initial_data_load(sector_val, fileyr, currqtr, use_rol_close, flag_cols):
 
             init_trigger = True
 
-            return False, [{'label': i, 'value': i} for i in sub_combos], [{'label': i, 'value': i} for i in met_combos], [{'label': i, 'value': i} for i in met_combos], default_drop, [{'label': i, 'value': i} for i in available_years], [{'label': i, 'value': i} for i in available_years], curryr, file_used, orig_cols, curryr, [{'label': i, 'value': i} for i in flag_list_all], flag_list_all[0], rank_options, flag_cols, default_drop, True
+            return False, [{'label': i, 'value': i} for i in sub_combos], [{'label': i, 'value': i} for i in met_combos], [{'label': i, 'value': i} for i in met_combos], default_drop, [{'label': i, 'value': i} for i in available_years], [{'label': i, 'value': i} for i in available_years], curryr, file_used, orig_cols, curryr, [{'label': i, 'value': i} for i in flag_list_all], flag_list_all[0], rank_options, flag_cols, default_drop, True, coeff_status
         else:
-            return True, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, False
+            return True, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, no_update, False, no_update
 
 @forecast.callback(Output('out_flag_trigger', 'data'),
                   [Input('sector', 'data'),
@@ -2293,9 +2296,10 @@ def finalize_econ(confirm_click, sector_val, curryr, currqtr, fileyr, success_in
                    State('global_message', 'message'),
                    State('store_flag_cols', 'data'),
                    State('init_global_shim', 'data'),
-                   State('write_permit', 'data')])
+                   State('write_permit', 'data'),
+                   State('coeffs', 'data')])
 
-def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init, init_message, flag_cols, init_global_shim, write_permit):
+def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr, sector_val, global_data, success_init, init_message, flag_cols, init_global_shim, write_permit, coeff_status):
 
     if sector_val is None or success_init == False or sector_val != 'ind' or not write_permit:
         raise PreventUpdate
@@ -2406,19 +2410,16 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     data['global_change'] = False
                     orig_cols = list(data.columns)
                     
-                    try:
+                    if coeff_status:
                         print("If really want to use coeffs, need to adjust the path here to the true location of the coeffs file. Get analyst buy in first though")
                         file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/coeffs/{}/{}q{}/coeffs.pickle".format(get_home(), sector_val, curryr, currqtr))
                         coeff_data = pd.read_pickle(file_path)
                         if 'inv_chg_to_vac' not in list(data.columns):
                             coeff_data = coeff_data.set_index("identity")
                             data = data.join(coeff_data, on='identity')
-                        using_coeff = True
-                    except:
-                        using_coeff = False
 
 
-                    globalShim = GlobalShim(sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, using_coeff)
+                    globalShim = GlobalShim(sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, coeff_status)
                     
                     achieved_target = False
                     while not achieved_target:
@@ -2565,8 +2566,9 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     State('process_subsequent', 'value'),
                     State('global_shim', 'data'),
                     State('store_init_global_flags', 'data'),
-                    State('write_permit', 'data')])
-def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags, write_permit):
+                    State('write_permit', 'data'),
+                    State('coeffs', 'data')])
+def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags, write_permit, coeffs):
 
     input_id = get_input_id()
     
@@ -2630,11 +2632,11 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
                 shim_data = use_pickle("in", "shim_data_" + sector_val, False, fileyr, currqtr, sector_val)
             
             if input_id == 'submit-button' and write_permit:
-                data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent)
+                data, shim_data, message, message_display, data_save, rebench_trigger = submit_update(data, shim_data, sector_val, orig_cols, user, drop_val, flag_list, skip_list, curryr, currqtr, fileyr, use_rol_close, yr_val, cons_c, avail_c, rent_c, proc_subsequent, coeff_status)
                 if rebench_trigger == False:
                     preview_data = pd.DataFrame()
             elif input_id == 'preview-button':
-                data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols, proc_subsequent)
+                data, preview_data, shim_data, message, message_display, flags_resolved, flags_unresolved, flags_new = preview_update(data, shim_data, sector_val, preview_data, drop_val, curryr, currqtr, flag_list, skip_list, p_skip_list, use_rol_close, yr_val, flag_cols, proc_subsequent, coeff_status)
             
             else:
                 message = ''

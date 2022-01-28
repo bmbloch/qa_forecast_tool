@@ -1058,9 +1058,9 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
             if 'inv_chg_to_vac' not in list(data_temp.columns):
                 coeff_data = coeff_data.set_index("identity")
                 data_temp = data_temp.join(coeff_data, on='identity')
-            using_coeff = 1
+            using_coeff = True
         except:
-            using_coeff = 0
+            using_coeff = False
         for index, row in diffs.iterrows():
             for col_name in list(diffs.columns):
                 row_to_fix_diffs = index
@@ -1078,7 +1078,7 @@ def get_diffs(shim_data, data_orig, data, drop_val, curryr, currqtr, sector_val,
                         col_issue_diffs = "e_flag"
                     yr_change_diffs = data_temp.loc[row_to_fix_diffs]['yr']
                     
-                    if using_coeff == 1:
+                    if using_coeff:
                         data_temp = insert_fix_coeffs(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val, proc_subsequent)
                     else:
                         data_temp = insert_fix(data_temp, row_to_fix_diffs, drop_val, fix_val, col_issue_diffs[0], yr_change_diffs, curryr, currqtr, sector_val, proc_subsequent)
@@ -1722,7 +1722,7 @@ def execute_global_cons(total_add, diff_to_target, temp, data_in, year, round_va
                 display(data.loc[row['identity'] + str(year) + '5']['identity'])
                 display(data.loc[row['identity'] + str(year) + '5']['cons'])
 
-                if using_coeff == 1:
+                if using_coeff:
                     data = insert_fix_coeffs(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
                 else:
                     data = insert_fix(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
@@ -1749,7 +1749,7 @@ def execute_global_cons(total_add, diff_to_target, temp, data_in, year, round_va
                 print("To add:", to_add)
                 display(data.loc[row['identity'] + str(year) + '5']['cons'])
                 
-                if using_coeff == 1:
+                if using_coeff:
                     data = insert_fix_coeffs(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
                 else:
                     data = insert_fix(data, row['identity'] + str(year) + '5', row['identity'], row['cons'] + to_add, 'c', year, curryr, currqtr, sector_val, 'c')
@@ -1789,9 +1789,9 @@ def global_shim(data_in, sector_val, curryr, currqtr, var, target, subsector, ye
         if 'inv_chg_to_vac' not in list(data.columns):
             coeff_data = coeff_data.set_index("identity")
             data = data.join(coeff_data, on='identity')
-        using_coeff = 1
+        using_coeff = True
     except:
-        using_coeff = 0
+        using_coeff = False
 
     diff_to_target = target - init_chg_val
 

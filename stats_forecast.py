@@ -250,6 +250,27 @@ def calc_hist_stats(data_in, curryr, currqtr, sector_val, pre_recalc_cols, post_
     
     data = data_in.copy()
 
+    # When rounding a value that ends in 500 to the thousandths place, python will round down, which will cause flags to trigger that should not. So fix the rounding manually
+    if sector_val != "apt":
+        data['round_h_temp'] = round(data['h'],-3)
+        data['round_h_temp'] = np.where((abs(data['h'] - data['cons']) == 500) & (data['round_h_temp'] < data['h']) & (data['round_h_temp'] < data['cons']), data['round_h_temp'] + 1000, data['round_h_temp'])
+        data['round_rol_h_temp'] = round(data['rol_h'],-3)
+        data['round_rol_h_temp'] = np.where((abs(data['rol_h'] - data['rolscon']) == 500) & (data['round_rol_h_temp'] < data['rol_h']) & (data['round_rol_h_temp'] < data['rolscon']), data['round_rol_h_temp'] + 1000, data['round_rol_h_temp'])
+        data['round_t_temp'] = round(data['t'],-3)
+        data['round_t_temp'] = np.where((abs(data['t'] - data['cons']) == 500) & (data['round_t_temp'] < data['t']) & (data['round_t_temp'] < data['cons']), data['round_t_temp'] + 1000, data['round_t_temp']) 
+    else:
+        data['round_h_temp'] = data['h']
+        data['round_rol_h_temp'] = data['rol_h']
+        data['round_t_temp'] = data['t']
+
+    # Calculate the percentage of e_stock that can be reliably included in the forecast based on what quarter we are in
+    # Will primarily be used in the global shim process
+    data['e_thresh'] = np.where(data['forecast_tag'] == 1, np.nan, 0.5)
+    data['e_thresh'] = np.where((currqtr == 1) & (data['forecast_tag'] == 1), 0.25, data['e_thresh'])
+    data['e_thresh'] = np.where((currqtr == 2) & (data['forecast_tag'] == 1), 0.2, data['e_thresh'])
+    data['e_thresh'] = np.where((currqtr == 3) & (data['forecast_tag'] == 1), 0.1, data['e_thresh'])
+    data['e_thresh'] = np.where((currqtr == 4) & (data['forecast_tag'] == 1), 0.3, data['e_thresh'])
+
     for var_name in ['vac_chg', 'cons', 'G_mrent', 'gap_chg']:
         col_name = 'f_var_' + var_name
         if var_name != "cons":  

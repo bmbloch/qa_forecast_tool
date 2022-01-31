@@ -2437,10 +2437,19 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
 
                                 achieved_target, message_display, message = globalShim.gen_message(achieved_target)
 
-                            elif diff_to_target < 0:
-                                False
+                            elif target - init_chg_val < 0:
 
-                            elif diff_to_target == 0:
+                                data, achieved_target, change = globalShim.cons_decr_t(data)
+
+                                if not achieved_target:
+                                    data, achieved_target, change = globalShim.cons_decr_rol(data)
+
+                                if not achieved_target:
+                                    data, achieved_target, change = globalShim.cons_decr_sup(data)
+
+                                achieved_target, message_display, message = globalShim.gen_message(achieved_target)
+
+                            elif target - init_chg_val == 0:
                                 achieved_target = True
                                 message = ''
                                 message_display = False

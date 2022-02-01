@@ -37,17 +37,17 @@ def get_app_layout(curryr, currqtr, sector_val):
                                             ('Subsector', [default_sect]),
                                             ('Year', [curryr]),
                                             ('Cons', [np.nan]),
-                                            ('Vac Chg', [np.nan]),
+                                            ('Vac', [np.nan]),
                                             ('Gmrent', [np.nan]),
-                                            ('Gap Chg', [np.nan])
+                                            ('Gap', [np.nan])
                                             ]))
     global_columns = [
                         {'name': ['Global Shim', 'Subsector'], 'id': 'Subsector', 'type': 'text', 'format': Format(precision=0, scheme=Scheme.fixed), 'presentation': subsect_pres}, 
                         {'name': ['Global Shim', 'Year'], 'id': 'Year', 'type': 'numeric', 'format': Format(precision=0, scheme=Scheme.fixed), 'presentation': 'dropdown'},
                         {'name': ['Global Shim', 'Cons'], 'id': 'Cons', 'type': 'numeric', 'format': Format(group=","), 'editable': True}, 
-                        {'name': ['Global Shim', 'Vac Chg'], 'id': 'Vac Chg', 'type': 'numeric', 'format': FormatTemplate.percentage(2), 'editable': True},
+                        {'name': ['Global Shim', 'Vac'], 'id': 'Vac', 'type': 'numeric', 'format': FormatTemplate.percentage(2), 'editable': True},
                         {'name': ['Global Shim', 'Gmrent'], 'id': 'Gmrent', 'type': 'numeric', 'format': FormatTemplate.percentage(2), 'editable': True}, 
-                        {'name': ['Global Shim', 'Gap Chg'], 'id': 'Gap Chg', 'type': 'numeric', 'format': FormatTemplate.percentage(2), 'editable': True}  
+                        {'name': ['Global Shim', 'Gap'], 'id': 'Gap', 'type': 'numeric', 'format': FormatTemplate.percentage(2), 'editable': True}  
                      ]
 
     sector_long = {'apt': 'Apartment', 'ind': 'Industrial', 'off': 'Office', 'ret': 'Retail'}
@@ -275,11 +275,11 @@ def get_app_layout(curryr, currqtr, sector_val):
                                                                     'width': '15%', 'textAlign': 'left'},
                                                             {'if': {'column_id': 'Cons'},
                                                                     'width': '15%', 'textAlign': 'left'},
-                                                            {'if': {'column_id': 'Vac Chg'},
+                                                            {'if': {'column_id': 'Vac'},
                                                                     'width': '15%', 'textAlign': 'left'},
                                                             {'if': {'column_id': 'Gmrent'},
                                                                     'width': '15%', 'textAlign': 'left'},
-                                                            {'if': {'column_id': 'Gap Chg'},
+                                                            {'if': {'column_id': 'Gap'},
                                                                     'width': '15%', 'textAlign': 'left'},
                                                                     ],
                                                                     ),

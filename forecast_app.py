@@ -2312,18 +2312,18 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
 
         global_data = pd.DataFrame.from_dict(global_data)
         global_data = global_data.fillna(value=np.nan)
-        for x in ['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']:
+        for x in ['Cons', 'Vac', 'Gmrent', 'Gap']:
             global_data[x] = np.where(global_data[x] == '', np.nan, global_data[x])
 
         if init_message is None:
             init_message = ''
 
-        if global_data[['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']].isnull().values.all() == True and input_id != 'global_preview_button':
+        if global_data[['Cons', 'Vac', 'Gmrent', 'Gap']].isnull().values.all() == True and input_id != 'global_preview_button':
             message = 'You did not enter any values'
             message_display = True
             init_global_shim = {}
 
-        elif global_data[['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']].isnull().values.all() == True and input_id == 'global_preview_button':
+        elif global_data[['Cons', 'Vac', 'Gmrent', 'Gap']].isnull().values.all() == True and input_id == 'global_preview_button':
             global_triggered = 'clear'
             message = ''
             message_display = False
@@ -2353,6 +2353,7 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
 
             has_change = False
             
+            # Get the initial flag totals for each flag variable type. Will use these to compare to new flag counts after global shim for display to analyst
             for i in range(0, 2):
                 init_flags_temp = []
                 for var in ['c', 'v', 'g', 'e']:
@@ -2370,12 +2371,25 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                 else:
                     init_flags['All'] = init_flags_temp
 
-            for var in ['Cons', 'Vac Chg', 'Gmrent', 'Gap Chg']:
+            for var in ['Cons', 'Vac', 'Gmrent', 'Gap']:
 
                 if math.isnan(global_data.loc[0][var]) == False:
 
-                    target = global_data.loc[0][var]
-
+                    if sector_val == "apt":
+                        round_val = 0
+                    else:
+                        round_val = -3
+                    
+                    if var == "Cons":
+                        target = global_data.loc[0][var]
+                    elif var == "Vac":
+                        target = round(global_data.loc[0][var] * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv'], round_val)
+                    elif var == "Gmrent":
+                        target = (round((1 + global_data.loc[0][var]) * rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent'], 2)) * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
+                    elif var == "Gap":
+                        askrev = (rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent'] * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv'])
+                        target = ((global_data.loc[0][var] * -1) * askrev) + askrev
+                    
                     if init_message == '' or init_message is None:
                         override = False
                     elif var.lower() + " target" in init_message and 'additional' not in init_message and init_global_shim[var] == target:
@@ -2383,29 +2397,26 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     else:
                         override = False
 
-                    if "vac chg target" in init_message and var == "Cons":
+                    if "vac target" in init_message and var == "Cons":
                         continue
-                    elif "gmrent target" in init_message and (var == "Cons" or var == "Vac Chg"):
+                    elif "gmrent target" in init_message and (var == "Cons" or var == "Vac"):
                         continue
-                    elif "gap chg target" in init_message and (var == "Cons" or var == "Vac Chg" or var == "Gmrent"):
+                    elif "gap target" in init_message and (var == "Cons" or var == "Vac" or var == "Gmrent"):
                         continue
 
                     if var == 'Cons':
-                        init_lev_val = False
-                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['cons']
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['cons']
                         prev_lev_val = False
-                    elif var == 'Vac Chg':
-                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac']
-                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac_chg']
-                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac']
+                    elif var == 'Vac':
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['avail']
+                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['avail']
                     elif var == "Gmrent":
-                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent']
-                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['G_mrent']
-                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent']
-                    elif var == 'Gap Chg':
-                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap']
-                        init_chg_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap_chg']
-                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['gap']
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent'] * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
+                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent'] * rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
+                    elif var == 'Gap':
+                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['merent'] * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
+                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['merent'] * rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
+                    
 
                     data['global_change'] = False
                     orig_cols = list(data.columns)
@@ -2419,13 +2430,13 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                             data = data.join(coeff_data, on='identity')
 
 
-                    globalShim = GlobalShim(sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, coeff_status)
+                    globalShim = GlobalShim(sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, prev_lev_val, roll_val, override, preview_status, coeff_status)
                     
                     achieved_target = False
                     while not achieved_target:
                         if var == "Cons":
                             
-                            if target - init_chg_val > 0:
+                            if target - init_lev_val > 0:
                                 
                                 data, achieved_target, change = globalShim.cons_inc_h(data)
                                 
@@ -2437,7 +2448,7 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
 
                                 achieved_target, message_display, message = globalShim.gen_message(achieved_target)
 
-                            elif target - init_chg_val < 0:
+                            elif target - init_lev_val < 0:
 
                                 data, achieved_target, change = globalShim.cons_decr_t(data)
 
@@ -2449,17 +2460,17 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
 
                                 achieved_target, message_display, message = globalShim.gen_message(achieved_target)
 
-                            elif target - init_chg_val == 0:
+                            elif target - init_lev_val == 0:
                                 achieved_target = True
                                 message = ''
                                 message_display = False
                                 change = False
 
-                        elif var == "Vac Chg":
+                        elif var == "Vac":
                             False
                         elif var == "Gmrent":
                             False
-                        elif var == "Gap Chg":
+                        elif var == "Gap":
                             False
 
                     

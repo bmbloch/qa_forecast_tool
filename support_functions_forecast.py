@@ -1698,7 +1698,7 @@ def check_skips(dataframe_in, decision_data, curryr, currqtr, sector_val, flag_c
 
 class GlobalShim:
     
-    def __init__(self, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, init_chg_val, prev_lev_val, roll_val, override, preview_status, coeff_status):
+    def __init__(self, sector_val, curryr, currqtr, var, target, subsector, year, init_lev_val, prev_lev_val, roll_val, override, preview_status, coeff_status):
 
         self.sector_val = sector_val
         self.curryr = curryr
@@ -1707,15 +1707,12 @@ class GlobalShim:
         self.target = target
         self.subsector = subsector
         self.year = year
-        self.init_lev_val = init_lev_val
-        self.init_chg_val = init_chg_val
-        self.prev_lev_val = prev_lev_val
         self.roll_val = roll_val
         self.override = override
         self.preview_status = preview_status
         self.change = False
         self.coeff_status = coeff_status
-        self.diff_to_target = target - init_chg_val
+        self.diff_to_target = target - init_lev_val
         if sector_val == "apt":
             self.round_val = 0
         else:

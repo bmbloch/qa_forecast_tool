@@ -2408,8 +2408,8 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                         init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['cons']
                         prev_lev_val = False
                     elif var == 'Vac':
-                        init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['avail']
-                        prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['avail']
+                        init_lev_val = round(rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv'] * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac'], round_val)
+                        prev_lev_val = round(rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv'] * rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['vac'], round_val)
                     elif var == "Gmrent":
                         init_lev_val = rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent'] * rolled[(rolled['yr'] == year) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
                         prev_lev_val = rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['mrent'] * rolled[(rolled['yr'] == year - 1) & (rolled['qtr'] == 5)].reset_index(drop=True).loc[0]['inv']
@@ -2438,7 +2438,8 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                             
                             if target - init_lev_val > 0:
                                 
-                                data, achieved_target, change = globalShim.cons_inc_h(data)
+                                if not override:
+                                    data, achieved_target, change = globalShim.cons_inc_h(data)
                                 
                                 if not override and not achieved_target:
                                     data, achieved_target, change = globalShim.cons_inc_rol(data)
@@ -2467,7 +2468,25 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                                 change = False
 
                         elif var == "Vac":
-                            False
+                            
+                            if target - init_lev_val < 0:
+
+                                data, achieved_target, change = globalShim.vac_decr_max(data)
+
+                                achieved_target, message_display, message = globalShim.gen_message(achieved_target)
+
+                            elif target - init_lev_val > 0:
+                                
+                                achieved_target, message_display, message = globalShim.gen_message(achieved_target)
+
+                            elif target - init_lev_val == 0:
+                                achieved_target = True
+                                message = ''
+                                message_display = False
+                                change = False
+
+
+
                         elif var == "Gmrent":
                             False
                         elif var == "Gap":

@@ -1723,6 +1723,10 @@ class GlobalShim:
             self.thresh = thresh_dict[subsector]
         else:
             self.thresh = thresh_dict[sector_val]
+        if not override:
+            self.cap = -0.01
+        elif override:
+            self.cap = -0.02
         
     # Generate the message displayed to user about how their global shims were implemented and if their target was hit
     def gen_message(self, achieved_target):
@@ -1770,6 +1774,7 @@ class GlobalShim:
     def cons_inc_rol(self, data):
 
         temp = data.copy()
+        total_add = 0
         temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
         temp = temp[(temp['cons'] < temp['rolscon']) & (temp['cons'] < round(temp['t'], self.round_val)) & ((temp['rolscon'] - temp['cons']) > (temp['rol_h'] - temp['h'])) & ((data['rolscon'] - data['cons']) > (data['rol_e'] - data['e']))]
         if len(temp) > 0:
@@ -1784,7 +1789,7 @@ class GlobalShim:
                 temp.sort_values(by=['diff'], ascending=[True], inplace=True)
                 total_add = temp['diff'].sum()
 
-                return self.execute_global_shim(total_add, temp, data)
+            return self.execute_global_shim(total_add, temp, data)
 
     # Check if there is historical support to increase the construction level, as well as pipeline support
     def cons_inc_hist(self, data):
@@ -1793,6 +1798,8 @@ class GlobalShim:
             iters = 2
         else:
             iters = 1
+
+        total_add = 0
 
         for iter in range(0, iters):
             
@@ -1819,12 +1826,13 @@ class GlobalShim:
                     temp.sort_values(by=['diff'], ascending=[True], inplace=True)
                     total_add = temp['diff'].sum()
 
-                    return self.execute_global_shim(total_add, temp, data)
+            return self.execute_global_shim(total_add, temp, data)
 
     # Check if there are submarkets that are above t stock
     def cons_decr_t(self, data):
 
         temp = data.copy()
+        total_decr = 0
         temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
         temp = temp[(temp['cons'] > temp['round_t_temp'])]
         if len(temp) > 0:
@@ -1834,12 +1842,13 @@ class GlobalShim:
                 temp.sort_values(by=['diff'], ascending=[False], inplace=True)
                 total_decr = temp['diff'].sum()
 
-                return self.execute_global_shim(total_decr, temp, data)
+        return self.execute_global_shim(total_decr, temp, data)
 
     # Check if there are submarkets where we can decrease the construction back to rol levels
     def cons_decr_rol(self, data):
 
         temp = data.copy()
+        total_decr = 0
         temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
         temp = temp[(temp['cons'] > temp['rolscon']) & (temp['cons'] > round(temp['round_h_temp'], self.round_val))]
         if len(temp) > 0:
@@ -1850,12 +1859,13 @@ class GlobalShim:
                 temp.sort_values(by=['diff'], ascending=[True], inplace=True)
                 total_decr = temp['diff'].sum()
 
-                return self.execute_global_shim(total_decr, temp, data)
+        return self.execute_global_shim(total_decr, temp, data)
     
     # Check if there are submarkets that are above their historical construction average, if lack of pipeline support
     def cons_decr_sup(self, data):
 
         temp = data.copy()
+        total_decr = 0
         temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
         temp = temp[(temp['cons'] > temp['three_yr_avg_cons']) & (temp['cons'] > temp['round_h_temp'])]
         if len(temp) > 0:
@@ -1865,129 +1875,150 @@ class GlobalShim:
                 temp.sort_values(by=['diff'], ascending=[False], inplace=True)
                 total_decr = temp['diff'].sum()
 
-                return self.execute_global_shim(total_decr, temp, data)
+        return self.execute_global_shim(total_decr, temp, data)
 
     # Check if there are submarkets where we can decrease the vacancy in cases where it is currently above the historical max
     def vac_decr_max(self, data):
 
         temp = data.copy()
+        total_decr = 0
         temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
         if self.currqtr == 4 or self.year > self.curryr:
-            temp = temp[(temp['vac'] > temp['max_vac']) & (temp['vac_chg'] >= -0.01)]
+            temp = temp[(temp['vac'] > temp['max_vac']) & (temp['vac_chg'] >= self.cap)]
         else:
-            temp = temp[(temp['vac'] > temp['max_vac']) & (temp['implied_vac_chg'] >= -0.01)]
+            temp = temp[(temp['vac'] > temp['max_vac']) & (temp['implied_vac_chg'] >= self.cap)]
+
         if len(temp) > 0:
-            temp['diff'] = np.where((temp['max_vac'] - temp['vac'] >= -0.01), round((temp['max_vac'] - temp['vac']) * temp['inv'], self.round_val), round(((temp['vac'] - 0.01) - temp['vac']) * temp['inv'], self.round_val))
+            temp['diff'] = np.where((temp['max_vac'] - temp['vac'] >= self.cap), round((temp['max_vac'] - temp['vac']) * temp['inv'], self.round_val), round(((temp['vac'] + self.cap) - temp['vac']) * temp['inv'], self.round_val))
             temp.sort_values(by=['diff'], ascending=[False], inplace=True)
             total_decr = temp['diff'].sum()
-            if len(temp) > 0:
-                    return self.execute_global_shim(total_decr, temp, data)
+
+        return self.execute_global_shim(total_decr, temp, data)
+
+    # Check if there are submarkets where we can decrease the vacancy in cases where it is above the 10 year vac level
+    def vac_decr_level(self, data):
+
+        temp = data.copy()
+        total_decr = 0
+        temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
+        temp = temp[(temp['vac'] > temp['10_yr_vac']) & (temp['vac_chg'] >= self.cap)]
+        if len(temp) > 0:
+            temp['diff'] = np.where((temp['10_yr_vac'] - temp['vac'] >= self.cap), round((temp['10_yr_vac'] - temp['vac']) * temp['inv'], self.round_val), round(((temp['vac'] + self.cap) - temp['vac']) * temp['inv'], self.round_val))
+            temp.sort_values(by=['diff'], ascending=[False], inplace=True)
+            total_decr = temp['diff'].sum()
+
+        return self.execute_global_shim(total_decr, temp, data)
 
 
     def execute_global_shim(self, total_adjust, temp, data_in):
     
-        data = data_in.copy()
-        print(self.var)
-        if self.var == 'Cons':
-            var = 'cons'
-            indicator = 'c'
-        elif self.var == 'Vac':
-            var = 'avail'
-            indicator = 'v'
-        elif self.var == 'Gmrent':
-            indicator = 'g'
-        elif self.var == "Gap":
-            indicator = 'e'
-
-        if self.sector_val == "apt":
-            min_val = 1
-        else:
-            min_val = 1000
-
-        print("Total adjust:", total_adjust)
-        print("Diff to Target", self.diff_to_target)
-        if (total_adjust <= self.diff_to_target and total_adjust > 0) or (total_adjust >= self.diff_to_target and total_adjust < 0):
-            
-            self.change = True
-            
-            for index, row in temp.iterrows():
-                
-                diff = row['diff']
-
-                if total_adjust < 0 and var == 'cons':
-                    if row['cons'] + diff < self.thresh:
-                        diff = row['cons'] * -1
-                
-                if diff >= self.thresh or row['cons'] != 0 or total_adjust < 0 or var != 'cons':
-
-                    if total_adjust > 0:
-                        sub_chg = max(round(diff, self.round_val), min_val)
-                    elif total_adjust < 0:
-                        sub_chg = min(round(diff, self.round_val), (min_val * -1))
-
-                    print("Sub Chg:", sub_chg)
-                    display(data.loc[row['identity'] + str(self.year) + '5']['identity'])
-                    display(data.loc[row['identity'] + str(self.year) + '5'][var])
-
-                    if self.coeff_status:
-                        data = insert_fix_coeffs(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
-                    else:
-                        data = insert_fix(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
-        
-                    data['global_change'] = np.where(data['identity'] == row['identity'], True, data['global_change'])
-                    
-                    display(data.loc[row['identity'] + str(self.year) + '5'][var])
-                    
-                    self.diff_to_target = self.diff_to_target - sub_chg
-            
+        if len(temp) == 0:
+            data = data_in.copy()
             achieved_target = False
-        
+            self.change = False
         else:
-            subs_left = len(temp)
-            for index, row in temp.iterrows():
+            data = data_in.copy()
 
-                diff = row['diff']
+            if self.var == 'Cons':
+                var = 'cons'
+                indicator = 'c'
+            elif self.var == 'Vac':
+                var = 'avail'
+                indicator = 'v'
+            elif self.var == 'Gmrent':
+                indicator = 'g'
+            elif self.var == "Gap":
+                indicator = 'e'
 
-                if total_adjust < 0 and var == 'cons':
-                    if row['cons'] + diff < self.thresh:
-                        diff = row['cons'] * -1       
+            if self.sector_val == "apt":
+                min_val = 1
+            else:
+                min_val = 1000
+
+            print("Total adjust:", total_adjust)
+            print("Diff to Target", self.diff_to_target)
+            if (total_adjust <= self.diff_to_target and total_adjust > 0) or (total_adjust >= self.diff_to_target and total_adjust < 0):
                 
-                if total_adjust < 0:
-                    per_sub_chg = max(round(self.diff_to_target / subs_left, self.round_val), min_val)
-                    sub_chg = max(min(per_sub_chg, round(diff, self.round_val)), min_val)
-                else:
-                    per_sub_chg = min(round(self.diff_to_target / subs_left, self.round_val), (min_val * -1))
-                    sub_chg = min(max(per_sub_chg, round(diff, self.round_val)), (min_val * -1))
+                self.change = True
                 
-                subs_left = subs_left - 1
-                
-                if diff >= self.thresh or row['cons'] != 0 or total_adjust < 0 or var != 'cons':
-                    display(data.loc[row['identity'] + str(self.year) + '5']['identity'])
-                    print("Sub Chg:", sub_chg)
-                    display(data.loc[row['identity'] + str(self.year) + '5'][var])
+                for index, row in temp.iterrows():
                     
-                    if self.coeff_status:
-                        data = insert_fix_coeffs(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
+                    diff = row['diff']
+
+                    if total_adjust < 0 and var == 'cons':
+                        if row['cons'] + diff < self.thresh:
+                            diff = row['cons'] * -1
+                    
+                    if diff >= self.thresh or row['cons'] != 0 or total_adjust < 0 or var != 'cons':
+
+                        if total_adjust > 0:
+                            sub_chg = max(round(diff, self.round_val), min_val)
+                        elif total_adjust < 0:
+                            sub_chg = min(round(diff, self.round_val), (min_val * -1))
+
+                        print("Sub Chg:", sub_chg)
+                        display(data.loc[row['identity'] + str(self.year) + '5']['identity'])
+                        display(data.loc[row['identity'] + str(self.year) + '5'][var])
+
+                        if self.coeff_status:
+                            data = insert_fix_coeffs(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
+                        else:
+                            data = insert_fix(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
+            
+                        data['global_change'] = np.where(data['identity'] == row['identity'], True, data['global_change'])
+                        
+                        display(data.loc[row['identity'] + str(self.year) + '5'][var])
+                        
+                        self.diff_to_target = self.diff_to_target - sub_chg
+                
+                achieved_target = False
+            
+            else:
+                subs_left = len(temp)
+                for index, row in temp.iterrows():
+
+                    diff = row['diff']
+
+                    if total_adjust < 0 and var == 'cons':
+                        if row['cons'] + diff < self.thresh:
+                            diff = row['cons'] * -1       
+                    
+                    if total_adjust < 0:
+                        per_sub_chg = max(round(self.diff_to_target / subs_left, self.round_val), min_val)
+                        sub_chg = max(min(per_sub_chg, round(diff, self.round_val)), min_val)
                     else:
-                        data = insert_fix(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
-        
-                    data['global_change'] = np.where(data['identity'] == row['identity'], True, data['global_change'])
+                        per_sub_chg = min(round(self.diff_to_target / subs_left, self.round_val), (min_val * -1))
+                        sub_chg = min(max(per_sub_chg, round(diff, self.round_val)), (min_val * -1))
                     
-                    self.diff_to_target = self.diff_to_target - sub_chg
+                    subs_left = subs_left - 1
                     
-                    display(data.loc[row['identity'] + str(self.year) + '5'][var])
-                    print("Diff to target:", self.diff_to_target)
+                    if diff >= self.thresh or row['cons'] != 0 or total_adjust < 0 or var != 'cons':
+                        display(data.loc[row['identity'] + str(self.year) + '5']['identity'])
+                        print("Sub Chg:", sub_chg)
+                        display(data.loc[row['identity'] + str(self.year) + '5'][var])
+                        
+                        if self.coeff_status:
+                            data = insert_fix_coeffs(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
+                        else:
+                            data = insert_fix(data, row['identity'] + str(self.year) + '5', row['identity'], row[var] + sub_chg, indicator, self.year, self.curryr, self.currqtr, self.sector_val, 'c')
+            
+                        data['global_change'] = np.where(data['identity'] == row['identity'], True, data['global_change'])
+                        
+                        self.diff_to_target = self.diff_to_target - sub_chg
+                        
+                        display(data.loc[row['identity'] + str(self.year) + '5'][var])
+                        print("Diff to target:", self.diff_to_target)
+                        
+                        if not self.change:
+                            self.change = True
                     
-                    if not self.change:
-                        self.change = True
-                
-                if (self.diff_to_target <= 0 and total_adjust > 0) or (self.diff_to_target >= 0 and total_adjust < 0):
-                    break
-                
-            achieved_target = True
+                    if (self.diff_to_target <= 0 and total_adjust > 0) or (self.diff_to_target >= 0 and total_adjust < 0):
+                        break
+                    
+                achieved_target = True
 
-            print("New total:", data[(data['expansion'] == 'Leg') & (data['subsector'] == 'DW') & (data['yr'] == self.year) & (data['qtr'] == 5)][var].sum())
-   
+                print("New total:", data[(data['expansion'] == 'Leg') & (data['subsector'] == 'DW') & (data['yr'] == self.year) & (data['qtr'] == 5)][var].sum())
+    
         return data, achieved_target, self.change
 
 

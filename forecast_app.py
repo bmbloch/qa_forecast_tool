@@ -2473,6 +2473,9 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
 
                                 data, achieved_target, change = globalShim.vac_decr_max(data)
 
+                                if not achieved_target and year >= curryr + 5:
+                                    data, achieved_target, change = globalShim.vac_decr_level(data)
+
                                 achieved_target, message_display, message = globalShim.gen_message(achieved_target)
 
                             elif target - init_lev_val > 0:

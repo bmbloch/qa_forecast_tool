@@ -1872,9 +1872,12 @@ class GlobalShim:
 
         temp = data.copy()
         temp = temp[(temp['yr'] == self.year) & (temp['qtr'] == 5) & (temp['subsector'] == self.subsector) & (temp['identity_us'] == self.roll_val)]
-        temp = temp[(temp['vac'] > temp['max_vac'])]
+        if self.currqtr == 4 or self.year > self.curryr:
+            temp = temp[(temp['vac'] > temp['max_vac']) & (temp['vac_chg'] >= -0.01)]
+        else:
+            temp = temp[(temp['vac'] > temp['max_vac']) & (temp['implied_vac_chg'] >= -0.01)]
         if len(temp) > 0:
-            temp['diff'] = round((temp['max_vac'] - temp['vac']) * temp['inv'], self.round_val)
+            temp['diff'] = np.where((temp['max_vac'] - temp['vac'] >= -0.01), round((temp['max_vac'] - temp['vac']) * temp['inv'], self.round_val), round(((temp['vac'] - 0.01) - temp['vac']) * temp['inv'], self.round_val))
             temp.sort_values(by=['diff'], ascending=[False], inplace=True)
             total_decr = temp['diff'].sum()
             if len(temp) > 0:

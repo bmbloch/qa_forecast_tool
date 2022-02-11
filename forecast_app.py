@@ -2712,6 +2712,33 @@ def update_data(submit_button, preview_button, drop_flag, init_fired, global_tri
 
                 if input_id == 'global_trigger':
                     flag_filt, flag_filt_style_table, flag_filt_display, flag_filt_title = filter_flags(data, drop_flag)
+                    print("TAKE THIS OUT!!!!")
+                    flag_chg = pd.DataFrame()
+                    orig = pd.read_csv(Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_original_flags.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val)))
+                    orig = orig.set_index('identity_row')
+                    #cols_to_keep = ['identity', 'subsector', 'metcode', 'subid', 'yr', 'qtr'] + flag_cols
+                    current_flags = data.copy()
+                    current_flags = current_flags[current_flags['yr'] >= curryr]
+                    current_flags = current_flags[current_flags['qtr'] == 5]
+                    current_flags = current_flags[flag_cols]
+                    for x in current_flags.columns:
+                        current_flags.rename(columns={x: x + '_c'}, inplace=True)
+                    new_flag_cols = [x + '_c' for x in flag_cols]
+                    orig = orig.join(current_flags[new_flag_cols])
+                    for x in flag_cols:
+                        temp = orig.copy()
+                        temp = temp[((temp[x] == 0) & (temp[x + '_c'] != 0)) | ((temp[x] != 0) & (temp[x + '_c'] == 0))]
+                        temp['chg_status'] = np.where((temp[x] == 0), "Now flagging", "Now not flagging")
+                        temp['flag'] = x
+                        temp['type'] = x[0].upper()
+                        temp = temp[['identity', 'yr', 'qtr', 'chg_status', 'flag', 'type']]
+                        flag_chg = flag_chg.append(temp, ignore_index=True)
+
+                    file_path = Path("{}central/square/data/zzz-bb-test2/python/forecast/{}/{}q{}/OutputFiles/{}_testing_global.csv".format(get_home(), sector_val, str(fileyr), str(currqtr), sector_val))
+                    try:
+                        flag_chg.set_index('identity').to_csv(file_path, na_rep='')
+                    except:
+                        print("file already open")
 
                 # There might be cases where an analyst checked off to skip a flag, but that flag is no longer triggered. We will want to remove that skip from the log
                 if input_id == "submit-button" and write_permit:

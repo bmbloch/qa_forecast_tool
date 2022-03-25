@@ -1044,7 +1044,8 @@ def g_low(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data = rol_close(data, 'g_flag_low', 'G_mrent', 'grolsmre', False, False, 1, 'h', 'rol_h', sector_val, curryr, currqtr)
         data['g_flag_low'] = np.where((data['g_flag_low'] == 1) & (data['G_mrent'] > data['grolsmre']), 0, data['g_flag_low'])
 
-    data['calc_glow'] = np.where((data['g_flag_low'] == 1), data['G_mrent'] * -1, np.nan)
+    data['calc_glow'] = np.where((data['g_flag_low'] == 1) & (data['lim_hist'] < 3), data['G_mrent'] * -1, np.nan)
+    data['calc_glow'] = np.where((data['g_flag_low'] == 1) & (data['lim_hist'] >= 3), data['three_yr_avg_G_mrent_nonc'] - data['G_mrent'], data['calc_glow'])
     calc_names.append(list(data.columns)[-1])
 
     return data, calc_names

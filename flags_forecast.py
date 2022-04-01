@@ -1031,8 +1031,9 @@ def g_low(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
                                      (data['G_mrent'] < 0.01) & 
                                      (data['G_mrent'] < data['three_yr_avg_G_mrent_nonc'] - 0.003) & (data['lim_hist'] > 3),
                                      1, 0)
+    
     data['g_flag_low'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) &
-                                     (data['G_mrent'] < 0.01) & (data['lim_hist'] < 3),
+                                     (data['G_mrent'] < 0.01) & (data['lim_hist'] <= 3),
                                      1, data['g_flag_low'])
 
     # Dont flag if employment change indicates large change from history, or if the prior year employment change is also a large outlier
@@ -1047,7 +1048,7 @@ def g_low(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['calc_glow'] = np.where((data['g_flag_low'] == 1) & (data['lim_hist'] < 3), data['G_mrent'] * -1, np.nan)
     data['calc_glow'] = np.where((data['g_flag_low'] == 1) & (data['lim_hist'] >= 3), data['three_yr_avg_G_mrent_nonc'] - data['G_mrent'], data['calc_glow'])
     calc_names.append(list(data.columns)[-1])
-
+    
     return data, calc_names
 
 

@@ -801,7 +801,7 @@ def v_level(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['lim_hist'] <= 5) & (abs(data['vac_chg']) < 0.005), 0, data['v_flag_level'])
 
     # Dont flag if the vac chg is moving closer to the 10 year vac avg
-    data['v_flag_level'] = np.where(((data['vac'] > data['10_yr_vac']) & (data['vac_chg'] < 0)) | ((data['vac'] < data['10_yr_vac']) & (data['vac_chg'] > 0)), 0, data['v_flag_level']) 
+    data['v_flag_level'] = np.where(((data['vac'] > data['10_yr_vac']) & (data['vac_chg'] < 0)) | ((data['vac'] < data['10_yr_vac']) & (data['vac_chg'] > 0)) | ((data['vac_chg'] == 0) & (currqtr == 4) & (data['yr'] == curryr + 9)), 0, data['v_flag_level']) 
 
     # Dont flag if the vac is rising negligibly and the prior year vac and following year vac is decreasing
     data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac_chg'] < 0.0005) & (data['vac_chg'] > 0) & (data['vac_chg'].shift(1) < -0.002) & (((data['vac_chg'].shift(-1) < -0.002) & (data['identity'] == data['identity'].shift(-1))) | (data['yr'] == curryr + 9)), 0, data['v_flag_level'])
@@ -1035,7 +1035,7 @@ def g_low(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['g_flag_low'] = np.where(((data['forecast_tag'] == 2) | ((data['forecast_tag'] == 1) & (currqtr == 4))) &
                                      (data['G_mrent'] < 0.01) & (data['lim_hist'] <= 3),
                                      1, data['g_flag_low'])
-
+    
     # Dont flag if employment change indicates large change from history, or if the prior year employment change is also a large outlier
     data['g_flag_low'] = np.where((data['g_flag_low'] == 1) & (data['emp_chg_z'] <= -1.5), 0, data['g_flag_low'])
     data['g_flag_low'] = np.where((data['g_flag_low'] == 1) & (data['emp_chg_z'].shift(1) <= -2) & (((data['G_mrent'] > data['G_mrent'].shift(1)) | (data['emp_chg_z'] < data['emp_chg_z'].shift(1)))), 0, data['g_flag_low'])

@@ -869,6 +869,10 @@ def v_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     elif currqtr == 4:
          data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & (data['yr'] == curryr + 1) & ((data['abs'] - data['cons']) > data['three_yr_avg_abs_nonc']) & (data['abs'].shift(1) < 0) & (data['abs'].shift(2) < 0), 0, data['v_flag_3_trend'])
 
+    # Dont flag if the abs is in the opposite direction of the 3 year trend, but in the same direction as the prior year value and more muted, if this is qtr 4
+    if currqtr == 4:
+        data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & (data['forecast_tag'] == 1) & (data['three_yr_avg_abs_nonc'] * (data['abs'] - data['cons']) < 0) & ((data['abs'] - data['cons']) * data['abs'].shift(1) > 0) & ((data['abs'] - data['cons']) < data['three_yr_avg_abs_nonc'] / 2), 0, data['v_flag_3_trend'])
+    
     # Dont flag if employment change indicates big change from history, either in curryr or the prior year
     data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & ((data['abs'] - data['cons']) > data['three_yr_avg_abs_nonc']) & (data['emp_chg_z'] >= 1.5), 0, data['v_flag_3_trend'])
     data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & ((data['abs'] - data['cons']) < data['three_yr_avg_abs_nonc']) & (data['emp_chg_z'] <= -1.5), 0, data['v_flag_3_trend'])

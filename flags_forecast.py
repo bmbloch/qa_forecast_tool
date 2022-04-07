@@ -813,6 +813,7 @@ def v_level(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['outer_vac_chg'] = data.groupby('identity')['outer_vac_chg'].ffill()
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= data['us_vac_level_avg'] - 0.005) & ((data['outer_vac_chg'] > -0.01) | ((data['outer_vac_chg'] > -0.025) & (data['vac'] > data['10_yr_vac'] - 0.025))), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= data['us_vac_level_avg'] - 0.005) & (data['lim_hist'] < 5) & (data['vac'] > data['us_vac_level_avg'] - 0.025), 0, data['v_flag_level'])
+        data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= data['us_vac_level_avg'] - 0.02)  & (data['outer_vac_chg'] > -0.007) & (data['vac_chg'] > -0.002) & (data['vac'] > 0.03), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= data['us_vac_level_avg'] + 0.025) & (data['outer_vac_chg'] > -0.05) & ((data['vac'] > data['10_yr_vac'] - 0.04) | (data['vac'] > data['us_vac_level_avg'] - 0.02)), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] < data['10_yr_vac']) & (data['10_yr_vac'] >= data['us_vac_level_avg'] + 0.075) & ((data['vac'] >= 0.1) | ((data['curr_trend_vac'] < data['10_yr_vac']) & (data['vac'] >= data['curr_trend_vac']))), 0, data['v_flag_level'])
         data['v_flag_level'] = np.where((data['v_flag_level'] == 1) & (data['vac'] >= data['curr_trend_vac'] - 0.01) & (data['vac'] < data['10_yr_vac']) & (data['outer_vac_chg'] > -0.01), 0, data['v_flag_level'])
@@ -871,7 +872,7 @@ def v_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     # Dont flag if the abs is in the opposite direction of the 3 year trend, but in the same direction as the prior year value and more muted, if this is qtr 4
     if currqtr == 4:
-        data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & (data['forecast_tag'] == 1) & (data['three_yr_avg_abs_nonc'] * (data['abs'] - data['cons']) < 0) & ((data['abs'] - data['cons']) * data['abs'].shift(1) > 0) & ((data['abs'] - data['cons']) < data['three_yr_avg_abs_nonc'] / 2), 0, data['v_flag_3_trend'])
+        data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & (data['forecast_tag'] == 1) & (abs((data['abs'] - data['cons'])) < abs(data['three_yr_avg_abs_nonc'])) & (abs((data['abs'] - data['cons'])) < abs(data['abs'].shift(1)) / 2) & (data['abs'].shift(1) * data['three_yr_avg_abs_nonc'] < 0), 0, data['v_flag_3_trend'])
     
     # Dont flag if employment change indicates big change from history, either in curryr or the prior year
     data['v_flag_3_trend'] = np.where((data['v_flag_3_trend'] != 0) & ((data['abs'] - data['cons']) > data['three_yr_avg_abs_nonc']) & (data['emp_chg_z'] >= 1.5), 0, data['v_flag_3_trend'])

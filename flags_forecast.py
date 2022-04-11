@@ -1079,7 +1079,7 @@ def g_nc(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     elif currqtr == 4:
         data['cons_prem_mod'] = np.where((data['avg_cons_perc_inv'].isnull() == False), 1 - ((((data['cons'] / data['inv']) - data['avg_cons_perc_inv']) / data['avg_cons_perc_inv']) * -1), np.nan)
         data['cons_prem_mod'] = np.where((data['avg_cons_perc_inv'].isnull() == True), 1 - ((((data['cons'] / data['inv']) - data['us_avg_cons_perc_inv']) / data['us_avg_cons_perc_inv']) * -1), data['cons_prem_mod'])
-        data['cons_prem_mod'] = np.where(data['cons_prem_mod'] > 1, 1, data['cons_prem_mod'])
+        data['cons_prem_mod'] = np.where(data['cons_prem_mod'] > 2.5, 2.5, data['cons_prem_mod'])
         
         data['g_flag_nc'] = np.where((data['forecast_tag'] != 0) &
                                      (round(data['G_mrent'],3) < round(data['three_yr_avg_G_mrent_nonc'] + (data['cons_prem'] * data['cons_prem_mod']),3)) &
@@ -1279,15 +1279,21 @@ def g_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     data['g_flag_3_trend'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) | (data['yr'] == curryr + 1)) & 
-                                         (abs((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)) > 0.25) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']),
+                                         (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] > 0.01),
                                          1, 0)
 
     data['g_flag_3_trend'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) | (data['yr'] == curryr + 1)) &  
-                                         (abs((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)) > 0.25) & (data['G_mrent'] < data['three_yr_avg_G_mrent_nonc']),
+                                         (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] < -0.01),
                                          2, data['g_flag_3_trend'])
 
-    # Handle cases that are close to the three year avg, but due to low magnitudes, get flagged when using percentage to evaluate distance
-    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (abs(data['G_mrent']) <= 0.015) & (abs(round(data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'],3)) <= 0.003), 0, data['g_flag_3_trend'])
+    data['g_flag_3_trend'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) | (data['yr'] == curryr + 1)) &  
+                                         (data['G_mrent'] * data['three_yr_avg_G_mrent_nonc'] < 0) & (abs(data['G_mrent']) > 0.005),
+                                         3, data['g_flag_3_trend'])
+    
+    # Dont flag if this is Q4 and the change is less than the most recent trend year and the most recent trend year showed positive change
+    if currqtr == 4:
+        data['g_flag_3_trend'] = np.where((data['yr'] == curryr) & (data['g_flag_3_trend'] != 0) & (data['G_mrent'] > 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] <= data['G_mrent'].shift(1)) & ((data['G_mrent_z'] <= 1) | (data['G_mrent'] < data['G_mrent'].shift(1) - 0.015)), 0, data['g_flag_3_trend'])
+        data['g_flag_3_trend'] = np.where((data['yr'] == curryr + 1) & (data['g_flag_3_trend'] != 0) & (data['G_mrent'] > 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] <= data['G_mrent'].shift(2)) & ((data['G_mrent_z'] <= 1) | (data['G_mrent'] < data['G_mrent'].shift(2) - 0.015)), 0, data['g_flag_3_trend'])
     
     # Dont flag if the sub has less than 3 years of history and the rent change is reasonable
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['lim_hist'] <= 3) & ((data['G_mrent_quart'] == 2) | (data['G_mrent_quart'] == 3)), 0, data['g_flag_3_trend'])
@@ -1304,11 +1310,12 @@ def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
         data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['yr'] == curryr + 1)  & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent_z'] <= 1) & (data.shift(1)['G_mrent'] < data['avg_G_mrent_chg_nonc']) & (data['G_mrent'].shift(2) < data['avg_G_mrent_chg_nonc']), 0, data['g_flag_3_trend'])
     
     # Dont flag if the forecast is above the three year trend and the difference can be attributed to new construction premium
-    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] <= (data['cons_prem'] * data['cons_prem_mod'])) & (data['cons'] / data['inv'] >= 0.015), 0, data['g_flag_3_trend'])
-
+    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & ((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] <= (data['cons_prem'] * data['cons_prem_mod'])) | ((data['cons'] / data['inv'] >= 0.05) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] < 0.015))) & (data['cons'] / data['inv'] >= 0.015), 0, data['g_flag_3_trend'])
+    
     # Dont flag if this is Q3 and the rent growth is in line with what weve observed in the recent trend year
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] == 1) & (data['G_mrent'] < data['curr_trend_G_mrent'] + 0.005) & (data['implied_check'] == 1), 0, data['g_flag_3_trend'])
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] == 2) & (data['G_mrent'] > data['curr_trend_G_mrent'] - 0.005) & (data['implied_check'] == 1), 0, data['g_flag_3_trend'])
+    data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] == 3) & (data['G_mrent'] * data['curr_trend_G_mrent'] >= 0) & (data['implied_check'] == 1), 0, data['g_flag_3_trend'])
     
     # Dont flag if employment change indicates big change from history, either in curryr or the prior year
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] > data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] < data['emp_chg_z'] / 150) & (data['emp_chg_z'] >= 1), 0, data['g_flag_3_trend'])
@@ -1317,7 +1324,7 @@ def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] != 0) & (data['G_mrent'] < data['three_yr_avg_G_mrent_nonc']) & (data['G_mrent'] - data['three_yr_avg_G_mrent_nonc'] < data['emp_chg_z'].shift(1) / 150)  & (data['emp_chg_z'].shift(1) <= -2) & (data['G_mrent'] > data['G_mrent'].shift(1)), 0, data['g_flag_3_trend'])
     
     
-    data['g_flag_3_trend'] = np.where(data['g_flag_3_trend'] == 2, 1, data['g_flag_3_trend'])
+    data['g_flag_3_trend'] = np.where(data['g_flag_3_trend'] > 1, 1, data['g_flag_3_trend'])
 
     # Dont flag if the value is close to rol
     if use_rol_close == "Y":
@@ -1327,7 +1334,7 @@ def g_3trend(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
             data['g_flag_3_trend'] = np.where((data['g_flag_3_trend'] == 1) & ((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001) > (data['grolsmre'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)) & (data['G_mrent'] < 0), 0, data['g_flag_3_trend'])
 
     
-    data['calc_g3trend'] = np.where((data['g_flag_3_trend'] == 1), abs((data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']) / (data['three_yr_avg_G_mrent_nonc'] + 0.000001)), np.nan)
+    data['calc_g3trend'] = np.where((data['g_flag_3_trend'] == 1), abs(data['G_mrent'] - data['three_yr_avg_G_mrent_nonc']), np.nan)
     calc_names.append(list(data.columns)[-1])
 
     if currqtr != 4:
@@ -1482,6 +1489,10 @@ def g_yrdiff(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
             (abs(round(data['G_mrent'],3) - round(data['prev_G_mrent'],3)) <= 0.02) & (round(data['G_mrent'],3) * round(data['prev_G_mrent'],3) < 0) & (abs(data['G_mrent']) < 0.01),
             0, data['g_flag_yrdiff'])
 
+    # Dont flag if this is the first forecast year, the prior year rent growth was low, and the new forecast is within one std dev of the avg
+    if currqtr == 4:
+        data['g_flag_yrdiff'] = np.where((data['g_flag_yrdiff'] == 1) & (data['forecast_tag'] == 1) & (data['G_mrent'].shift(1) < 0.02) & (data['G_mrent'] < data['avg_G_mrent_chg'] + data['std_dev_G_mrent_chg']) & (data['G_mrent'] - 0.02 < data['G_mrent'].shift(1)), 0, data['g_flag_yrdiff'])
+    
     # Dont flag if there is a significant difference in construction between the two years
     data['g_flag_yrdiff'] = np.where((((currqtr == 4) & (data['forecast_tag'] == 1)) |
                                          (data['forecast_tag'] == 2)) &

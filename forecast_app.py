@@ -2610,7 +2610,7 @@ def process_global_shim(submit_nclicks, preview_nclicks, curryr, currqtr, fileyr
                     State('store_init_global_flags', 'data'),
                     State('write_permit', 'data'),
                     State('coeffs', 'data')])
-def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags, write_permit, coeffs):
+def update_data(submit_button, preview_button, drop_flag, init_fired, global_trigger, sector_val, orig_cols, curryr, currqtr, fileyr, user, file_used, cons_c, avail_c, rent_c, drop_val, use_rol_close, flag_list, p_skip_list, success_init, skip_input_noprev, skip_input_resolved, skip_input_unresolved, skip_input_new, skip_input_skipped, flag_cols, first_update, flag_flow, yr_val, proc_subsequent, global_data, init_global_flags, write_permit, coeffs_status):
 
     input_id = get_input_id()
     

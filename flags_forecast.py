@@ -2193,7 +2193,7 @@ def calc_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data = data.drop(calc_names, axis=1)
     data[flag_names] = data[flag_names].fillna(0)
 
-    print("Take this out!!!!")
+    #print("Take this out!!!!")
     #data.to_csv('/home/central/square/data/zzz-bb-test2/python/forecast/ind/test_data.csv')
     
     return data

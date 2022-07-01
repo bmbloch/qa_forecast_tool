@@ -781,9 +781,13 @@ def v_max(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 # Only flag it in the most recent full forecast year, as that will be enough of an alert and will minimize sum of flags and need to skip etc
 def v_lowv(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
-    
-    data['v_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
-                                         ((data['f_var_vac_chg'] < data['f_5_var_vac_chg']) | (round(data['f_var_vac_chg'],3) == 0)) & (data['f_var_vac_chg'].shift(1).isnull() == True),
+    if currqtr == 4:
+        data['v_flag_lowv'] = np.where((data['forecast_tag'] == 1) & 
+                                        ((data['f_var_vac_chg'] < data['f_5_var_vac_chg']) | (round(data['f_var_vac_chg'],3) == 0) | ((data['f_5_var_vac_chg'] == 0) & (data['f_var_vac_chg'] < 0.003))) & (data['f_var_vac_chg'].shift(1).isnull() == True),
+                                         1, 0)
+    elif currqtr != 4:
+        data['v_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
+                                         ((data['f_var_vac_chg'] < data['f_5_var_vac_chg']) | (round(data['f_var_vac_chg'],3) == 0) | ((data['f_5_var_vac_chg'] == 0) & (data['f_var_vac_chg'] < 0.003))),
                                          1, 0)
     
     data['calc_vlowv'] = np.where((data['v_flag_lowv'] == 1), (data['f_var_vac_chg'] - data['f_5_var_vac_chg']) * -1, np.nan)
@@ -1180,11 +1184,11 @@ def g_lowv(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     if currqtr == 4:
         data['g_flag_lowv'] = np.where((data['forecast_tag'] == 1) & 
-                                        (data['f_var_G_mrent'] < data['f_5_var_G_mrent']) & (data['f_var_G_mrent'].shift(1).isnull() == True),
+                                        ((data['f_var_G_mrent'] < data['f_5_var_G_mrent']) | ((data['f_5_var_G_mrent'] == 0) & (data['f_var_G_mrent'] < 0.003))) & (data['f_var_G_mrent'].shift(1).isnull() == True),
                                          1, 0)
     elif currqtr != 4:
         data['g_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
-                                    (data['f_var_G_mrent'] < data['f_5_var_G_mrent']),
+                                    ((data['f_var_G_mrent'] < data['f_5_var_G_mrent']) | ((data['f_5_var_G_mrent'] == 0) & (data['f_var_G_mrent'] < 0.003))),
                                     1, 0)                                   
     
     data['calc_glowv'] = np.where((data['g_flag_lowv'] == 1), (data['f_var_G_mrent'] - data['f_5_var_G_mrent']) * -1, np.nan)
@@ -1970,7 +1974,7 @@ def e_vac(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
     data['e_flag_vac'] = np.where((data['forecast_tag'] == 2) & 
                                     (abs((data['gap_chg'] - (data['vac_chg'] * 0.7)) / ((data['vac_chg'] * 0.7) + 0.000001)) > 0.70),
                                     1, 0)
-
+                                    
     # Because percentage change doesnt work so well when the numbers are really small, add additional qualification for spread instead of straight percentage change
     data['e_flag_vac'] = np.where((data['forecast_tag'] == 2) & 
             (abs(data['gap_chg'] - (data['vac_chg'] * 0.7)) < 0.005) & (round(data['gap_chg'],3) * round(data['vac_chg'],3) >= 0) & (abs(data['gap_chg']) < 0.02),
@@ -2095,11 +2099,11 @@ def e_lowv(data, curryr, currqtr, sector_val, calc_names, use_rol_close):
 
     if currqtr == 4:
         data['e_flag_lowv'] = np.where((data['forecast_tag'] == 1) & 
-                                        (data['f_var_gap_chg'] < data['f_5_var_gap_chg']) & (data['f_var_gap_chg'].shift(1).isnull() == True),
+                                        ((data['f_var_gap_chg'] < data['f_5_var_gap_chg']) | ((data['f_5_var_gap_chg'] == 0) & (data['f_var_gap_chg'] < 0.003))) & (data['f_var_gap_chg'].shift(1).isnull() == True),
                                          1, 0)
     elif currqtr != 4:
         data['e_flag_lowv'] = np.where((data['yr'] == curryr + 1) & 
-                                    (data['f_var_gap_chg'] < data['f_5_var_gap_chg']),
+                                    ((data['f_var_gap_chg'] < data['f_5_var_gap_chg']) | ((data['f_5_var_gap_chg'] == 0) & (data['f_var_gap_chg'] < 0.003))),
                                     1, 0)                                   
     
     data['calc_elowv'] = np.where((data['e_flag_lowv'] == 1), (data['f_var_gap_chg'] - data['f_5_var_gap_chg']) * -1, np.nan)
@@ -2193,7 +2197,7 @@ def calc_flags(data_in, curryr, currqtr, sector_val, use_rol_close):
     data = data.drop(calc_names, axis=1)
     data[flag_names] = data[flag_names].fillna(0)
 
-    #print("Take this out!!!!")
-    #data.to_csv('/home/central/square/data/zzz-bb-test2/python/forecast/ind/test_data.csv')
+    print("Take this out!!!!")
+    data.to_csv('/home/central/square/data/zzz-bb-test2/python/forecast/ind/test_data.csv')
     
     return data
